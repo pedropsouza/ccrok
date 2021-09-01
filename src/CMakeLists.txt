@@ -1,6 +1,3 @@
-add_library(example SHARED
-  example.c
-)
 add_library(memutil SHARED
   memutil.c
 )

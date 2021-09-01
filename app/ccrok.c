@@ -1,34 +1,29 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_image.h"
-#include "example.h"
+#include "crok.h"
+#include "memutil.h"
+#include <stdio.h>
+#include <stdlib.h>
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
   SDL_Init(SDL_INIT_VIDEO);
 
-  SDL_Window *window = SDL_CreateWindow(
-      "SDL2Test",
-      SDL_WINDOWPOS_UNDEFINED,
-      SDL_WINDOWPOS_UNDEFINED,
-      640,
-      480,
-      0
-      );
+  SDL_Window *window = SDL_CreateWindow("SDL2Test", SDL_WINDOWPOS_UNDEFINED,
+                                        SDL_WINDOWPOS_UNDEFINED, 640, 480, 0);
 
-  SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
+  SDL_Renderer *renderer =
+      SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
   SDL_RenderClear(renderer);
 
   // creates a surface to load an image into the main memory
-  SDL_Surface* surface;
+  SDL_Surface *surface;
 
   // please provide a path for your image
   surface = IMG_Load("resources/ul.png");
 
   // loads image to our graphics hardware memory.
-  SDL_Texture* tex = SDL_CreateTextureFromSurface(renderer, surface);
+  SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, surface);
 
   // clears main-memory
   SDL_FreeSurface(surface);
@@ -59,15 +54,9 @@ int main(int argc, char *argv[])
   SDL_Delay(3000);
 
   // destroy texture, window and close
-  SDL_DestroyTexture(tex); 
+  SDL_DestroyTexture(tex);
   SDL_DestroyWindow(window);
   SDL_Quit();
-
-  // example of using libs
-  printf("Hello, example!\n");
-  example_t *example = example_new_with_cstr("test_key", "test_value");
-  example_print_cstr(example);
-  example_free(example);
 
   return EXIT_SUCCESS;
 }

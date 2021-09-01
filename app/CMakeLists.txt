@@ -1,21 +1,20 @@
 add_executable(
-  example_app
-  example_app.c
+  ccrok
+  ccrok.c
 )
 
 target_link_libraries(
-  example_app
-  example
+  ccrok
   memutil
 )
 
 add_dependencies(
-  example_app
+  ccrok
   resources
 )
 
 target_link_libraries(
-  example_app
+  ccrok
   ${SDL2_LIBRARY}
   ${SDL2_IMAGE_LIBRARIES}
 )
