@@ -18,8 +18,7 @@
 #define CROK_PLAYER_VALID (1 << 3)
 
 #define CROK_DISC_VALID (1 << 0)
-#define CROK_DISC_ACTIVE (1 << 1)
-#define CROK_DISC_FALLEN (1 << 2)
+#define CROK_DISC_FALLEN (1 << 1)
 
 struct crok_state;
 enum crok_gamestage;
@@ -32,6 +31,7 @@ struct crok_player {
 };
 struct crok_player crok_player_init(uint8_t id, char name[CROK_MAXNAMELEN]);
 uint8_t crok_player_team(struct crok_player *);
+uint8_t crok_player_isvalid(struct crok_player *);
 enum crok_gamestage crok_player_tick(struct crok_state *);
 
 struct crok_disc {
@@ -44,6 +44,8 @@ struct crok_disc {
   int radius;
 };
 struct crok_disc crok_disc_init(uint8_t id, uint8_t owner, struct fvec pos);
+uint8_t crok_disc_team(struct crok_disc *, struct crok_state *);
+uint8_t crok_disc_isvalid(struct crok_disc *);
 enum crok_gamestage crok_disc_tick(struct crok_state *);
 
 enum crok_gamestage {

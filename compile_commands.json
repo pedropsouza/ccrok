@@ -1,0 +1,99 @@
+[
+    {
+        "arguments": [
+            "/sbin/cc",
+            "-c",
+            "-I/usr/include/SDL2",
+            "-I/home/stale/Projects/ccrok/build/debug/_deps/unity-src/src",
+            "-I/home/stale/Projects/ccrok/build/debug/_deps/unity-build",
+            "-g",
+            "-Waddress",
+            "-Waggregate-return",
+            "-Wformat-nonliteral",
+            "-Wformat-security",
+            "-Wformat",
+            "-Winit-self",
+            "-Wmissing-declarations",
+            "-Wmissing-include-dirs",
+            "-Wno-multichar",
+            "-Wno-parentheses",
+            "-Wno-type-limits",
+            "-Wno-unused-parameter",
+            "-Wunreachable-code",
+            "-Wwrite-strings",
+            "-Wpointer-arith",
+            "-Werror",
+            "-Wall",
+            "-std=c11",
+            "-o",
+            "CMakeFiles/unity.dir/src/unity.c.o",
+            "../unity-src/src/unity.c"
+        ],
+        "directory": "/home/stale/Projects/ccrok/build/debug/_deps/unity-build",
+        "file": "../unity-src/src/unity.c"
+    },
+    {
+        "arguments": [
+            "/sbin/cc",
+            "-c",
+            "-I/usr/include/SDL2",
+            "-I/home/stale/Projects/ccrok/src",
+            "-I/home/stale/Projects/ccrok/test/unity",
+            "-I/home/stale/Projects/ccrok/build/debug/_deps/unity-src/src",
+            "-I/home/stale/Projects/ccrok/build/debug/_deps/unity-build",
+            "-g",
+            "-o",
+            "CMakeFiles/runner.dir/runner.c.o",
+            "../../../test/runner.c"
+        ],
+        "directory": "/home/stale/Projects/ccrok/build/debug/test",
+        "file": "../../../test/runner.c"
+    },
+    {
+        "arguments": [
+            "/sbin/cc",
+            "-c",
+            "-I/usr/include/SDL2",
+            "-I/home/stale/Projects/ccrok/src",
+            "-I/home/stale/Projects/ccrok/test/unity",
+            "-I/home/stale/Projects/ccrok/build/debug/_deps/unity-src/src",
+            "-I/home/stale/Projects/ccrok/build/debug/_deps/unity-build",
+            "-g",
+            "-o",
+            "CMakeFiles/runner2.dir/runner2.c.o",
+            "../../../test/runner2.c"
+        ],
+        "directory": "/home/stale/Projects/ccrok/build/debug/test",
+        "file": "../../../test/runner2.c"
+    },
+    {
+        "arguments": [
+            "/sbin/cc",
+            "-c",
+            "-Dexample_EXPORTS",
+            "-I/usr/include/SDL2",
+            "-I/home/stale/Projects/ccrok/src",
+            "-g",
+            "-fPIC",
+            "-o",
+            "CMakeFiles/example.dir/example.c.o",
+            "../../../src/example.c"
+        ],
+        "directory": "/home/stale/Projects/ccrok/build/debug/src",
+        "file": "../../../src/example.c"
+    },
+    {
+        "arguments": [
+            "/sbin/cc",
+            "-c",
+            "-I/usr/include/SDL2",
+            "-I/home/stale/Projects/ccrok/src",
+            "-g",
+            "-o",
+            "CMakeFiles/example_app.dir/example_app.c.o",
+            "../../../app/example_app.c"
+        ],
+        "directory": "/home/stale/Projects/ccrok/build/debug/app",
+        "file": "../../../app/example_app.c"
+    }
+]
