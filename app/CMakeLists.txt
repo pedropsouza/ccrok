@@ -6,6 +6,8 @@ add_executable(
 target_link_libraries(
   ccrok
   memutil
+  fvec
+  crok
 )
 
 add_dependencies(
