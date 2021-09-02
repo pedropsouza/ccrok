@@ -47,6 +47,7 @@ int sched_enqueue(struct scheduler *s, struct sched_trans t) {
 
 int sched_exec(struct scheduler *s) {
   double new_time, frame_time;
+  uint32_t ticks_this_call = 0;
 
   switch (sched_get_cur_state(s)) {
   case SCHED_NONE:
@@ -76,7 +77,12 @@ int sched_exec(struct scheduler *s) {
       sched_enqueue(s, s->fixed(s, s->dt));
       s->t += s->dt;
       s->accumulator -= s->dt;
-      sched_debugprint(stdout, s);
+      ticks_this_call += 1;
+      if (ticks_this_call > SCHED_TRANS_QUEUE_SIZE) {
+        printf(
+            "warning, %d/%d ticks done, possible transition queue overflow!\n",
+            ticks_this_call, SCHED_TRANS_QUEUE_SIZE);
+      }
     }
 
     s->render(s, 0.0);

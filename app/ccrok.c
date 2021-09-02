@@ -69,18 +69,36 @@ struct sched_trans cleanup(struct scheduler *s) {
 }
 
 struct sched_trans fixed(struct scheduler *s, double step) {
+  struct app_data *d = (struct app_data *)s->persistant_data;
   static int num_ticks = 0;
   num_ticks += 1;
-  printf("\t\ttick num %d\n", num_ticks);
-  if (num_ticks * step >= 3.0) {
-    return (struct sched_trans){.s = SCHED_CLEANUP, .why = "3 seconds elapsed"};
+  if (num_ticks * step >= 10.0) {
+    return (struct sched_trans){.s = SCHED_CLEANUP,
+                                .why = "10 seconds elapsed"};
   }
+
+  SDL_Event input;
+
+  while (SDL_PollEvent(&input) > 0) {
+    switch (input.type) {
+    case SDL_QUIT:
+      return (struct sched_trans){.s = SCHED_CLEANUP,
+                                  .why = "user requested quit"};
+      break;
+    case SDL_MOUSEMOTION:
+      d->dest.x = input.motion.x - d->dest.w / 2;
+      d->dest.y = input.motion.y - d->dest.h / 2;
+      break;
+    }
+  }
+
   return (struct sched_trans){.s = SCHED_CONTINUE, .why = "fixed call"};
 }
 
 void render(struct scheduler *s, double a) {
   struct app_data *d = (struct app_data *)s->persistant_data;
 
+  SDL_RenderClear(d->renderer);
   // renders the texture at dest coords
   SDL_RenderCopy(d->renderer, d->tex, NULL, &d->dest);
   // triggers the double buffers for multiple rendering
@@ -89,7 +107,7 @@ void render(struct scheduler *s, double a) {
 
 int main(int argc, char *argv[]) {
   struct scheduler s =
-      sched_init(setup, fixed, render, cleanup, 1.0 / 2.0, NULL);
+      sched_init(setup, fixed, render, cleanup, 1.0 / 100.0, NULL);
 
   while (sched_exec(&s))
     ;

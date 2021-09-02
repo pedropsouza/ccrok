@@ -6,8 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define SCHED_TRANS_HISTORY_SIZE 4
-#define SCHED_TRANS_QUEUE_SIZE 1
+#define SCHED_TRANS_HISTORY_SIZE 32
+#define SCHED_TRANS_QUEUE_SIZE 16
 
 enum sched_state {
   SCHED_NONE = 0,
