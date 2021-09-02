@@ -2,19 +2,29 @@
 #include "SDL2/SDL_image.h"
 #include "crok.h"
 #include "memutil.h"
+#include "sched.h"
 #include <stdio.h>
 #include <stdlib.h>
 
-int main(int argc, char *argv[]) {
+struct app_data {
+  SDL_Window *window;
+  SDL_Renderer *renderer;
+  SDL_Texture *tex;
+  SDL_Rect dest;
+};
+
+struct sched_trans setup(struct scheduler *s) {
+  s->persistant_data =
+      safe_malloc(sizeof(struct app_data), "setup persistant_data alloc");
+  struct app_data *d = (struct app_data *)s->persistant_data;
+
   SDL_Init(SDL_INIT_VIDEO);
+  d->window = SDL_CreateWindow("SDL2Test", SDL_WINDOWPOS_UNDEFINED,
+                               SDL_WINDOWPOS_UNDEFINED, 640, 480, 0);
 
-  SDL_Window *window = SDL_CreateWindow("SDL2Test", SDL_WINDOWPOS_UNDEFINED,
-                                        SDL_WINDOWPOS_UNDEFINED, 640, 480, 0);
-
-  SDL_Renderer *renderer =
-      SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
-  SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
-  SDL_RenderClear(renderer);
+  d->renderer = SDL_CreateRenderer(d->window, -1, SDL_RENDERER_SOFTWARE);
+  SDL_SetRenderDrawColor(d->renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
+  SDL_RenderClear(d->renderer);
 
   // creates a surface to load an image into the main memory
   SDL_Surface *surface;
@@ -23,40 +33,67 @@ int main(int argc, char *argv[]) {
   surface = IMG_Load("resources/ul.png");
 
   // loads image to our graphics hardware memory.
-  SDL_Texture *tex = SDL_CreateTextureFromSurface(renderer, surface);
+  d->tex = SDL_CreateTextureFromSurface(d->renderer, surface);
 
   // clears main-memory
   SDL_FreeSurface(surface);
 
-  // let us control our image position
-  // so that we can move it with our keyboard.
-  SDL_Rect dest;
-
   // connects our texture with dest to control position
-  SDL_QueryTexture(tex, NULL, NULL, &dest.w, &dest.h);
+  SDL_QueryTexture(d->tex, NULL, NULL, &d->dest.w, &d->dest.h);
 
   // adjust height and width of our image box.
-  dest.w /= 2;
-  dest.h /= 2;
+  d->dest.w /= 2;
+  d->dest.h /= 2;
 
   // sets initial x-position of object
-  dest.x = (640 - dest.w) / 2;
+  d->dest.x = (640 - d->dest.w) / 2;
 
   // sets initial y-position of object
-  dest.y = (480 - dest.h) / 2;
+  d->dest.y = (480 - d->dest.h) / 2;
+  return (struct sched_trans){.s = SCHED_CONTINUE, .why = "setup finished"};
+}
+
+struct sched_trans cleanup(struct scheduler *s) {
+  struct app_data *d = (struct app_data *)s->persistant_data;
+
+  // destroy texture and window
+  SDL_DestroyTexture(d->tex);
+  SDL_DestroyWindow(d->window);
+
+  d = NULL;
+  free(s->persistant_data);
+  s->persistant_data = NULL;
+
+  SDL_Quit();
+  return (struct sched_trans){.s = SCHED_HALT, .why = "cleanup finished"};
+}
+
+struct sched_trans fixed(struct scheduler *s, double step) {
+  static int num_ticks = 0;
+  num_ticks += 1;
+  printf("\t\ttick num %d\n", num_ticks);
+  if (num_ticks * step >= 3.0) {
+    return (struct sched_trans){.s = SCHED_CLEANUP, .why = "3 seconds elapsed"};
+  }
+  return (struct sched_trans){.s = SCHED_CONTINUE, .why = "fixed call"};
+}
+
+void render(struct scheduler *s, double a) {
+  struct app_data *d = (struct app_data *)s->persistant_data;
 
   // renders the texture at dest coords
-  SDL_RenderCopy(renderer, tex, NULL, &dest);
-
+  SDL_RenderCopy(d->renderer, d->tex, NULL, &d->dest);
   // triggers the double buffers for multiple rendering
-  SDL_RenderPresent(renderer);
+  SDL_RenderPresent(d->renderer);
+}
 
-  SDL_Delay(3000);
+int main(int argc, char *argv[]) {
+  struct scheduler s =
+      sched_init(setup, fixed, render, cleanup, 1.0 / 2.0, NULL);
 
-  // destroy texture, window and close
-  SDL_DestroyTexture(tex);
-  SDL_DestroyWindow(window);
-  SDL_Quit();
+  while (sched_exec(&s))
+    ;
+  sched_debugprint(stdout, &s);
 
   return EXIT_SUCCESS;
 }

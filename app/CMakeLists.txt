@@ -8,6 +8,7 @@ target_link_libraries(
   memutil
   fvec
   crok
+  sched
 )
 
 add_dependencies(

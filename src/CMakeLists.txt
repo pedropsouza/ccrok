@@ -7,6 +7,9 @@ add_library(fvec SHARED
 add_library(crok SHARED
   crok.c
 )
+add_library(sched SHARED
+  sched.c
+)
 
 ###################################################################
 
