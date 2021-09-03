@@ -11,7 +11,6 @@ struct scheduler sched_init(setup_fun s, fixed_fun f, render_fun r,
 
   sched.t = 0.0;
   sched.dt = timestep;
-  sched.current_time = SDL_GetTicks() / 1000.0;
   sched.accumulator = 0.0;
 
   sched.trans_hist[0] =
@@ -19,6 +18,7 @@ struct scheduler sched_init(setup_fun s, fixed_fun f, render_fun r,
 
   enum sched_state new_st = sched_exec_till_change(&sched);
   assert(new_st == SCHED_CONTINUE);
+  sched.current_time = SDL_GetTicks() / 1000.0;
   return sched;
 }
 
@@ -175,13 +175,15 @@ void sched_print_circular_buffer(FILE *stream, struct sched_trans *buf,
   for (int i = 0; i < cap; i++) {
     size_t idx = (cap + head - i) % cap;
     struct sched_trans t = buf[idx];
-    fprintf(stream, "\t#%d - %s reason \"%s\"\n", i, sched_enum_name(t.s),
-            t.why);
+    if (t.s != SCHED_NONE) {
+      fprintf(stream, "\t#%d - %s reason \"%s\"\n", i, sched_enum_name(t.s),
+              t.why);
+    }
   }
 }
 
 void sched_debugprint(FILE *stream, struct scheduler *s) {
-  fprintf(stream, "scheduler %x with timestep %f\n", *(unsigned int *)s, s->dt);
+  fprintf(stream, "scheduler %p with timestep %f\n", s, s->dt);
   fprintf(stream, "transition queue:\n");
   sched_print_circular_buffer(stream, s->trans_queue, s->trans_queue_head_idx,
                               SCHED_TRANS_QUEUE_SIZE);
