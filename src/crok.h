@@ -9,10 +9,12 @@
 #include <stdint.h>
 #include <string.h>
 
+// SIZES currently in "board lengths lenghts",
+// those being arena_radius + ditch_width
 #define CROK_DISCS_PER_SIDE 12
 #define CROK_DISCS_TOTAL (CROK_DISCS_PER_SIDE * 2)
-#define CROK_DISC_RADIUS 2.0
-#define CROK_POLE_RADIUS 0.8
+#define CROK_DISC_SIZE 1.0 / 18.0
+#define CROK_POST_SIZE 1.0 / 64.0
 #define CROK_TEAM1 (1 << 0)
 #define CROK_TEAM2 (1 << 1)
 #define CROK_MAXNAMELEN 32
@@ -48,7 +50,7 @@ struct crok_disc {
   int radius;
   SDL_Texture *tex;
 };
-struct crok_disc crok_disc_init(uint8_t id, uint8_t owner, struct fvec pos);
+struct crok_disc crok_disc_init(struct crok_state *s, uint8_t owner);
 uint8_t crok_disc_team(struct crok_disc *, struct crok_state *);
 uint8_t crok_disc_isvalid(struct crok_disc *);
 enum crok_gamestage crok_disc_tick(struct crok_disc *, struct crok_state *);
@@ -78,7 +80,7 @@ struct crok_state {
   // either 2 or 4, as 2 sides
   struct crok_player players[4];
   struct crok_disc discs[CROK_DISCS_TOTAL];
-  struct fvec poles[8];
+  struct fvec posts[8];
   unsigned int round;
   int overall_score;
   enum crok_gamestage gamestage;
