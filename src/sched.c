@@ -1,7 +1,22 @@
 #include "sched.h"
 
+void print_timespec(struct timespec *ts, const char *why) {
+  printf("%s -> %lds %ldns\n", why, ts->tv_sec, ts->tv_nsec);
+}
+struct timespec ns_to_timespec(long ns) {
+  const long fullsec = (long)1e9;
+  struct timespec ts = {0};
+  while (ns >= fullsec) {
+    ts.tv_sec += 1;
+    ns -= fullsec;
+  }
+  ts.tv_nsec = ns;
+  return ts;
+}
+
 struct scheduler sched_init(setup_fun s, fixed_fun f, render_fun r,
-                            cleanup_fun c, double timestep, void *setup_data) {
+                            cleanup_fun c, long fixedstep_ns,
+                            long renderstep_ns, void *setup_data) {
   struct scheduler sched = {0};
   sched.setup = s;
   sched.fixed = f;
@@ -9,16 +24,17 @@ struct scheduler sched_init(setup_fun s, fixed_fun f, render_fun r,
   sched.cleanup = c;
   sched.setup_data = setup_data;
 
-  sched.t = 0.0;
-  sched.dt = timestep;
-  sched.accumulator = 0.0;
+  sched.fixedt_ns = fixedstep_ns;
+  sched.rendert_ns = renderstep_ns;
+  sched.idlet_ns =
+      ((fixedstep_ns > renderstep_ns) ? renderstep_ns : fixedstep_ns) -
+      SCHED_SLEEP_MARGIN;
 
   sched.trans_hist[0] =
       (struct sched_trans){.s = SCHED_SETUP, .why = "sched_init call"};
 
   enum sched_state new_st = sched_exec_till_change(&sched);
-  assert(new_st == SCHED_CONTINUE);
-  sched.current_time = SDL_GetTicks() / 1000.0;
+  assert(!sched_isclean(&sched));
   return sched;
 }
 
@@ -46,10 +62,12 @@ int sched_enqueue(struct scheduler *s, struct sched_trans t) {
 }
 
 int sched_exec(struct scheduler *s) {
-  double new_time, frame_time;
-  uint32_t ticks_this_call = 0;
+  long framet_ns, snooze_ns;
+  struct timespec new_ts, snooze_ts;
+  int ticks_this_call = 0;
+  enum sched_state cur_st = sched_get_cur_state(s);
 
-  switch (sched_get_cur_state(s)) {
+  switch (cur_st) {
   case SCHED_NONE:
     sched_enqueue(s,
                   (struct sched_trans){.s = SCHED_ERR,
@@ -57,6 +75,8 @@ int sched_exec(struct scheduler *s) {
     break;
   case SCHED_SETUP:
     sched_enqueue(s, s->setup(s));
+    clock_gettime(CLOCK_MONOTONIC, &new_ts);
+    s->curt_ns = new_ts.tv_sec * (long)1e9 + new_ts.tv_nsec;
     break;
   case SCHED_CLEANUP:
     sched_enqueue(s, s->cleanup(s));
@@ -64,28 +84,58 @@ int sched_exec(struct scheduler *s) {
 
   case SCHED_CONTINUE:
     // TODO FIXME: implement state interpolation
-    new_time = SDL_GetTicks() / 1000.0;
-    frame_time = new_time - s->current_time;
-    // if (frame_time > 0.25) {
-    //  frame_time = 0.25;
-    //}
-    s->current_time = new_time;
+    clock_gettime(CLOCK_MONOTONIC, &new_ts);
+    s->newt_ns = new_ts.tv_sec * (long)1e9 + new_ts.tv_nsec;
+    snooze_ns = (s->curt_ns + s->idlet_ns) - s->newt_ns;
+    if (snooze_ns > 0) {
+      snooze_ts = ns_to_timespec(snooze_ns);
+      if (nanosleep(&snooze_ts, NULL) == -1 && errno == EINVAL) {
+        sched_enqueue(s, (struct sched_trans){.s = SCHED_ERR,
+                                              .why = "invalid nanosleep!"});
+      }
+    }
+    clock_gettime(CLOCK_MONOTONIC, &new_ts);
+    s->newt_ns = new_ts.tv_sec * (long)1e9 + new_ts.tv_nsec;
 
-    s->accumulator += frame_time;
+    framet_ns = s->newt_ns - s->curt_ns;
+    s->curt_ns = s->newt_ns;
 
-    while (s->accumulator >= s->dt) {
-      sched_enqueue(s, s->fixed(s, s->dt));
-      s->t += s->dt;
-      s->accumulator -= s->dt;
+    s->acc[0] += framet_ns;
+    s->acc[1] += framet_ns;
+
+    while (s->acc[0] >= s->fixedt_ns) {
+      sched_enqueue(s, s->fixed(s, s->fixedt_ns));
+      s->t[0] += s->fixedt_ns;
+      s->acc[0] -= s->fixedt_ns;
       ticks_this_call += 1;
-      if (ticks_this_call > SCHED_TRANS_QUEUE_SIZE) {
-        printf(
-            "warning, %d/%d ticks done, possible transition queue overflow!\n",
-            ticks_this_call, SCHED_TRANS_QUEUE_SIZE);
+      if (ticks_this_call >= SCHED_CALL_MAX_TICKS) {
+        sched_enqueue(s,
+                      (struct sched_trans){.s = SCHED_DROPPED,
+                                           .why = "call max ticks exceeded!"});
+        s->dropped_last_exec = s->acc[0] / s->fixedt_ns;
+        s->acc[0] = s->acc[0] % s->fixedt_ns;
       }
     }
 
-    s->render(s, 0.0);
+    // only render once, multiple renders of the same state are equal
+    if (s->acc[1] >= s->rendert_ns) {
+      s->render(s, 0.0);
+      s->acc[1] = s->acc[1] % s->rendert_ns;
+      s->t[1] += s->rendert_ns;
+    }
+
+    if (ticks_this_call > SCHED_TRANS_QUEUE_SIZE) {
+      printf("warning, %d/%d ticks done, possible transition queue overflow!\n",
+             ticks_this_call, SCHED_TRANS_QUEUE_SIZE);
+    }
+
+    break;
+  case SCHED_DROPPED:
+    fprintf(stderr, "scheduler %p dropped %d fixed ticks!\n", s,
+            s->dropped_last_exec);
+    s->dropped_last_exec = 0;
+    sched_enqueue(s, (struct sched_trans){.s = SCHED_CONTINUE,
+                                          .why = "ignore dropped ticks"});
 
     break;
   case SCHED_PAUSE:
@@ -102,7 +152,7 @@ int sched_exec(struct scheduler *s) {
     }
     break;
   case SCHED_ERR:
-    fprintf(stderr, "SCHED_ERR reached!");
+    fprintf(stderr, "SCHED_ERR reached!\n");
     sched_debugprint(stderr, s);
     abort();
     break;
@@ -127,6 +177,12 @@ int sched_exec(struct scheduler *s) {
     s->trans_queue_head_idx = head;
     s->trans_queue_tail_idx = tail;
   }
+
+  // printf("[%s %.3f,%.3f : %.3f] ticks %d ; fixedt = %.3f/%.3f ; rendert = "
+  //       "%.3f/%.3f\n",
+  //       sched_enum_name(cur_st), s->t[0] / 1e9, s->t[1] / 1e9, snooze_ns /
+  //       1e9, ticks_this_call, s->acc[0] / 1e9, s->fixedt_ns / 1e9, s->acc[1]
+  //       / 1e9, s->rendert_ns / 1e9);
 
   return 1; // more ticks are necessary
 }
@@ -183,7 +239,7 @@ void sched_print_circular_buffer(FILE *stream, struct sched_trans *buf,
 }
 
 void sched_debugprint(FILE *stream, struct scheduler *s) {
-  fprintf(stream, "scheduler %p with timestep %f\n", s, s->dt);
+  fprintf(stream, "scheduler %p\n", s);
   fprintf(stream, "transition queue:\n");
   sched_print_circular_buffer(stream, s->trans_queue, s->trans_queue_head_idx,
                               SCHED_TRANS_QUEUE_SIZE);
@@ -204,6 +260,8 @@ const char *sched_enum_name(enum sched_state st) {
     return "CLEANUP";
   case SCHED_CONTINUE:
     return "CONTINUE";
+  case SCHED_DROPPED:
+    return "DROPPED";
   case SCHED_PAUSE:
     return "PAUSE";
   case SCHED_HALT:

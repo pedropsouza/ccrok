@@ -6,12 +6,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+struct setup_data {
+  int width, height;
+};
+
 struct sched_trans setup(struct scheduler *s) {
   s->persistant_data =
       safe_malloc(sizeof(struct app_data), "setup persistant_data alloc");
   struct app_data *d = (struct app_data *)s->persistant_data;
+  struct setup_data *setdat = (struct setup_data *)s->setup_data;
 
-  int width = 1720, height = 968;
+  int width = setdat->width, height = setdat->height;
   SDL_Init(SDL_INIT_VIDEO);
   d->window = SDL_CreateWindow("ccrok", SDL_WINDOWPOS_UNDEFINED,
                                SDL_WINDOWPOS_UNDEFINED, width, height, 0);
@@ -70,14 +75,14 @@ struct sched_trans cleanup(struct scheduler *s) {
   return (struct sched_trans){.s = SCHED_HALT, .why = "cleanup finished"};
 }
 
-struct sched_trans fixed(struct scheduler *s, double step) {
+struct sched_trans fixed(struct scheduler *s, long step_ns) {
   struct app_data *d = (struct app_data *)s->persistant_data;
-  static int num_ticks = 0;
+  static long num_ticks = 0;
   num_ticks += 1;
-  if (num_ticks * step >= 100.0) {
-    return (struct sched_trans){.s = SCHED_CLEANUP,
-                                .why = "100 seconds elapsed"};
-  }
+  // if (num_ticks * step_ns >= 10 * (long)1e9) {
+  //  return (struct sched_trans){.s = SCHED_CLEANUP,
+  //                              .why = "10 seconds elapsed"};
+  //}
 
   SDL_Event input;
 
@@ -104,19 +109,42 @@ void render(struct scheduler *s, double a) {
   SDL_RenderClear(d->renderer);
 
   crok_render(&d->crok);
-  SDL_RenderCopy(d->renderer, d->tex, NULL, &d->dest);
+  // SDL_RenderCopy(d->renderer, d->tex, NULL, &d->dest);
 
   // triggers the double buffers for multiple rendering
   SDL_RenderPresent(d->renderer);
 }
 
 int main(int argc, char *argv[]) {
+  struct setup_data setdat = {.width = 800, .height = 450};
+
+  if (argc > 1) {
+    char *sep = NULL;
+    setdat.width = strtol(argv[1], &sep, 10);
+    if (errno == EINVAL || errno == ERANGE || *sep != 'x') {
+      goto invalid_arg;
+    }
+    sep++;
+    setdat.height = strtol(sep, NULL, 10);
+    if (errno == EINVAL || errno == ERANGE) {
+      goto invalid_arg;
+    }
+  }
+  printf("%dx%d\n", setdat.width, setdat.height);
+
   struct scheduler s =
-      sched_init(setup, fixed, render, cleanup, 1.0 / 80.0, NULL);
+      sched_init(setup, fixed, render, cleanup, 1e9 / 50, 1e9 / 2, &setdat);
 
   while (sched_exec(&s))
     ;
   sched_debugprint(stdout, &s);
 
   return EXIT_SUCCESS;
+
+invalid_arg:
+  fprintf(
+      stderr,
+      "Bad arguments, usage:\n\t$ %s [<WIDTH>x<HEIGHT>]\ne.g.\t$ %s 1720x968\n",
+      argv[0], argv[0]);
+  return EXIT_FAILURE;
 }
