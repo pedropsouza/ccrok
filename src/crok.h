@@ -3,6 +3,8 @@
 
 #include "fvec.h"
 #include "memutil.h"
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
 #include <math.h>
 #include <stdint.h>
 #include <string.h>
@@ -19,6 +21,8 @@
 
 #define CROK_DISC_VALID (1 << 0)
 #define CROK_DISC_FALLEN (1 << 1)
+
+struct app_data;
 
 struct crok_state;
 enum crok_gamestage;
@@ -42,11 +46,13 @@ struct crok_disc {
   uint8_t owner_id;
   uint8_t flags;
   int radius;
+  SDL_Texture *tex;
 };
 struct crok_disc crok_disc_init(uint8_t id, uint8_t owner, struct fvec pos);
 uint8_t crok_disc_team(struct crok_disc *, struct crok_state *);
 uint8_t crok_disc_isvalid(struct crok_disc *);
-enum crok_gamestage crok_disc_tick(struct crok_state *);
+enum crok_gamestage crok_disc_tick(struct crok_disc *, struct crok_state *);
+void crok_disc_render(struct crok_disc *);
 
 enum crok_gamestage {
   CROK_GAMESTART = 0,
@@ -60,6 +66,14 @@ enum crok_gamestage {
   CROK_ERROR
 };
 
+struct crok_board {
+  SDL_Texture *tex;
+  SDL_Rect dest;
+  int arena_radius;
+  int ditch_width;
+  int hole_radius;
+};
+
 struct crok_state {
   // either 2 or 4, as 2 sides
   struct crok_player players[4];
@@ -68,8 +82,20 @@ struct crok_state {
   unsigned int round;
   int overall_score;
   enum crok_gamestage gamestage;
+  struct crok_board board;
+  struct app_data *app_data;
 };
-struct crok_state crok_state_init(void);
-enum crok_gamestage crock_gameloop(struct crok_state *);
+struct crok_state crok_state_init(struct app_data *appdata);
+enum crok_gamestage crock_fixed(struct crok_state *);
+void crok_render(struct crok_state *);
+
+struct app_data {
+  SDL_Window *window;
+  SDL_Renderer *renderer;
+  SDL_Texture *tex;
+  SDL_Rect dest;
+  int width, height;
+  struct crok_state crok;
+};
 
 #endif // CROK_HG__
