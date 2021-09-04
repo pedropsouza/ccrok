@@ -79,18 +79,16 @@ struct sched_trans fixed(struct scheduler *s, long step_ns) {
   struct app_data *d = (struct app_data *)s->persistant_data;
   static long num_ticks = 0;
   num_ticks += 1;
-  // if (num_ticks * step_ns >= 10 * (long)1e9) {
-  //  return (struct sched_trans){.s = SCHED_CLEANUP,
-  //                              .why = "10 seconds elapsed"};
-  //}
+  if (num_ticks * step_ns >= 10 * (long)1e9) {
+    return sched_exit(s, "10 seconds elapsed");
+  }
 
   SDL_Event input;
 
   while (SDL_PollEvent(&input) > 0) {
     switch (input.type) {
     case SDL_QUIT:
-      return (struct sched_trans){.s = SCHED_CLEANUP,
-                                  .why = "user requested quit"};
+      return sched_exit(s, "user requested exit");
       break;
     case SDL_MOUSEMOTION:
       d->dest.x = input.motion.x - d->dest.w / 2;
@@ -99,6 +97,8 @@ struct sched_trans fixed(struct scheduler *s, long step_ns) {
     }
   }
 
+  SDL_RenderCopy(d->renderer, d->tex, NULL, &d->dest);
+  SDL_RenderPresent(d->renderer);
   return (struct sched_trans){.s = SCHED_CONTINUE, .why = "fixed call"};
 }
 
@@ -109,7 +109,7 @@ void render(struct scheduler *s, double a) {
   SDL_RenderClear(d->renderer);
 
   crok_render(&d->crok);
-  // SDL_RenderCopy(d->renderer, d->tex, NULL, &d->dest);
+  SDL_RenderCopy(d->renderer, d->tex, NULL, &d->dest);
 
   // triggers the double buffers for multiple rendering
   SDL_RenderPresent(d->renderer);
@@ -132,11 +132,10 @@ int main(int argc, char *argv[]) {
   }
   printf("%dx%d\n", setdat.width, setdat.height);
 
-  struct scheduler s =
-      sched_init(setup, fixed, render, cleanup, 1e9 / 50, 1e9 / 2, &setdat);
+  struct scheduler s = sched_init(setup, fixed, render, cleanup, 1e9 / 200,
+                                  1e9 / 2, &setdat, "main");
 
-  while (sched_exec(&s))
-    ;
+  sched_handover(&s);
   sched_debugprint(stdout, &s);
 
   return EXIT_SUCCESS;
