@@ -1,6 +1,6 @@
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_image.h"
-#include "crok.h"
+#include "crok/crok.h"
 #include "memutil.h"
 #include "sched.h"
 #include <stdio.h>

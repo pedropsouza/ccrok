@@ -5,7 +5,12 @@ add_library(fvec SHARED
   fvec.c
 )
 add_library(crok SHARED
-  crok.c
+  crok/crok.c
+  #  crok/net.c
+  crok/data.c
+  crok/player.c
+  crok/disc.c
+  draw.c
 )
 add_library(sched SHARED
   sched.c
