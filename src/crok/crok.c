@@ -25,44 +25,31 @@ struct sched_trans crok_setup(struct scheduler *s) {
   struct crok_data *d = (struct crok_data *)s->persistant_data;
   struct crok_setup_data *setdat = (struct crok_setup_data *)s->setup_data;
 
-  int width = setdat->width, height = setdat->height;
-  SDL_Init(SDL_INIT_VIDEO);
-  d->window = SDL_CreateWindow("ccrok", SDL_WINDOWPOS_UNDEFINED,
-                               SDL_WINDOWPOS_UNDEFINED, width, height, 0);
+  if (!setdat->servermode) {
+    int width = setdat->width, height = setdat->height;
+    SDL_Init(SDL_INIT_VIDEO);
+    d->window = SDL_CreateWindow("ccrok", SDL_WINDOWPOS_UNDEFINED,
+                                 SDL_WINDOWPOS_UNDEFINED, width, height, 0);
 
-  d->renderer = SDL_CreateRenderer(d->window, -1, SDL_RENDERER_ACCELERATED);
-  SDL_SetRenderDrawColor(d->renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
-  SDL_RenderClear(d->renderer);
+    d->renderer = SDL_CreateRenderer(d->window, -1, SDL_RENDERER_ACCELERATED);
+    SDL_SetRenderDrawColor(d->renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
+    SDL_RenderClear(d->renderer);
 
-  // get the possibly modified dimensions
-  SDL_GetRendererOutputSize(d->renderer, &width, &height);
-  d->width = width;
-  d->height = height;
+    // get the possibly modified dimensions
+    SDL_GetRendererOutputSize(d->renderer, &width, &height);
+    d->width = width;
+    d->height = height;
 
-  // creates a surface to load an image into the main memory
-  SDL_Surface *surface;
-
-  // please provide a path for your image
-  surface = IMG_Load("resources/ul.png");
-
-  // loads image to our graphics hardware memory.
-  d->tex = SDL_CreateTextureFromSurface(d->renderer, surface);
-
-  // clears main-memory
-  SDL_FreeSurface(surface);
-
-  // connects our texture with dest to control position
-  SDL_QueryTexture(d->tex, NULL, NULL, &d->dest.w, &d->dest.h);
-
-  // adjust height and width of our image box.
-  d->dest.w /= 2;
-  d->dest.h /= 2;
-
-  // sets initial x-position of object
-  d->dest.x = (width - d->dest.w) / 2;
-
-  // sets initial y-position of object
-  d->dest.y = (height - d->dest.h) / 2;
+    SDL_Surface *surface;
+    surface = IMG_Load("resources/ul.png");
+    d->tex = SDL_CreateTextureFromSurface(d->renderer, surface);
+    SDL_FreeSurface(surface);
+    SDL_QueryTexture(d->tex, NULL, NULL, &d->dest.w, &d->dest.h);
+    d->dest.w /= 2;
+    d->dest.h /= 2;
+    d->dest.x = (width - d->dest.w) / 2;
+    d->dest.y = (height - d->dest.h) / 2;
+  }
 
   d->crok = crok_state_init(d);
   return (struct sched_trans){.s = SCHED_CONTINUE, .why = "setup finished"};
@@ -70,17 +57,19 @@ struct sched_trans crok_setup(struct scheduler *s) {
 
 struct sched_trans crok_cleanup(struct scheduler *s) {
   struct crok_data *d = (struct crok_data *)s->persistant_data;
+  struct crok_setup_data *setdat = (struct crok_setup_data *)s->setup_data;
 
-  // destroy texture and window
-  SDL_DestroyTexture(d->tex);
-  SDL_DestroyRenderer(d->renderer);
-  SDL_DestroyWindow(d->window);
+  if (!setdat->servermode) {
+    SDL_DestroyTexture(d->tex);
+    SDL_DestroyRenderer(d->renderer);
+    SDL_DestroyWindow(d->window);
+    SDL_Quit();
+  }
 
   d = NULL;
   free(s->persistant_data);
   s->persistant_data = NULL;
 
-  SDL_Quit();
   return (struct sched_trans){.s = SCHED_HALT, .why = "cleanup finished"};
 }
 

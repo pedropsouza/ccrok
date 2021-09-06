@@ -28,7 +28,7 @@ enum crok_gamestage {
 };
 
 struct crok_setup_data {
-  int width, height;
+  int width, height, servermode;
 };
 
 struct crok_player {
@@ -73,7 +73,7 @@ struct crok_data {
   SDL_Renderer *renderer;
   SDL_Texture *tex;
   SDL_Rect dest;
-  int width, height;
+  int width, height, servermode;
   struct crok_state crok;
   struct crok_input_context input;
 };

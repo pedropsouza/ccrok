@@ -5,21 +5,38 @@
 #include "sched.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 void headless_noop(struct scheduler *s, double a) {}
 
 int main(int argc, char *argv[]) {
-  struct crok_setup_data setdat = {.width = 800, .height = 450};
+  struct crok_setup_data setdat = {
+      .width = 800, .height = 450, .servermode = 0};
 
-  if (argc > 1 &&
-      (sscanf(argv[1], "%dx%d", &setdat.width, &setdat.height) != 2)) {
-    goto invalid_arg;
+  int r;
+  while ((r = getopt(argc, argv, "sd:")) != -1) {
+    switch (r) {
+    case 's':
+      setdat.servermode = 1;
+      break;
+    case 'd':
+      if (sscanf(optarg, "%dx%d", &setdat.width, &setdat.height) != 2) {
+        goto invalid_arg;
+      }
+      break;
+    case '?':
+      goto invalid_arg;
+      break;
+    default:
+      abort();
+      break;
+    }
   }
-  printf("%dx%d\n", setdat.width, setdat.height);
 
-  struct scheduler s =
-      sched_init(crok_setup, crok_cleanup, crok_fixed, crok_render, 1e9 / 200,
-                 1e9 / 100, &setdat, "main");
+  render_fun renf = (setdat.servermode) ? headless_noop : crok_render;
+
+  struct scheduler s = sched_init(crok_setup, crok_cleanup, crok_fixed, renf,
+                                  1e9 / 200, 1e9 / 100, &setdat, "main");
 
   sched_handover(&s);
   sched_debugprint(stdout, &s);
