@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
 
   struct scheduler s =
       sched_init(crok_setup, crok_cleanup, crok_fixed, crok_render, 1e9 / 200,
-                 1e9 / 2, &setdat, "main");
+                 1e9 / 100, &setdat, "main");
 
   sched_handover(&s);
   sched_debugprint(stdout, &s);

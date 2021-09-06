@@ -1,9 +1,9 @@
 #include "crok/player.h"
 
-struct crok_player crok_player_init(uint8_t id, char name[CROK_MAXNAMELEN]) {
+struct crok_player crok_player_init(uint8_t id, char name[CROK_NAMELEN_MAX]) {
   struct crok_player p = {};
-  memcpy(p.name, name, CROK_MAXNAMELEN - 1);
-  p.name[CROK_MAXNAMELEN - 1] = '\0';
+  memcpy(p.name, name, CROK_NAMELEN_MAX - 1);
+  p.name[CROK_NAMELEN_MAX - 1] = '\0';
   p.flags = 0;
   p.id = id;
   p.score = 0;

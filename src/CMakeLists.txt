@@ -7,6 +7,7 @@ add_library(fvec SHARED
 add_library(crok SHARED
   crok/crok.c
   #  crok/net.c
+  crok/input.c
   crok/data.c
   crok/player.c
   crok/disc.c

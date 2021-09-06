@@ -1,5 +1,24 @@
 #include "crok.h"
 
+struct crok_input_packet crok_local_input(struct crok_input_context *ic) {
+  SDL_Event input;
+
+  if (SDL_PollEvent(&input) > 0) {
+    switch (input.type) {
+    case SDL_QUIT:
+      return crok_input_quit_packet();
+      break;
+    case SDL_MOUSEMOTION:
+      return crok_input_mouse_packet(input.motion.x, input.motion.y);
+      break;
+    default:
+      return (struct crok_input_packet){0};
+      break;
+    }
+  }
+  return crok_input_end_packet();
+}
+
 struct sched_trans crok_setup(struct scheduler *s) {
   s->persistant_data =
       safe_malloc(sizeof(struct crok_data), "setup persistant_data alloc");
@@ -74,23 +93,27 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
                                 .why = "10 seconds elapsed"};
   }
 
-  SDL_Event input;
-
-  while (SDL_PollEvent(&input) > 0) {
-    switch (input.type) {
-    case SDL_QUIT:
-      return (struct sched_trans){.s = SCHED_CLEANUP,
-                                  .why = "user requested exit"};
+  crok_input_accum(&d->input, crok_local_input);
+  for (size_t i = 0; i <= d->input.buf_last; i++) {
+    struct crok_input_packet p = d->input.buf[i];
+    switch (p.kind) {
+    case CROK_INPUT_INVALID:
       break;
-    case SDL_MOUSEMOTION:
-      d->dest.x = input.motion.x - d->dest.w / 2;
-      d->dest.y = input.motion.y - d->dest.h / 2;
+    case CROK_INPUT_MOUSE:
+      d->dest.x = p.mouse.x - d->dest.w / 2;
+      d->dest.y = p.mouse.y - d->dest.h / 2;
+      break;
+    case CROK_INPUT_QUIT:
+      return (struct sched_trans){.s = SCHED_CLEANUP,
+                                  .why = "user requested quit"};
+      break;
+    default:
       break;
     }
   }
 
-  SDL_RenderCopy(d->renderer, d->tex, NULL, &d->dest);
-  SDL_RenderPresent(d->renderer);
+  crok_input_clean(&d->input);
+
   return (struct sched_trans){.s = SCHED_CONTINUE, .why = "fixed call"};
 }
 

@@ -4,6 +4,7 @@
 #include "crok/config.h"
 #include "draw.h"
 #include "fvec.h"
+#include "input.h"
 #include <SDL2/SDL.h>
 #include <stdint.h>
 
@@ -32,7 +33,7 @@ struct crok_setup_data {
 
 struct crok_player {
   uint8_t id;
-  char name[CROK_MAXNAMELEN];
+  char name[CROK_NAMELEN_MAX];
   uint8_t flags;
   uint32_t score;
 };
@@ -74,6 +75,7 @@ struct crok_data {
   SDL_Rect dest;
   int width, height;
   struct crok_state crok;
+  struct crok_input_context input;
 };
 
 struct crok_state crok_state_init(struct crok_data *appdata);
