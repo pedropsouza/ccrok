@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+void headless_noop(struct scheduler *s, double a) {}
+
 int main(int argc, char *argv[]) {
   struct crok_setup_data setdat = {.width = 800, .height = 450};
 

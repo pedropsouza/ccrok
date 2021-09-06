@@ -1,6 +1,8 @@
 #ifndef CROK_HG__
 #define CROK_HG__
 
+#include "SDL2/SDL.h"
+#include "SDL2/SDL_image.h"
 #include "crok/data.h"
 #include "crok/disc.h"
 #include "crok/input.h"
@@ -8,8 +10,6 @@
 #include "fvec.h"
 #include "memutil.h"
 #include "sched.h"
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
 #include <math.h>
 #include <stdint.h>
 #include <string.h>

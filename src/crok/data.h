@@ -1,11 +1,11 @@
 #ifndef CROK_DATA_HG__
 #define CROK_DATA_HG__
 
+#include "SDL2/SDL.h"
 #include "crok/config.h"
 #include "draw.h"
 #include "fvec.h"
 #include "input.h"
-#include <SDL2/SDL.h>
 #include <stdint.h>
 
 #define CROK_TEAM1 (1 << 0)
