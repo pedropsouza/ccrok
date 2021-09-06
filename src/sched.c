@@ -41,10 +41,9 @@ struct timespec ns_to_timespec(long ns) {
   return ts;
 }
 
-struct scheduler sched_init(setup_fun s, fixed_fun f, render_fun r,
-                            cleanup_fun c, long fixedstep_ns,
-                            long renderstep_ns, void *setup_data,
-                            const char *name) {
+struct scheduler sched_init(setup_fun s, cleanup_fun c, fixed_fun f,
+                            render_fun r, long fixedstep_ns, long renderstep_ns,
+                            void *setup_data, const char *name) {
   struct scheduler sched = {0};
   sched.name = name;
   sched.setup = s;

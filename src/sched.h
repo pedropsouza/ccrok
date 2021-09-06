@@ -67,10 +67,9 @@ struct scheduler {
 // freeing setup_data still left to the caller.
 //
 // returns the initialized scheduler
-struct scheduler sched_init(setup_fun s, fixed_fun f, render_fun r,
-                            cleanup_fun c, long fixedstep_ns,
-                            long renderstep_ns, void *setup_data,
-                            const char *name);
+struct scheduler sched_init(setup_fun s, cleanup_fun c, fixed_fun f,
+                            render_fun r, long fixedstep_ns, long renderstep_ns,
+                            void *setup_data, const char *name);
 // request a transition.
 // there may be many transitions requests per exec(), they are thrown in a
 // queue. each transition request ensures  its state will be resolved at some

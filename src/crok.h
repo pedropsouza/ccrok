@@ -3,6 +3,7 @@
 
 #include "fvec.h"
 #include "memutil.h"
+#include "sched.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <math.h>
@@ -24,7 +25,8 @@
 #define CROK_DISC_VALID (1 << 0)
 #define CROK_DISC_FALLEN (1 << 1)
 
-struct app_data;
+struct crok_data;
+struct input_data;
 
 struct crok_state;
 enum crok_gamestage;
@@ -85,13 +87,10 @@ struct crok_state {
   int overall_score;
   enum crok_gamestage gamestage;
   struct crok_board board;
-  struct app_data *app_data;
 };
-struct crok_state crok_state_init(struct app_data *appdata);
-enum crok_gamestage crock_fixed(struct crok_state *);
-void crok_render(struct crok_state *);
+struct crok_state crok_state_init(struct crok_data *appdata);
 
-struct app_data {
+struct crok_data {
   SDL_Window *window;
   SDL_Renderer *renderer;
   SDL_Texture *tex;
@@ -99,5 +98,14 @@ struct app_data {
   int width, height;
   struct crok_state crok;
 };
+
+struct crok_setup_data {
+  int width, height;
+};
+
+struct sched_trans crok_setup(struct scheduler *s);
+struct sched_trans crok_cleanup(struct scheduler *s);
+struct sched_trans crok_fixed(struct scheduler *s, long step_ns);
+void crok_render(struct scheduler *s, double a);
 
 #endif // CROK_HG__
