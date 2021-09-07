@@ -1,99 +1,222 @@
 [
-    {
-        "arguments": [
-            "/sbin/cc",
-            "-c",
-            "-I/usr/include/SDL2",
-            "-I/home/stale/Projects/ccrok/build/debug/_deps/unity-src/src",
-            "-I/home/stale/Projects/ccrok/build/debug/_deps/unity-build",
-            "-g",
-            "-Waddress",
-            "-Waggregate-return",
-            "-Wformat-nonliteral",
-            "-Wformat-security",
-            "-Wformat",
-            "-Winit-self",
-            "-Wmissing-declarations",
-            "-Wmissing-include-dirs",
-            "-Wno-multichar",
-            "-Wno-parentheses",
-            "-Wno-type-limits",
-            "-Wno-unused-parameter",
-            "-Wunreachable-code",
-            "-Wwrite-strings",
-            "-Wpointer-arith",
-            "-Werror",
-            "-Wall",
-            "-std=c11",
-            "-o",
-            "CMakeFiles/unity.dir/src/unity.c.o",
-            "../unity-src/src/unity.c"
-        ],
-        "directory": "/home/stale/Projects/ccrok/build/debug/_deps/unity-build",
-        "file": "../unity-src/src/unity.c"
-    },
-    {
-        "arguments": [
-            "/sbin/cc",
-            "-c",
-            "-I/usr/include/SDL2",
-            "-I/home/stale/Projects/ccrok/src",
-            "-I/home/stale/Projects/ccrok/test/unity",
-            "-I/home/stale/Projects/ccrok/build/debug/_deps/unity-src/src",
-            "-I/home/stale/Projects/ccrok/build/debug/_deps/unity-build",
-            "-g",
-            "-o",
-            "CMakeFiles/runner.dir/runner.c.o",
-            "../../../test/runner.c"
-        ],
-        "directory": "/home/stale/Projects/ccrok/build/debug/test",
-        "file": "../../../test/runner.c"
-    },
-    {
-        "arguments": [
-            "/sbin/cc",
-            "-c",
-            "-I/usr/include/SDL2",
-            "-I/home/stale/Projects/ccrok/src",
-            "-I/home/stale/Projects/ccrok/test/unity",
-            "-I/home/stale/Projects/ccrok/build/debug/_deps/unity-src/src",
-            "-I/home/stale/Projects/ccrok/build/debug/_deps/unity-build",
-            "-g",
-            "-o",
-            "CMakeFiles/runner2.dir/runner2.c.o",
-            "../../../test/runner2.c"
-        ],
-        "directory": "/home/stale/Projects/ccrok/build/debug/test",
-        "file": "../../../test/runner2.c"
-    },
-    {
-        "arguments": [
-            "/sbin/cc",
-            "-c",
-            "-Dexample_EXPORTS",
-            "-I/usr/include/SDL2",
-            "-I/home/stale/Projects/ccrok/src",
-            "-g",
-            "-fPIC",
-            "-o",
-            "CMakeFiles/example.dir/example.c.o",
-            "../../../src/example.c"
-        ],
-        "directory": "/home/stale/Projects/ccrok/build/debug/src",
-        "file": "../../../src/example.c"
-    },
-    {
-        "arguments": [
-            "/sbin/cc",
-            "-c",
-            "-I/usr/include/SDL2",
-            "-I/home/stale/Projects/ccrok/src",
-            "-g",
-            "-o",
-            "CMakeFiles/example_app.dir/example_app.c.o",
-            "../../../app/example_app.c"
-        ],
-        "directory": "/home/stale/Projects/ccrok/build/debug/app",
-        "file": "../../../app/example_app.c"
-    }
+  {
+    "arguments": [
+      "/sbin/cc",
+      "-I/usr/include/SDL2",
+      "-I/home/vveiga/code/c/ccrok/build/debug/_deps/unity-src/src",
+      "-I/home/vveiga/code/c/ccrok/build/debug/_deps/unity-build",
+      "-g",
+      "-Waddress",
+      "-Waggregate-return",
+      "-Wformat-nonliteral",
+      "-Wformat-security",
+      "-Wformat",
+      "-Winit-self",
+      "-Wmissing-declarations",
+      "-Wmissing-include-dirs",
+      "-Wno-multichar",
+      "-Wno-parentheses",
+      "-Wno-type-limits",
+      "-Wno-unused-parameter",
+      "-Wunreachable-code",
+      "-Wwrite-strings",
+      "-Wpointer-arith",
+      "-Werror",
+      "-Wall",
+      "-std=c11",
+      "-c",
+      "-o",
+      "CMakeFiles/unity.dir/src/unity.c.o",
+      "/home/vveiga/code/c/ccrok/build/debug/_deps/unity-src/src/unity.c"
+    ],
+    "directory": "/home/vveiga/code/c/ccrok/build/debug/_deps/unity-build",
+    "file": "/home/vveiga/code/c/ccrok/build/debug/_deps/unity-src/src/unity.c",
+    "output": "/home/vveiga/code/c/ccrok/build/debug/_deps/unity-build/CMakeFiles/unity.dir/src/unity.c.o"
+  },
+  {
+    "arguments": [
+      "/sbin/cc",
+      "-Dsched_EXPORTS",
+      "-I/usr/include/SDL2",
+      "-I/home/vveiga/code/c/ccrok/src",
+      "-g",
+      "-fPIC",
+      "-c",
+      "-o",
+      "CMakeFiles/sched.dir/sched.c.o",
+      "/home/vveiga/code/c/ccrok/src/sched.c"
+    ],
+    "directory": "/home/vveiga/code/c/ccrok/build/debug/src",
+    "file": "/home/vveiga/code/c/ccrok/src/sched.c",
+    "output": "/home/vveiga/code/c/ccrok/build/debug/src/CMakeFiles/sched.dir/sched.c.o"
+  },
+  {
+    "arguments": [
+      "/sbin/cc",
+      "-Dcrok_EXPORTS",
+      "-I/usr/include/SDL2",
+      "-I/home/vveiga/code/c/ccrok/src",
+      "-g",
+      "-fPIC",
+      "-c",
+      "-o",
+      "CMakeFiles/crok.dir/crok/crok.c.o",
+      "/home/vveiga/code/c/ccrok/src/crok/crok.c"
+    ],
+    "directory": "/home/vveiga/code/c/ccrok/build/debug/src",
+    "file": "/home/vveiga/code/c/ccrok/src/crok/crok.c",
+    "output": "/home/vveiga/code/c/ccrok/build/debug/src/CMakeFiles/crok.dir/crok/crok.c.o"
+  },
+  {
+    "arguments": [
+      "/sbin/cc",
+      "-Dcrok_EXPORTS",
+      "-I/usr/include/SDL2",
+      "-I/home/vveiga/code/c/ccrok/src",
+      "-g",
+      "-fPIC",
+      "-c",
+      "-o",
+      "CMakeFiles/crok.dir/crok/input.c.o",
+      "/home/vveiga/code/c/ccrok/src/crok/input.c"
+    ],
+    "directory": "/home/vveiga/code/c/ccrok/build/debug/src",
+    "file": "/home/vveiga/code/c/ccrok/src/crok/input.c",
+    "output": "/home/vveiga/code/c/ccrok/build/debug/src/CMakeFiles/crok.dir/crok/input.c.o"
+  },
+  {
+    "arguments": [
+      "/sbin/cc",
+      "-Dcrok_EXPORTS",
+      "-I/usr/include/SDL2",
+      "-I/home/vveiga/code/c/ccrok/src",
+      "-g",
+      "-fPIC",
+      "-c",
+      "-o",
+      "CMakeFiles/crok.dir/crok/data.c.o",
+      "/home/vveiga/code/c/ccrok/src/crok/data.c"
+    ],
+    "directory": "/home/vveiga/code/c/ccrok/build/debug/src",
+    "file": "/home/vveiga/code/c/ccrok/src/crok/data.c",
+    "output": "/home/vveiga/code/c/ccrok/build/debug/src/CMakeFiles/crok.dir/crok/data.c.o"
+  },
+  {
+    "arguments": [
+      "/sbin/cc",
+      "-Dcrok_EXPORTS",
+      "-I/usr/include/SDL2",
+      "-I/home/vveiga/code/c/ccrok/src",
+      "-g",
+      "-fPIC",
+      "-c",
+      "-o",
+      "CMakeFiles/crok.dir/crok/player.c.o",
+      "/home/vveiga/code/c/ccrok/src/crok/player.c"
+    ],
+    "directory": "/home/vveiga/code/c/ccrok/build/debug/src",
+    "file": "/home/vveiga/code/c/ccrok/src/crok/player.c",
+    "output": "/home/vveiga/code/c/ccrok/build/debug/src/CMakeFiles/crok.dir/crok/player.c.o"
+  },
+  {
+    "arguments": [
+      "/sbin/cc",
+      "-Dcrok_EXPORTS",
+      "-I/usr/include/SDL2",
+      "-I/home/vveiga/code/c/ccrok/src",
+      "-g",
+      "-fPIC",
+      "-c",
+      "-o",
+      "CMakeFiles/crok.dir/crok/disc.c.o",
+      "/home/vveiga/code/c/ccrok/src/crok/disc.c"
+    ],
+    "directory": "/home/vveiga/code/c/ccrok/build/debug/src",
+    "file": "/home/vveiga/code/c/ccrok/src/crok/disc.c",
+    "output": "/home/vveiga/code/c/ccrok/build/debug/src/CMakeFiles/crok.dir/crok/disc.c.o"
+  },
+  {
+    "arguments": [
+      "/sbin/cc",
+      "-Dcrok_EXPORTS",
+      "-I/usr/include/SDL2",
+      "-I/home/vveiga/code/c/ccrok/src",
+      "-g",
+      "-fPIC",
+      "-c",
+      "-o",
+      "CMakeFiles/crok.dir/draw.c.o",
+      "/home/vveiga/code/c/ccrok/src/draw.c"
+    ],
+    "directory": "/home/vveiga/code/c/ccrok/build/debug/src",
+    "file": "/home/vveiga/code/c/ccrok/src/draw.c",
+    "output": "/home/vveiga/code/c/ccrok/build/debug/src/CMakeFiles/crok.dir/draw.c.o"
+  },
+  {
+    "arguments": [
+      "/sbin/cc",
+      "-Dfvec_EXPORTS",
+      "-I/usr/include/SDL2",
+      "-I/home/vveiga/code/c/ccrok/src",
+      "-g",
+      "-fPIC",
+      "-c",
+      "-o",
+      "CMakeFiles/fvec.dir/fvec.c.o",
+      "/home/vveiga/code/c/ccrok/src/fvec.c"
+    ],
+    "directory": "/home/vveiga/code/c/ccrok/build/debug/src",
+    "file": "/home/vveiga/code/c/ccrok/src/fvec.c",
+    "output": "/home/vveiga/code/c/ccrok/build/debug/src/CMakeFiles/fvec.dir/fvec.c.o"
+  },
+  {
+    "arguments": [
+      "/sbin/cc",
+      "-Dmemutil_EXPORTS",
+      "-I/usr/include/SDL2",
+      "-I/home/vveiga/code/c/ccrok/src",
+      "-g",
+      "-fPIC",
+      "-c",
+      "-o",
+      "CMakeFiles/memutil.dir/memutil.c.o",
+      "/home/vveiga/code/c/ccrok/src/memutil.c"
+    ],
+    "directory": "/home/vveiga/code/c/ccrok/build/debug/src",
+    "file": "/home/vveiga/code/c/ccrok/src/memutil.c",
+    "output": "/home/vveiga/code/c/ccrok/build/debug/src/CMakeFiles/memutil.dir/memutil.c.o"
+  },
+  {
+    "arguments": [
+      "/sbin/cc",
+      "-I/usr/include/SDL2",
+      "-I/home/vveiga/code/c/ccrok/src",
+      "-g",
+      "-c",
+      "-o",
+      "CMakeFiles/ccrok.dir/ccrok.c.o",
+      "/home/vveiga/code/c/ccrok/app/ccrok.c"
+    ],
+    "directory": "/home/vveiga/code/c/ccrok/build/debug/app",
+    "file": "/home/vveiga/code/c/ccrok/app/ccrok.c",
+    "output": "/home/vveiga/code/c/ccrok/build/debug/app/CMakeFiles/ccrok.dir/ccrok.c.o"
+  },
+  {
+    "arguments": [
+      "/sbin/cc",
+      "-I/usr/include/SDL2",
+      "-I/home/vveiga/code/c/ccrok/src",
+      "-I/home/vveiga/code/c/ccrok/test/unity",
+      "-I/home/vveiga/code/c/ccrok/build/debug/_deps/unity-src/src",
+      "-I/home/vveiga/code/c/ccrok/build/debug/_deps/unity-build",
+      "-g",
+      "-c",
+      "-o",
+      "CMakeFiles/ticktime_test.dir/ticktime_test.c.o",
+      "/home/vveiga/code/c/ccrok/test/ticktime_test.c"
+    ],
+    "directory": "/home/vveiga/code/c/ccrok/build/debug/test",
+    "file": "/home/vveiga/code/c/ccrok/test/ticktime_test.c",
+    "output": "/home/vveiga/code/c/ccrok/build/debug/test/CMakeFiles/ticktime_test.dir/ticktime_test.c.o"
+  }
 ]

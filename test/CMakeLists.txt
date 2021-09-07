@@ -2,15 +2,21 @@
 
 # 1. Declare the test file
 set(Tests
-  memutil_test)
+  memutil_test
+  ticktime_test)
 
 # 2. Declare dependencies of each test file
 set(memutil_test_deps
   memutil)
 
+# tick
+set(ticktime_test_deps
+  sched)
+
 # 3. Add dependencies to a list, need to be in the same order as item 1
 set(Dependencies
-  memutil_test_deps)
+  memutil_test_deps
+  ticktime_test_deps)
 
 ###################################################################
 
