@@ -13,12 +13,13 @@ struct crok_input_packet crok_input_end_packet() {
   return (struct crok_input_packet){.end = {.kind = CROK_INPUT_END}};
 }
 
-int crok_input_accum(struct crok_input_context *ic, input_producer_fun f) {
+int crok_input_accum(struct crok_input_context *ic, crok_input_producer_fun f,
+                     void *extra) {
   struct crok_input_packet p;
   size_t old = ic->buf_last;
   size_t left = CROK_INPUTPACKET_MAX - ic->buf_last;
   for (; left > 0; left--) {
-    p = f(ic);
+    p = f(ic, extra);
     if (p.kind == CROK_INPUT_END) {
       break;
     }

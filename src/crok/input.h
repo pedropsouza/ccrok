@@ -44,14 +44,15 @@ struct crok_input_context {
   struct crok_input_packet buf[CROK_INPUTPACKET_MAX];
 };
 
-typedef struct crok_input_packet (*input_producer_fun)(
-    struct crok_input_context *ic);
+typedef struct crok_input_packet (*crok_input_producer_fun)(
+    struct crok_input_context *ic, void *extra);
 
 // query the producer fun till it's empty, accumulating
 // its packets in the input context
 //
 // returns the number of accumulated packets
-int crok_input_accum(struct crok_input_context *ic, input_producer_fun f);
+int crok_input_accum(struct crok_input_context *ic, crok_input_producer_fun f,
+                     void *extra);
 
 // clean the input context in preparation for the next frame
 void crok_input_clean(struct crok_input_context *ic);

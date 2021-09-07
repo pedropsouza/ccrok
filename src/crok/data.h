@@ -2,18 +2,12 @@
 #define CROK_DATA_HG__
 
 #include "SDL2/SDL.h"
+#include "SDL2/SDL_image.h"
 #include "crok/config.h"
 #include "draw.h"
 #include "fvec.h"
 #include "input.h"
 #include <stdint.h>
-
-#define CROK_TEAM1 (1 << 0)
-#define CROK_TEAM2 (1 << 1)
-#define CROK_PLAYER_VALID (1 << 3)
-
-#define CROK_DISC_VALID (1 << 0)
-#define CROK_DISC_FALLEN (1 << 1)
 
 enum crok_gamestage {
   CROK_GAMESTART = 0,
@@ -24,6 +18,7 @@ enum crok_gamestage {
   CROK_FOUL,
   CROK_TALLY,
   CROK_ROUNDEND,
+  CROK_LEAVE,
   CROK_ERROR
 };
 
@@ -31,12 +26,24 @@ struct crok_setup_data {
   int width, height, servermode;
 };
 
+enum crok_player_flags {
+  CROK_PLAYER_VALID = 1 << 0,
+  CROK_PLAYER_TEAM1 = 1 << 1,
+  CROK_PLAYER_TEAM2 = 1 << 2,
+};
+
 struct crok_player {
   uint8_t id;
   char name[CROK_NAMELEN_MAX];
-  uint8_t flags;
+  enum crok_player_flags flags;
+  SDL_Texture *cursor_tex;
+  SDL_Rect cursor_rect;
+  struct crok_input_context inputctx;
+  crok_input_producer_fun inputf;
   uint32_t score;
 };
+
+enum crok_disc_flags { CROK_DISC_VALID = 1 << 0, CROK_DISC_FALLEN = 1 << 1 };
 
 struct crok_disc {
   uint8_t id;
@@ -44,7 +51,7 @@ struct crok_disc {
   struct fvec vel;
   struct fvec acc;
   uint8_t owner_id;
-  uint8_t flags;
+  enum crok_disc_flags flags;
   int radius;
   SDL_Texture *tex;
 };
@@ -58,6 +65,7 @@ struct crok_board {
 };
 
 struct crok_state {
+  size_t active_player;
   // either 2 or 4, as 2 sides
   struct crok_player players[4];
   struct crok_disc discs[CROK_DISCS_TOTAL];
@@ -71,13 +79,13 @@ struct crok_state {
 struct crok_data {
   SDL_Window *window;
   SDL_Renderer *renderer;
-  SDL_Texture *tex;
-  SDL_Rect dest;
+  SDL_Texture *cursor_tex;
   int width, height, servermode;
   struct crok_state crok;
   struct crok_input_context input;
 };
 
 struct crok_state crok_state_init(struct crok_data *appdata);
+void crok_state_finish(struct crok_state *cs);
 
 #endif // CROK_DATA_HG__

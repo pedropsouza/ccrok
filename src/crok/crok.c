@@ -1,6 +1,7 @@
 #include "crok.h"
 
-struct crok_input_packet crok_local_input(struct crok_input_context *ic) {
+struct crok_input_packet crok_local_input(struct crok_input_context *ic,
+                                          void *extra) {
   SDL_Event input;
 
   if (SDL_PollEvent(&input) > 0) {
@@ -35,23 +36,23 @@ struct sched_trans crok_setup(struct scheduler *s) {
     SDL_SetRenderDrawColor(d->renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(d->renderer);
 
-    // get the possibly modified dimensions
+    // modified dimensions maybe
     SDL_GetRendererOutputSize(d->renderer, &width, &height);
     d->width = width;
     d->height = height;
 
     SDL_Surface *surface;
-    surface = IMG_Load("resources/ul.png");
-    d->tex = SDL_CreateTextureFromSurface(d->renderer, surface);
+    surface = IMG_Load("resources/cursor.png");
+    d->cursor_tex = SDL_CreateTextureFromSurface(d->renderer, surface);
     SDL_FreeSurface(surface);
-    SDL_QueryTexture(d->tex, NULL, NULL, &d->dest.w, &d->dest.h);
-    d->dest.w /= 2;
-    d->dest.h /= 2;
-    d->dest.x = (width - d->dest.w) / 2;
-    d->dest.y = (height - d->dest.h) / 2;
   }
 
   d->crok = crok_state_init(d);
+  crok_player_new(&d->crok, CROK_PLAYER_TEAM1, crok_local_input, d->cursor_tex,
+                  "local player");
+  assert(crok_player_isvalid(&d->crok.players[0]));
+  d->crok.active_player = 0;
+
   return (struct sched_trans){.s = SCHED_CONTINUE, .why = "setup finished"};
 }
 
@@ -59,8 +60,9 @@ struct sched_trans crok_cleanup(struct scheduler *s) {
   struct crok_data *d = (struct crok_data *)s->persistant_data;
   struct crok_setup_data *setdat = (struct crok_setup_data *)s->setup_data;
 
+  crok_state_finish(&d->crok);
   if (!setdat->servermode) {
-    SDL_DestroyTexture(d->tex);
+    SDL_DestroyTexture(d->cursor_tex);
     SDL_DestroyRenderer(d->renderer);
     SDL_DestroyWindow(d->window);
     SDL_Quit();
@@ -75,6 +77,7 @@ struct sched_trans crok_cleanup(struct scheduler *s) {
 
 struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
   struct crok_data *d = (struct crok_data *)s->persistant_data;
+  struct crok_state *cs = (struct crok_state *)&d->crok;
   static long num_ticks = 0;
   num_ticks += 1;
   if (num_ticks * step_ns >= 10 * (long)1e9) {
@@ -82,26 +85,20 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
                                 .why = "10 seconds elapsed"};
   }
 
-  crok_input_accum(&d->input, crok_local_input);
-  for (size_t i = 0; i <= d->input.buf_last; i++) {
-    struct crok_input_packet p = d->input.buf[i];
-    switch (p.kind) {
-    case CROK_INPUT_INVALID:
-      break;
-    case CROK_INPUT_MOUSE:
-      d->dest.x = p.mouse.x - d->dest.w / 2;
-      d->dest.y = p.mouse.y - d->dest.h / 2;
-      break;
-    case CROK_INPUT_QUIT:
-      return (struct sched_trans){.s = SCHED_CLEANUP,
-                                  .why = "user requested quit"};
-      break;
-    default:
-      break;
-    }
+  struct crok_player *p = &cs->players[cs->active_player];
+  if (!crok_player_isvalid(p)) {
+    cs->gamestage = CROK_ERROR;
+    return (struct sched_trans){.s = SCHED_ERR, .why = "invalid active player"};
   }
-
-  crok_input_clean(&d->input);
+  enum crok_gamestage gst = crok_player_tick(p, cs);
+  switch (gst) {
+  CROK_LEAVE:
+    return (struct sched_trans){.s = SCHED_CLEANUP,
+                                .why = "user requested quit"};
+    break;
+  default:
+    break;
+  }
 
   return (struct sched_trans){.s = SCHED_CONTINUE, .why = "fixed call"};
 }
@@ -113,7 +110,12 @@ void crok_render(struct scheduler *s, double a) {
   SDL_RenderClear(d->renderer);
 
   SDL_RenderCopy(d->renderer, d->crok.board.tex, NULL, &d->crok.board.dest);
-  SDL_RenderCopy(d->renderer, d->tex, NULL, &d->dest);
+  for (size_t i = 0; i < 4; i++) {
+    struct crok_player *p[2] = {&d->crok.players[i], NULL};
+    if (crok_player_isvalid(p[0])) {
+      crok_player_render(p, d->renderer, 0);
+    }
+  }
 
   // triggers the double buffers for multiple rendering
   SDL_RenderPresent(d->renderer);

@@ -8,6 +8,10 @@ struct crok_state crok_state_init(struct crok_data *appdata) {
 
   struct crok_data *d = appdata;
 
+  if (appdata->servermode) {
+    return s;
+  }
+
   int smaller_dim = (d->width > d->height) ? d->height : d->width;
   int bd = smaller_dim * 0.9;
   s.board.dest.w = bd;
@@ -16,7 +20,6 @@ struct crok_state crok_state_init(struct crok_data *appdata) {
   int by = (d->height - bd) / 2;
   s.board.dest.x = bx;
   s.board.dest.y = by;
-
   s.board.tex = SDL_CreateTexture(d->renderer, SDL_PIXELFORMAT_RGBA8888,
                                   SDL_TEXTUREACCESS_TARGET, bd, bd);
   {
@@ -69,4 +72,10 @@ struct crok_state crok_state_init(struct crok_data *appdata) {
   }
   SDL_SetRenderTarget(d->renderer, NULL);
   return s;
+}
+
+void crok_state_finish(struct crok_state *cs) {
+  if (cs->board.tex) {
+    SDL_DestroyTexture(cs->board.tex);
+  }
 }

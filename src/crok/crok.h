@@ -14,7 +14,8 @@
 #include <stdint.h>
 #include <string.h>
 
-struct crok_input_packet crok_local_input(struct crok_input_context *ic);
+struct crok_input_packet crok_local_input(struct crok_input_context *ic,
+                                          void *extra);
 struct sched_trans crok_setup(struct scheduler *s);
 struct sched_trans crok_cleanup(struct scheduler *s);
 struct sched_trans crok_fixed(struct scheduler *s, long step_ns);
