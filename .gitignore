@@ -60,6 +60,7 @@ dkms.conf
 # IDE and editor private config/settings
 .vscode
 .cache
+compile_commands.json
 
 # Testing
 Testing

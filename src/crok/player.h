@@ -5,8 +5,7 @@
 
 struct crok_player *crok_player_new(struct crok_state *s, int side,
                                     crok_input_producer_fun inputf,
-                                    SDL_Texture *cursor_tex,
-                                    char name[CROK_NAMELEN_MAX]);
+                                    SDL_Texture *cursor_tex, char *name);
 int crok_player_team(struct crok_player *);
 int crok_player_isvalid(struct crok_player *);
 enum crok_gamestage crok_player_tick(struct crok_player *, struct crok_state *);

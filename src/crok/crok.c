@@ -92,7 +92,7 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
   }
   enum crok_gamestage gst = crok_player_tick(p, cs);
   switch (gst) {
-  CROK_LEAVE:
+  case CROK_LEAVE:
     return (struct sched_trans){.s = SCHED_CLEANUP,
                                 .why = "user requested quit"};
     break;

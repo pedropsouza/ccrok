@@ -2,8 +2,7 @@
 
 struct crok_player *crok_player_new(struct crok_state *s, int side,
                                     crok_input_producer_fun inputf,
-                                    SDL_Texture *cursor_tex,
-                                    char name[CROK_NAMELEN_MAX]) {
+                                    SDL_Texture *cursor_tex, char *name) {
   // showing off i know how to use ternary operators yes
   struct crok_player p = {0};
   uint8_t sideoff = (side - CROK_PLAYER_TEAM1) * 2;
@@ -16,7 +15,7 @@ struct crok_player *crok_player_new(struct crok_state *s, int side,
     return NULL;
   }
   p.id = vacant;
-  memcpy(p.name, name, CROK_NAMELEN_MAX - 1);
+  memcpy(p.name, name, strnlen(name, CROK_NAMELEN_MAX - 1));
   p.name[CROK_NAMELEN_MAX - 1] = '\0';
   p.flags = CROK_PLAYER_VALID;
   p.cursor_tex = cursor_tex;
@@ -38,25 +37,29 @@ int crok_player_isvalid(struct crok_player *p) {
 
 enum crok_gamestage crok_player_tick(struct crok_player *p,
                                      struct crok_state *s) {
+  enum crok_gamestage new_gst;
   crok_input_accum(&p->inputctx, p->inputf, p);
   for (size_t i = 0; i <= p->inputctx.buf_last; i++) {
     struct crok_input_packet pckt = p->inputctx.buf[i];
     switch (pckt.kind) {
     case CROK_INPUT_INVALID:
+      // Should this fail?
       break;
     case CROK_INPUT_MOUSE:
       p->cursor_rect.x = pckt.mouse.x - p->cursor_rect.w / 2;
       p->cursor_rect.y = pckt.mouse.y - p->cursor_rect.h / 2;
       break;
     case CROK_INPUT_QUIT:
-      return CROK_LEAVE;
+      new_gst = CROK_LEAVE;
+      printf("leaving...\n");
       break;
     default:
+      new_gst = s->gamestage;
       break;
     }
   }
   crok_input_clean(&p->inputctx);
-  return s->gamestage;
+  return new_gst;
 }
 
 void crok_player_render(struct crok_player *p[2], SDL_Renderer *r, double a) {
