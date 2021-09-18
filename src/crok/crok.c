@@ -43,12 +43,11 @@ struct sched_trans crok_setup(struct scheduler *s) {
 
     SDL_Surface *surface;
     surface = IMG_Load("resources/cursor.png");
-    d->cursor_tex = SDL_CreateTextureFromSurface(d->renderer, surface);
     SDL_FreeSurface(surface);
   }
 
   d->crok = crok_state_init(d);
-  crok_player_new(&d->crok, CROK_PLAYER_TEAM1, crok_local_input, d->cursor_tex,
+  crok_player_new(&d->crok, CROK_PLAYER_TEAM1, crok_local_input,
                   "local player");
   assert(crok_player_isvalid(&d->crok.players[0]));
   d->crok.active_player = 0;
@@ -62,7 +61,6 @@ struct sched_trans crok_cleanup(struct scheduler *s) {
 
   crok_state_finish(&d->crok);
   if (!setdat->servermode) {
-    SDL_DestroyTexture(d->cursor_tex);
     SDL_DestroyRenderer(d->renderer);
     SDL_DestroyWindow(d->window);
     SDL_Quit();

@@ -36,7 +36,6 @@ struct crok_player {
   uint8_t id;
   char name[CROK_NAMELEN_MAX];
   enum crok_player_flags flags;
-  SDL_Texture *cursor_tex;
   SDL_Rect cursor_rect;
   struct crok_input_context inputctx;
   crok_input_producer_fun inputf;
@@ -79,7 +78,6 @@ struct crok_state {
 struct crok_data {
   SDL_Window *window;
   SDL_Renderer *renderer;
-  SDL_Texture *cursor_tex;
   int width, height, servermode;
   struct crok_state crok;
   struct crok_input_context input;
