@@ -7,7 +7,8 @@ struct crok_disc crok_disc_init(struct crok_state *s, uint8_t owner) {
                         .vel = fvec_xy(0, 0),
                         .acc = fvec_xy(0, 0),
                         .radius = CROK_DISC_SIZE,
-                        .flags = 0};
+                        .flags = CROK_DISC_VALID,
+                        .tex = s->disc_tex};
   return d;
 }
 
@@ -24,4 +25,13 @@ enum crok_gamestage crok_disc_tick(struct crok_disc *d, struct crok_state *s) {
   return s->gamestage;
 }
 
-void crok_disc_render(struct crok_disc *d) {}
+void crok_disc_render(struct crok_disc *d[2], struct crok_render_data *rd) {
+  SDL_Rect dest = {0};
+  int disp_size =
+      (rd->board->arena_radius + rd->board->ditch_width) * CROK_DISC_SIZE * 2;
+  dest.w = dest.h = disp_size;
+  dest.x = d[0]->pos.x - dest.w / 2;
+  dest.y = d[0]->pos.y - dest.h / 2;
+
+  SDL_RenderCopy(rd->r, d[0]->tex, NULL, &dest);
+}

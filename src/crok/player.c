@@ -61,4 +61,5 @@ enum crok_gamestage crok_player_tick(struct crok_player *p,
   return new_gst;
 }
 
-void crok_player_render(struct crok_player *p[2], SDL_Renderer *r, double a) {}
+void crok_player_render(struct crok_player *p[2], struct crok_render_data *rd) {
+}

@@ -40,10 +40,6 @@ struct sched_trans crok_setup(struct scheduler *s) {
     SDL_GetRendererOutputSize(d->renderer, &width, &height);
     d->width = width;
     d->height = height;
-
-    SDL_Surface *surface;
-    surface = IMG_Load("resources/cursor.png");
-    SDL_FreeSurface(surface);
   }
 
   d->crok = crok_state_init(d);
@@ -51,6 +47,8 @@ struct sched_trans crok_setup(struct scheduler *s) {
                   "local player");
   assert(crok_player_isvalid(&d->crok.players[0]));
   d->crok.active_player = 0;
+
+  d->crok.discs[0] = crok_disc_init(&d->crok, 0);
 
   return (struct sched_trans){.s = SCHED_CONTINUE, .why = "setup finished"};
 }
@@ -78,7 +76,7 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
   struct crok_state *cs = (struct crok_state *)&d->crok;
   static long num_ticks = 0;
   num_ticks += 1;
-  if (num_ticks * step_ns >= 10 * (long)1e9) {
+  if (num_ticks * step_ns >= 1000 * (long)1e9) {
     return (struct sched_trans){.s = SCHED_CLEANUP,
                                 .why = "10 seconds elapsed"};
   }
@@ -98,20 +96,34 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
     break;
   }
 
+  cs->discs[0].pos.x = cs->players[0].cursor_rect.x;
+  cs->discs[0].pos.y = cs->players[0].cursor_rect.y;
+
   return (struct sched_trans){.s = SCHED_CONTINUE, .why = "fixed call"};
 }
 
 void crok_render(struct scheduler *s, double a) {
   struct crok_data *d = (struct crok_data *)s->persistant_data;
+  struct crok_render_data rd;
+  rd.r = d->renderer;
+  rd.board = &d->crok.board;
+  rd.a = a;
 
   SDL_SetRenderDrawColor(d->renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
   SDL_RenderClear(d->renderer);
 
   SDL_RenderCopy(d->renderer, d->crok.board.tex, NULL, &d->crok.board.dest);
   for (size_t i = 0; i < 4; i++) {
-    struct crok_player *p[2] = {&d->crok.players[i], NULL};
-    if (crok_player_isvalid(p[0])) {
-      crok_player_render(p, d->renderer, 0);
+    struct crok_player *player[2] = {&d->crok.players[i], NULL};
+    if (crok_player_isvalid(player[0])) {
+      crok_player_render(player, &rd);
+    }
+  }
+
+  for (size_t i = 0; i < CROK_DISCS_TOTAL; i++) {
+    struct crok_disc *disc[2] = {&d->crok.discs[i], NULL};
+    if (crok_disc_isvalid(disc[0])) {
+      crok_disc_render(disc, &rd);
     }
   }
 

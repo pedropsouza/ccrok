@@ -12,26 +12,32 @@ struct crok_state crok_state_init(struct crok_data *appdata) {
     return s;
   }
 
-  int smaller_dim = (d->width > d->height) ? d->height : d->width;
+  return s;
+}
+
+void crok_calc_scale(struct crok_data *appdata) {
+  struct crok_board *b = &appdata->crok.board;
+  int smaller_dim =
+      (appdata->width > appdata->height) ? appdata->height : appdata->width;
   int bd = smaller_dim * 0.9;
-  s.board.dest.w = bd;
-  s.board.dest.h = bd;
-  int bx = (d->width - bd) / 2;
-  int by = (d->height - bd) / 2;
-  s.board.dest.x = bx;
-  s.board.dest.y = by;
-  s.board.tex = SDL_CreateTexture(d->renderer, SDL_PIXELFORMAT_RGBA8888,
-                                  SDL_TEXTUREACCESS_TARGET, bd, bd);
+  b->dest.w = bd;
+  b->dest.h = bd;
+  int bx = (appdata->width - bd) / 2;
+  int by = (appdata->height - bd) / 2;
+  b->dest.x = bx;
+  b->dest.y = by;
+  b->tex = SDL_CreateTexture(appdata->renderer, SDL_PIXELFORMAT_RGBA8888,
+                             SDL_TEXTUREACCESS_TARGET, bd, bd);
   {
     int br = bd / 2.0;
     int o = br;
-    int ditchw = br / 12.0;
-    int holer = br / 16.0;
+    s.board.ditch_units = CROK_DITCH_DIAM;
+    s.board.hole_units = CROK_HOLE_DIAM;
+    s.board.arena_units = UINT32_MAX - CROK_DITCH_DIAM;
+    int ditchw = bd * (CROK_DITCH_SIZE / UINT32_MAX);
+    int holer = bd * (CROK_HOLE_RADIUS / UINT32_MAX);
     int arenar = br - ditchw;
     int scoreareaw = (arenar - holer) / 3.0;
-    s.board.ditch_width = ditchw;
-    s.board.arena_radius = arenar;
-    s.board.hole_radius = holer;
     SDL_SetRenderTarget(d->renderer, s.board.tex);
     SDL_RenderClear(d->renderer);
     SDL_SetRenderDrawColor(d->renderer, 0x28, 0x15, 0x04, SDL_ALPHA_OPAQUE);
@@ -71,11 +77,23 @@ struct crok_state crok_state_init(struct crok_data *appdata) {
     }
   }
   SDL_SetRenderTarget(d->renderer, NULL);
-  return s;
+
+  int dsize = (s.board.arena_radius + s.board.ditch_width) * CROK_DISC_SIZE;
+  int o = dsize / 2;
+
+  s.disc_tex = SDL_CreateTexture(d->renderer, SDL_PIXELFORMAT_RGBA8888,
+                                 SDL_TEXTUREACCESS_TARGET, dsize, dsize);
+  SDL_SetRenderTarget(d->renderer, s.disc_tex);
+  {
+    SDL_SetRenderDrawColor(d->renderer, 0xcc, 0xcc, 0xcc, SDL_ALPHA_OPAQUE);
+    SDL_RenderFillCircle(d->renderer, o, o, dsize);
+  }
+  SDL_SetRenderTarget(d->renderer, NULL);
 }
 
 void crok_state_finish(struct crok_state *cs) {
   if (cs->board.tex) {
     SDL_DestroyTexture(cs->board.tex);
+    SDL_DestroyTexture(cs->disc_tex);
   }
 }

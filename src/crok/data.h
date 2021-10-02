@@ -26,6 +26,12 @@ struct crok_setup_data {
   int width, height, servermode;
 };
 
+struct crok_render_data {
+  SDL_Renderer *r;
+  struct crok_board *board;
+  double a;
+};
+
 enum crok_player_flags {
   CROK_PLAYER_VALID = 1 << 0,
   CROK_PLAYER_TEAM1 = 1 << 1,
@@ -55,12 +61,14 @@ struct crok_disc {
   SDL_Texture *tex;
 };
 
+// units are [-radius_px,+radius_px] / UINT32_MAX
 struct crok_board {
   SDL_Texture *tex;
   SDL_Rect dest;
-  int arena_radius;
-  int ditch_width;
-  int hole_radius;
+  uint32_t arena_units;
+  uint32_t ditch_units;
+  uint32_t hole_units;
+  uint32_t radius_px;
 };
 
 struct crok_state {
@@ -68,6 +76,7 @@ struct crok_state {
   // either 2 or 4, as 2 sides
   struct crok_player players[4];
   struct crok_disc discs[CROK_DISCS_TOTAL];
+  SDL_Texture *disc_tex;
   struct fvec posts[8];
   unsigned int round;
   int overall_score;
@@ -84,6 +93,8 @@ struct crok_data {
 };
 
 struct crok_state crok_state_init(struct crok_data *appdata);
+void crok_calc_scale(struct crok_data *appdata);
+void crok_calc_scale(struct crok_data *appdata);
 void crok_state_finish(struct crok_state *cs);
 
 #endif // CROK_DATA_HG__
