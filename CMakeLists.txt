@@ -4,7 +4,7 @@ project(ExampleSDL2C)
 include(CTest)
 include(FetchContent)
 set(FETCHCONTENT_QUIET 0)
-set(CMAKE_C_FLAGS "-fsanitize=bounds")
+set(CMAKE_C_FLAGS "")
 
 # Cmake module directory
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/build/cmake/")

@@ -26,7 +26,8 @@ struct sched_trans crok_setup(struct scheduler *s) {
   struct crok_data *d = (struct crok_data *)s->persistant_data;
   struct crok_setup_data *setdat = (struct crok_setup_data *)s->setup_data;
 
-  if (!setdat->servermode) {
+  d->servermode = setdat->servermode;
+  if (!d->servermode) {
     int width = setdat->width, height = setdat->height;
     SDL_Init(SDL_INIT_VIDEO);
     d->window = SDL_CreateWindow("ccrok", SDL_WINDOWPOS_UNDEFINED,
@@ -42,13 +43,13 @@ struct sched_trans crok_setup(struct scheduler *s) {
     d->height = height;
   }
 
-  d->crok = crok_state_init(d);
+  crok_state_init(d);
   crok_player_new(&d->crok, CROK_PLAYER_TEAM1, crok_local_input,
                   "local player");
   assert(crok_player_isvalid(&d->crok.players[0]));
   d->crok.active_player = 0;
 
-  d->crok.discs[0] = crok_disc_init(&d->crok, 0);
+  d->crok.board.discs[0] = crok_disc_init(&d->crok, 0);
 
   return (struct sched_trans){.s = SCHED_CONTINUE, .why = "setup finished"};
 }
@@ -96,8 +97,8 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
     break;
   }
 
-  cs->discs[0].pos.x = cs->players[0].cursor_rect.x;
-  cs->discs[0].pos.y = cs->players[0].cursor_rect.y;
+  cs->board.discs[0].pos.x = cs->players[0].cursor_rect.x;
+  cs->board.discs[0].pos.y = cs->players[0].cursor_rect.y;
 
   return (struct sched_trans){.s = SCHED_CONTINUE, .why = "fixed call"};
 }
@@ -106,13 +107,13 @@ void crok_render(struct scheduler *s, double a) {
   struct crok_data *d = (struct crok_data *)s->persistant_data;
   struct crok_render_data rd;
   rd.r = d->renderer;
-  rd.board = &d->crok.board;
+  rd.board = &d->crok.rboard;
   rd.a = a;
 
   SDL_SetRenderDrawColor(d->renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
   SDL_RenderClear(d->renderer);
 
-  SDL_RenderCopy(d->renderer, d->crok.board.tex, NULL, &d->crok.board.dest);
+  SDL_RenderCopy(d->renderer, rd.board->tex, NULL, &rd.board->dest);
   for (size_t i = 0; i < 4; i++) {
     struct crok_player *player[2] = {&d->crok.players[i], NULL};
     if (crok_player_isvalid(player[0])) {
@@ -121,7 +122,7 @@ void crok_render(struct scheduler *s, double a) {
   }
 
   for (size_t i = 0; i < CROK_DISCS_TOTAL; i++) {
-    struct crok_disc *disc[2] = {&d->crok.discs[i], NULL};
+    struct crok_disc *disc[2] = {&d->crok.board.discs[i], NULL};
     if (crok_disc_isvalid(disc[0])) {
       crok_disc_render(disc, &rd);
     }
