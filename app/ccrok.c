@@ -35,8 +35,9 @@ int main(int argc, char *argv[]) {
 
   render_fun renf = (setdat.servermode) ? headless_noop : crok_render;
 
-  struct scheduler s = sched_init(crok_setup, crok_cleanup, crok_fixed, renf,
-                                  1e9 / 200, 1e9 / 100, &setdat, "main");
+  struct scheduler s =
+      sched_init(crok_setup, crok_cleanup, crok_fixed, renf, 1e9 / CROK_TPS,
+                 1e9 / CROK_FPS, &setdat, "main");
 
   sched_handover(&s);
   sched_debugprint(stdout, &s);

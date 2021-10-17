@@ -28,7 +28,7 @@ struct crok_setup_data {
 
 struct crok_render_data {
   SDL_Renderer *r;
-  struct crok_render_board *board;
+  struct crok_render_board *rboard;
   double a;
 };
 
@@ -109,9 +109,11 @@ struct crok_data {
 };
 
 struct crok_state crok_state_init(struct crok_data *appdata);
-struct crok_board crok_board_calc(struct crok_data *appdata);
-struct crok_render_board crok_board_render_init(struct crok_data *appdata,
-                                                double size_mult);
+struct crok_board crok_board_calc();
+struct crok_render_board crok_board_render_init(SDL_Renderer *renderer,
+                                                const struct crok_board *subj,
+                                                int pos_x, int pos_y,
+                                                int px_size);
 void crok_board_render_finish(struct crok_render_board *rboard);
 void crok_state_finish(struct crok_state *cs);
 

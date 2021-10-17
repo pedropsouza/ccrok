@@ -27,7 +27,7 @@ enum crok_gamestage crok_disc_tick(struct crok_disc *d, struct crok_state *s) {
 
 void crok_disc_render(struct crok_disc *d[2], struct crok_render_data *rd) {
   SDL_Rect dest = {0};
-  double s = rd->board->disc_radius;
+  double s = rd->rboard->disc_radius;
   dest.w = dest.h = s;
   dest.x = d[0]->pos.x - dest.w / 2;
   dest.y = d[0]->pos.y - dest.h / 2;
