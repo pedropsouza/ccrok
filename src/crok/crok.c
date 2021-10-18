@@ -22,7 +22,7 @@ struct crok_input_packet crok_local_input(struct crok_input_context *ic,
 
 struct sched_trans crok_setup(struct scheduler *s) {
   s->persistant_data =
-      safe_malloc(sizeof(struct crok_data), "setup persistant_data alloc");
+      safe_calloc(sizeof(struct crok_data), "setup persistant_data alloc");
   struct crok_data *d = (struct crok_data *)s->persistant_data;
   struct crok_setup_data *setdat = (struct crok_setup_data *)s->setup_data;
 

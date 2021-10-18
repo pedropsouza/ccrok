@@ -36,7 +36,7 @@ int crok_player_isvalid(struct crok_player *p) {
 
 enum crok_gamestage crok_player_tick(struct crok_player *p,
                                      struct crok_state *s) {
-  enum crok_gamestage new_gst;
+  enum crok_gamestage new_gst = s->gamestage;
   crok_input_accum(&p->inputctx, p->inputf, p);
   for (size_t i = 0; i <= p->inputctx.buf_last; i++) {
     struct crok_input_packet pckt = p->inputctx.buf[i];
@@ -53,7 +53,6 @@ enum crok_gamestage crok_player_tick(struct crok_player *p,
       printf("leaving...\n");
       break;
     default:
-      new_gst = s->gamestage;
       break;
     }
   }
