@@ -100,9 +100,6 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
   cs->board.discs[0].pos.x = cs->players[0].cursor_rect.x;
   cs->board.discs[0].pos.y = cs->players[0].cursor_rect.y;
 
-  printf("dest.w,h, x,y = %d,%d, %d,%d\n", cs->rboard.dest.w, cs->rboard.dest.h,
-         cs->rboard.dest.x, cs->rboard.dest.y);
-
   return (struct sched_trans){.s = SCHED_CONTINUE, .why = "fixed call"};
 }
 
@@ -117,19 +114,19 @@ void crok_render(struct scheduler *s, double a) {
   SDL_RenderClear(d->renderer);
 
   SDL_RenderCopy(d->renderer, rd.rboard->tex, NULL, &rd.rboard->dest);
-  /*   for (size_t i = 0; i < 4; i++) { */
-  /*     struct crok_player *player[2] = {&d->crok.players[i], NULL}; */
-  /*     if (crok_player_isvalid(player[0])) { */
-  /*       crok_player_render(player, &rd); */
-  /*     } */
-  /*   } */
-  /*  */
-  /*   for (size_t i = 0; i < CROK_DISCS_TOTAL; i++) { */
-  /*     struct crok_disc *disc[2] = {&d->crok.board.discs[i], NULL}; */
-  /*     if (crok_disc_isvalid(disc[0])) { */
-  /*       crok_disc_render(disc, &rd); */
-  /*     } */
-  /*   } */
+  for (size_t i = 0; i < 4; i++) {
+    struct crok_player *player[2] = {&d->crok.players[i], NULL};
+    if (crok_player_isvalid(player[0])) {
+      crok_player_render(player, &rd);
+    }
+  }
+
+  for (size_t i = 0; i < CROK_DISCS_TOTAL; i++) {
+    struct crok_disc *disc[2] = {&d->crok.board.discs[i], NULL};
+    if (crok_disc_isvalid(disc[0])) {
+      crok_disc_render(disc, &rd);
+    }
+  }
 
   // triggers the double buffers for multiple rendering
   SDL_RenderPresent(d->renderer);

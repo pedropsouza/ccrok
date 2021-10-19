@@ -15,8 +15,8 @@
 #define CROK_NAMELEN_MAX 32
 #define CROK_INPUTPACKET_MAX 128
 
-#define CROK_TPS 2
-#define CROK_FPS 2
+#define CROK_TPS 100
+#define CROK_FPS 60
 
 // Debugging aid
 #ifdef NDEBUG
@@ -37,4 +37,4 @@
 
 #endif // CROK_CONFIG_HG__
 
-// TODO: was in the middle of refactoring the board drawing code
+// TODO: Wrap SDL_CreateTexture() so it reports errors

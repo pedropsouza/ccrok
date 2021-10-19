@@ -46,6 +46,8 @@ struct crok_render_board crok_board_render_init(SDL_Renderer *renderer,
                                                 const struct crok_board *subj,
                                                 int pos_x, int pos_y,
                                                 int px_size) {
+  // !! don't forget to cast the numerator of the
+  // fixed -> fractional conversion to double!
   const struct crok_board *b = subj;
   struct crok_render_board rb = {0};
 
@@ -78,9 +80,8 @@ struct crok_render_board crok_board_render_init(SDL_Renderer *renderer,
 
   rb.tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888,
                              SDL_TEXTUREACCESS_TARGET, bd, bd);
+  SDL_SetRenderTarget(renderer, rb.tex);
   {
-    SDL_SetRenderTarget(renderer, rb.tex);
-
     double ditchw = rb.render_ditch_width;
     double holer = rb.render_hole_radius;
     double arenar = rb.render_arena_radius;
@@ -128,19 +129,29 @@ struct crok_render_board crok_board_render_init(SDL_Renderer *renderer,
       pos.y = rr * ((double)pos.y / CROK_BOARD_DIAM);
       SDL_RenderFillCircle(renderer, o + pos.x, o + pos.y, postr);
     }
-
-    SDL_SetRenderTarget(renderer, NULL);
   }
-  {
-    double dsize = bd * (CROK_DISC_DIAM / CROK_BOARD_DIAM);
-    rb.disc_radius = dsize;
+  SDL_SetRenderTarget(renderer, NULL);
 
-    rb.disc_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888,
-                                    SDL_TEXTUREACCESS_TARGET, dsize, dsize);
+  {
+    double dsize = bd * ((double)CROK_DISC_DIAM / CROK_BOARD_DIAM);
+    rb.disc_radius = dsize / 2;
+    double o = dsize / 2;
+
+    rb.disc_tex =
+        SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888,
+                          SDL_TEXTUREACCESS_TARGET, dsize + 1, dsize + 1);
+    const char *errs;
+    if (strcmp((errs = SDL_GetError()), "") != 0) {
+      printf("disc texture: %s\n", errs);
+    }
     SDL_SetRenderTarget(renderer, rb.disc_tex);
     {
+      // SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00,
+      // SDL_ALPHA_TRANSPARENT);
+      SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, SDL_ALPHA_TRANSPARENT);
+      SDL_RenderClear(renderer);
       SDL_SetRenderDrawColor(renderer, 0xcc, 0xcc, 0xcc, SDL_ALPHA_OPAQUE);
-      SDL_RenderFillCircle(renderer, o, o, dsize);
+      SDL_RenderFillCircle(renderer, o, o, rb.disc_radius);
     }
     SDL_SetRenderTarget(renderer, NULL);
   }
