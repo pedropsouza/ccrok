@@ -9,15 +9,6 @@ struct crok_state crok_state_init(struct crok_data *appdata) {
   struct crok_data *d = appdata;
   s.board = crok_board_calc(d);
 
-  if (d->servermode) {
-    return s;
-  }
-
-  int w = d->width;
-  int h = d->height;
-  int smaller = (w > h) ? h : w;
-  s.rboard = crok_board_render_init(d->renderer, &s.board, d->width / 2,
-                                    d->height / 2, smaller * 0.9);
   return s;
 }
 
@@ -65,27 +56,26 @@ struct crok_render_board crok_board_render_init(SDL_Renderer *renderer,
 
   // Loose, render specific
   double rr = bd / 2.0;
-  rb.render_radius = rr;
+  rb.radius = rr;
   double o = rr;
-  rb.render_ditch_width = rr * ((double)b->ditch_units / CROK_BOARD_DIAM);
-  rb.render_hole_radius = rr * ((double)b->hole_units / CROK_BOARD_DIAM);
-  rb.render_arena_radius = rr * ((double)b->arena_units / CROK_BOARD_DIAM);
-  rb.render_scorearea_width =
-      rr * ((double)b->scorearea_units / CROK_BOARD_DIAM);
+  rb.ditch_width = rr * ((double)b->ditch_units / CROK_BOARD_DIAM);
+  rb.hole_radius = rr * ((double)b->hole_units / CROK_BOARD_DIAM);
+  rb.arena_radius = rr * ((double)b->arena_units / CROK_BOARD_DIAM);
+  rb.scorearea_width = rr * ((double)b->scorearea_units / CROK_BOARD_DIAM);
 
-  PRINTFVAR(rb.render_ditch_width);
-  PRINTFVAR(rb.render_hole_radius);
-  PRINTFVAR(rb.render_arena_radius);
-  PRINTFVAR(rb.render_scorearea_width);
+  PRINTFVAR(rb.ditch_width);
+  PRINTFVAR(rb.hole_radius);
+  PRINTFVAR(rb.arena_radius);
+  PRINTFVAR(rb.scorearea_width);
 
   rb.tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888,
                              SDL_TEXTUREACCESS_TARGET, bd, bd);
   SDL_SetRenderTarget(renderer, rb.tex);
   {
-    double ditchw = rb.render_ditch_width;
-    double holer = rb.render_hole_radius;
-    double arenar = rb.render_arena_radius;
-    double scoreareaw = rb.render_scorearea_width;
+    double ditchw = rb.ditch_width;
+    double holer = rb.hole_radius;
+    double arenar = rb.arena_radius;
+    double scoreareaw = rb.scorearea_width;
     PRINTFVAR(o);
     PRINTFVAR(ditchw);
     PRINTFVAR(holer);
@@ -165,5 +155,12 @@ void crok_board_render_finish(struct crok_render_board *rboard) {
 }
 
 void crok_state_finish(struct crok_state *cs) {
-  crok_board_render_finish(&cs->rboard);
+  // crok_board_render_finish(&cs->rboard);
+}
+
+struct ivec crok_screen_to_world(struct crok_render_data *rd, double x,
+                                 double y) {
+  double xf = rd->rboard->dest.w;
+  struct ivec bcoord = {};
+  return bcoord;
 }

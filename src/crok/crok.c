@@ -25,26 +25,31 @@ struct sched_trans crok_setup(struct scheduler *s) {
       safe_calloc(sizeof(struct crok_data), "setup persistant_data alloc");
   struct crok_data *d = (struct crok_data *)s->persistant_data;
   struct crok_setup_data *setdat = (struct crok_setup_data *)s->setup_data;
+  struct crok_render_data *rdat = &d->renderdata;
 
-  d->servermode = setdat->servermode;
-  if (!d->servermode) {
-    int width = setdat->width, height = setdat->height;
+  rdat->w = setdat->width;
+  rdat->h = setdat->height;
+  rdat->a = 0.0;
+  rdat->servermode = setdat->servermode;
+  if (!rdat->servermode) {
     SDL_Init(SDL_INIT_VIDEO);
-    d->window = SDL_CreateWindow("ccrok", SDL_WINDOWPOS_UNDEFINED,
-                                 SDL_WINDOWPOS_UNDEFINED, width, height, 0);
-    SDL_SetRenderDrawBlendMode(d->renderer, SDL_BLENDMODE_BLEND);
-
-    d->renderer = SDL_CreateRenderer(d->window, -1, SDL_RENDERER_ACCELERATED);
-    SDL_SetRenderDrawColor(d->renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
-    SDL_RenderClear(d->renderer);
+    rdat->win = SDL_CreateWindow("ccrok", SDL_WINDOWPOS_UNDEFINED,
+                                 SDL_WINDOWPOS_UNDEFINED, rdat->w, rdat->h, 0);
+    rdat->rdr = SDL_CreateRenderer(rdat->win, -1, SDL_RENDERER_ACCELERATED);
+    SDL_SetRenderDrawBlendMode(rdat->rdr, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(rdat->rdr, 0, 0, 0, SDL_ALPHA_OPAQUE);
+    SDL_RenderClear(rdat->rdr);
 
     // modified dimensions maybe
-    SDL_GetRendererOutputSize(d->renderer, &width, &height);
-    d->width = width;
-    d->height = height;
+    SDL_GetRendererOutputSize(rdat->rdr, &rdat->w, &rdat->h);
   }
-
   d->crok = crok_state_init(d);
+
+  int smaller = (rdat->w > rdat->h) ? rdat->h : rdat->w;
+  d->rboard = crok_board_render_init(rdat->rdr, &d->crok.board, rdat->w / 2,
+                                     rdat->h / 2, smaller * 0.9);
+  rdat->rboard = &d->rboard;
+
   crok_player_new(&d->crok, CROK_PLAYER_TEAM1, crok_local_input,
                   "local player");
   assert(crok_player_isvalid(&d->crok.players[0]));
@@ -57,12 +62,12 @@ struct sched_trans crok_setup(struct scheduler *s) {
 
 struct sched_trans crok_cleanup(struct scheduler *s) {
   struct crok_data *d = (struct crok_data *)s->persistant_data;
-  struct crok_setup_data *setdat = (struct crok_setup_data *)s->setup_data;
+  struct crok_render_data *r = &d->renderdata;
 
   crok_state_finish(&d->crok);
-  if (!setdat->servermode) {
-    SDL_DestroyRenderer(d->renderer);
-    SDL_DestroyWindow(d->window);
+  if (!r->servermode) {
+    SDL_DestroyRenderer(r->rdr);
+    SDL_DestroyWindow(r->win);
     SDL_Quit();
   }
 
@@ -98,37 +103,59 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
     break;
   }
 
-  cs->board.discs[0].pos.x = cs->players[0].cursor_rect.x;
-  cs->board.discs[0].pos.y = cs->players[0].cursor_rect.y;
+  struct crok_disc *td = cs->board.discs;
+  struct crok_player *tp = cs->players;
+
+  struct ivec target = {.x = tp->cursor_rect.x, .y = tp->cursor_rect.y};
+  struct ivec force = ivec_sub(target, td->pb.pos);
+  // force = ivec_div(force, (struct ivec){.x = 1, .y = 1});
+  ivec_print(force, "force");
+  if (ivec_mag(force) > 10000) {
+    goto forcetoobig;
+  }
+  physbody_accel(&td->pb,
+                 ivec_div(force, (struct ivec){.x = CROK_TPS, .y = CROK_TPS}));
+forcetoobig:
+
+  for (size_t i = 0; i < 4; i++) {
+    struct crok_player *player = &d->crok.players[i];
+    if (crok_player_isvalid(player)) {
+      crok_player_tick(player, &d->crok);
+    }
+  }
+
+  for (size_t i = 0; i < CROK_DISCS_TOTAL; i++) {
+    struct crok_disc *disc = &d->crok.board.discs[i];
+    if (crok_disc_isvalid(disc)) {
+      crok_disc_tick(disc, &d->crok);
+    }
+  }
 
   return (struct sched_trans){.s = SCHED_CONTINUE, .why = "fixed call"};
 }
 
 void crok_render(struct scheduler *s, double a) {
   struct crok_data *d = (struct crok_data *)s->persistant_data;
-  struct crok_render_data rd = {0};
-  rd.r = d->renderer;
-  rd.rboard = &d->crok.rboard;
-  rd.a = a;
+  struct crok_render_data *r = &d->renderdata;
 
-  SDL_SetRenderDrawColor(d->renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
-  SDL_RenderClear(d->renderer);
+  SDL_SetRenderDrawColor(r->rdr, 0, 0, 0, SDL_ALPHA_OPAQUE);
+  SDL_RenderClear(r->rdr);
 
-  SDL_RenderCopy(d->renderer, rd.rboard->tex, NULL, &rd.rboard->dest);
+  SDL_RenderCopy(r->rdr, d->rboard.tex, NULL, &d->rboard.dest);
   for (size_t i = 0; i < 4; i++) {
     struct crok_player *player[2] = {&d->crok.players[i], NULL};
     if (crok_player_isvalid(player[0])) {
-      crok_player_render(player, &rd);
+      crok_player_render(player, r);
     }
   }
 
   for (size_t i = 0; i < CROK_DISCS_TOTAL; i++) {
     struct crok_disc *disc[2] = {&d->crok.board.discs[i], NULL};
     if (crok_disc_isvalid(disc[0])) {
-      crok_disc_render(disc, &rd);
+      crok_disc_render(disc, r);
     }
   }
 
   // triggers the double buffers for multiple rendering
-  SDL_RenderPresent(d->renderer);
+  SDL_RenderPresent(r->rdr);
 }

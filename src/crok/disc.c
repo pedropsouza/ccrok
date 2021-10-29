@@ -3,12 +3,9 @@
 struct crok_disc crok_disc_init(struct crok_state *s, uint8_t owner) {
   struct crok_disc d = {.id = 0, // FIXME,
                         .owner_id = owner,
-                        .pos = fvec_xy(0, 0),
-                        .vel = fvec_xy(0, 0),
-                        .acc = fvec_xy(0, 0),
-                        .radius = CROK_DISC_DIAM,
-                        .flags = CROK_DISC_VALID,
-                        .tex = s->rboard.disc_tex};
+                        .pb = physbody_zero("disc"),
+                        .flags = CROK_DISC_VALID};
+  d.pb.radius = CROK_DISC_DIAM;
   return d;
 }
 
@@ -21,7 +18,7 @@ int crok_disc_isvalid(struct crok_disc *d) {
 }
 
 enum crok_gamestage crok_disc_tick(struct crok_disc *d, struct crok_state *s) {
-  // TODO
+  physbody_tick(&d->pb);
   return s->gamestage;
 }
 
@@ -30,8 +27,8 @@ void crok_disc_render(struct crok_disc *d[2], struct crok_render_data *rd) {
   double s = rd->rboard->disc_radius;
   dest.w = s * 2;
   dest.h = s * 2;
-  dest.x = d[0]->pos.x - s;
-  dest.y = d[0]->pos.y - s;
+  dest.x = d[0]->pb.pos.x - s;
+  dest.y = d[0]->pb.pos.y - s;
 
-  SDL_RenderCopy(rd->r, rd->rboard->disc_tex, NULL, &dest);
+  SDL_RenderCopy(rd->rdr, rd->rboard->disc_tex, NULL, &dest);
 }

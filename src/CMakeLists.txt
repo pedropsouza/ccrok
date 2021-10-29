@@ -9,6 +9,7 @@ add_library(crok SHARED
   #  crok/net.c
   crok/input.c
   crok/data.c
+  crok/phys.c
   crok/player.c
   crok/disc.c
   draw.c
