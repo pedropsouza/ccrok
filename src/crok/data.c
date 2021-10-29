@@ -140,14 +140,13 @@ struct crok_render_board crok_board_render_init(SDL_Renderer *renderer,
     rb.disc_tex =
         SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888,
                           SDL_TEXTUREACCESS_TARGET, dsize + 1, dsize + 1);
+    SDL_SetTextureBlendMode(rb.disc_tex, SDL_BLENDMODE_BLEND);
     const char *errs;
     if (strcmp((errs = SDL_GetError()), "") != 0) {
       printf("disc texture: %s\n", errs);
     }
     SDL_SetRenderTarget(renderer, rb.disc_tex);
     {
-      // SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00,
-      // SDL_ALPHA_TRANSPARENT);
       SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, SDL_ALPHA_TRANSPARENT);
       SDL_RenderClear(renderer);
       SDL_SetRenderDrawColor(renderer, 0xcc, 0xcc, 0xcc, SDL_ALPHA_OPAQUE);

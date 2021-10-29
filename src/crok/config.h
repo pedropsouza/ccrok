@@ -6,7 +6,7 @@
 // diameter, including the ditch
 #define CROK_BOARD_DIAM (UINT32_MAX)
 #define CROK_DITCH_DIAM (CROK_BOARD_DIAM / 24)
-#define CROK_HOLE_DIAM (CROK_BOARD_DIAM / 32)
+#define CROK_HOLE_DIAM (CROK_BOARD_DIAM / 28)
 
 #define CROK_DISCS_PER_SIDE 12
 #define CROK_DISCS_TOTAL (CROK_DISCS_PER_SIDE * 2)

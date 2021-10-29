@@ -32,6 +32,7 @@ struct sched_trans crok_setup(struct scheduler *s) {
     SDL_Init(SDL_INIT_VIDEO);
     d->window = SDL_CreateWindow("ccrok", SDL_WINDOWPOS_UNDEFINED,
                                  SDL_WINDOWPOS_UNDEFINED, width, height, 0);
+    SDL_SetRenderDrawBlendMode(d->renderer, SDL_BLENDMODE_BLEND);
 
     d->renderer = SDL_CreateRenderer(d->window, -1, SDL_RENDERER_ACCELERATED);
     SDL_SetRenderDrawColor(d->renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
