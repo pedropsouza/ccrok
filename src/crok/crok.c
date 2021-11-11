@@ -55,7 +55,7 @@ struct sched_trans crok_setup(struct scheduler *s) {
 
   int smaller = (rdat->w > rdat->h) ? rdat->h : rdat->w;
   d->rboard = crok_board_render_init(rdat->rdr, &d->crok.board, rdat->w / 2,
-                                     rdat->h / 2, smaller * 0.4);
+                                     rdat->h / 2, smaller * 0.9);
   rdat->rboard = &d->rboard;
 
   crok_append_player(&d->crok, CROK_PLAYER_TEAM1, "local player");
@@ -115,24 +115,21 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
 
   struct fvec pmouse = {.x = tp->pos.x, .y = tp->pos.y};
   struct ivec target = crok_screen_to_board(&d->renderdata, pmouse);
-  // fvec_print(pmouse, "pmouse");
-  // ivec_print(target, "target");
+  fvec_print(pmouse, "pmouse");
+  ivec_print(target, "target");
   struct ivec force = ivec_sub(target, td->pb.pos);
-  // force = ivec_div(force, (struct ivec){.x = 1, .y = 1});
-  // ivec_print(force, "force");
-  if (ivec_mag(force) < 10000) {
-    physbody_accel(
-        &td->pb, ivec_div(force, (struct ivec){.x = CROK_TPS, .y = CROK_TPS}));
+  force = ivec_div(force, (struct ivec){.x = CROK_TPS, .y = CROK_TPS});
+  printf("|%f| ", (double)ivec_mag(force));
+  ivec_print(force, "force");
+  if (ivec_mag(force) < (CROK_BOARD_DIAM / 20) * CROK_TPS) {
+    physbody_accel(&td->pb, force);
   }
+  // td->pb.pos = target;
 
   for (size_t i = 0; i < CROK_DISCS_TOTAL; i++) {
     struct crok_disc *disc = &d->crok.board.discs[i];
     if (crok_disc_isvalid(disc)) {
       crok_disc_tick(disc, &d->crok);
-      ivec_print(disc->pb.pos, "disc pos");
-      ivec_print(
-          (struct ivec){.x = CROK_BOARD_DIAM / 2, .y = CROK_BOARD_DIAM / 2},
-          "board middle");
     }
   }
 

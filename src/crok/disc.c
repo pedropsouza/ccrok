@@ -26,12 +26,12 @@ enum crok_gamestage crok_disc_tick(struct crok_disc *d, struct crok_state *s) {
 
 void crok_disc_render(struct crok_disc *d[2], struct crok_render_data *rd) {
   SDL_Rect dest = {0};
-  double s = rd->rboard->disc_radius;
+  double s = rd->rboard->disc_diam;
   struct fvec spos = crok_board_to_screen(rd, d[0]->pb.pos);
-  dest.w = s * 2;
-  dest.h = s * 2;
-  dest.x = spos.x - s;
-  dest.y = spos.y - s;
+  dest.w = s;
+  dest.h = s;
+  dest.x = spos.x - (s - 1.0) / 2.0;
+  dest.y = spos.y - (s - 1.0) / 2.0;
 
   SDL_RenderCopy(rd->rdr, rd->rboard->disc_tex, NULL, &dest);
 }

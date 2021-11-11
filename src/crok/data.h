@@ -54,13 +54,14 @@ struct crok_render_board {
   SDL_Texture *tex;
   SDL_Rect dest;
   double radius;
+  double diam;
   double ditch_width;
-  double hole_radius;
-  double arena_radius;
+  double hole_diam;
+  double arena_diam;
   double scorearea_width;
 
   SDL_Texture *disc_tex;
-  double disc_radius;
+  double disc_diam;
 };
 
 struct crok_state {

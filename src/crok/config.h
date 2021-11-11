@@ -15,8 +15,8 @@
 #define CROK_NAMELEN_MAX 32
 #define CROK_INPUTPACKET_MAX 128
 
-#define CROK_TPS 10
-#define CROK_FPS 10
+#define CROK_TPS 100
+#define CROK_FPS 100
 
 // Debugging aid
 #ifdef NDEBUG

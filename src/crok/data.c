@@ -43,7 +43,7 @@ struct crok_render_board crok_board_render_init(SDL_Renderer *renderer,
   struct crok_render_board rb = {0};
 
   // Loose, screen aspect ratio
-  long bd = px_size;
+  long bd = px_size | 1;
   PRINTLVAR(bd);
   rb.dest.w = bd;
   rb.dest.h = bd;
@@ -57,15 +57,16 @@ struct crok_render_board crok_board_render_init(SDL_Renderer *renderer,
   // Loose, render specific
   double rr = bd / 2.0;
   rb.radius = rr;
+  rb.diam = bd;
   double o = rr;
   rb.ditch_width = rr * ((double)b->ditch_units / CROK_BOARD_DIAM);
-  rb.hole_radius = rr * ((double)b->hole_units / CROK_BOARD_DIAM);
-  rb.arena_radius = rr * ((double)b->arena_units / CROK_BOARD_DIAM);
+  rb.hole_diam = bd * ((double)b->hole_units / CROK_BOARD_DIAM);
+  rb.arena_diam = bd * ((double)b->arena_units / CROK_BOARD_DIAM);
   rb.scorearea_width = rr * ((double)b->scorearea_units / CROK_BOARD_DIAM);
 
   PRINTFVAR(rb.ditch_width);
-  PRINTFVAR(rb.hole_radius);
-  PRINTFVAR(rb.arena_radius);
+  PRINTFVAR(rb.hole_diam);
+  PRINTFVAR(rb.arena_diam);
   PRINTFVAR(rb.scorearea_width);
 
   rb.tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888,
@@ -73,8 +74,8 @@ struct crok_render_board crok_board_render_init(SDL_Renderer *renderer,
   SDL_SetRenderTarget(renderer, rb.tex);
   {
     double ditchw = rb.ditch_width;
-    double holer = rb.hole_radius;
-    double arenar = rb.arena_radius;
+    double holer = rb.hole_diam / 2.0;
+    double arenar = rb.arena_diam / 2.0;
     double scoreareaw = rb.scorearea_width;
     PRINTFVAR(o);
     PRINTFVAR(ditchw);
@@ -124,12 +125,12 @@ struct crok_render_board crok_board_render_init(SDL_Renderer *renderer,
 
   {
     double dsize = bd * ((double)CROK_DISC_DIAM / CROK_BOARD_DIAM);
-    rb.disc_radius = dsize / 2;
-    double o = dsize / 2;
+    rb.disc_diam = (int)dsize | 1;
+    double o = dsize / 2.0;
 
     rb.disc_tex =
         SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888,
-                          SDL_TEXTUREACCESS_TARGET, dsize + 1, dsize + 1);
+                          SDL_TEXTUREACCESS_TARGET, rb.disc_diam, rb.disc_diam);
     SDL_SetTextureBlendMode(rb.disc_tex, SDL_BLENDMODE_BLEND);
     const char *errs;
     if (strcmp((errs = SDL_GetError()), "") != 0) {
@@ -140,7 +141,7 @@ struct crok_render_board crok_board_render_init(SDL_Renderer *renderer,
       SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, SDL_ALPHA_TRANSPARENT);
       SDL_RenderClear(renderer);
       SDL_SetRenderDrawColor(renderer, 0xcc, 0xcc, 0xcc, SDL_ALPHA_OPAQUE);
-      SDL_RenderFillCircle(renderer, o, o, rb.disc_radius);
+      SDL_RenderFillCircle(renderer, o, o, o);
     }
     SDL_SetRenderTarget(renderer, NULL);
   }
@@ -159,16 +160,17 @@ void crok_state_finish(struct crok_state *cs) {
 }
 
 struct ivec crok_screen_to_board(struct crok_render_data *rd, struct fvec v) {
-  double units_per_px = CROK_BOARD_DIAM / (rd->rboard->arena_radius * 2);
-  double offx = v.x - rd->rboard->dest.x;
-  double offy = v.y - rd->rboard->dest.y;
-  return (struct ivec){.x = offx * units_per_px, .y = offy * units_per_px};
+  double ox = ((double)v.x - rd->rboard->dest.x) / rd->rboard->diam;
+  double oy = ((double)v.y - rd->rboard->dest.y) / rd->rboard->diam;
+  double fx = ox * CROK_BOARD_DIAM;
+  double fy = oy * CROK_BOARD_DIAM;
+  return (struct ivec){.x = fx, .y = fy};
 }
 
 struct fvec crok_board_to_screen(struct crok_render_data *rd, struct ivec v) {
-  double units_per_px = CROK_BOARD_DIAM / (rd->rboard->arena_radius * 2);
-  double offx = v.x / units_per_px;
-  double offy = v.y / units_per_px;
-  return (struct fvec){.x = offx + rd->rboard->dest.x,
-                       .y = offy + rd->rboard->dest.y};
+  double fx = (double)v.x / CROK_BOARD_DIAM;
+  double fy = (double)v.y / CROK_BOARD_DIAM;
+  double ox = (fx * rd->rboard->diam) + rd->rboard->dest.x;
+  double oy = (fy * rd->rboard->diam) + rd->rboard->dest.y;
+  return (struct fvec){.x = ox, .y = oy};
 }
