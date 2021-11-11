@@ -19,6 +19,7 @@ struct ivec ivec_add(struct ivec a, struct ivec b);
 struct ivec ivec_sub(struct ivec a, struct ivec b);
 struct ivec ivec_mul(struct ivec a, struct ivec b);
 struct ivec ivec_div(struct ivec a, struct ivec b);
+struct ivec ivec_mod(struct ivec a, struct ivec b);
 
 void ivec_print(struct ivec v, const char *name);
 

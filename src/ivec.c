@@ -22,6 +22,9 @@ struct ivec ivec_mul(struct ivec a, struct ivec b) {
 struct ivec ivec_div(struct ivec a, struct ivec b) {
   return (struct ivec){.x = a.x / b.x, .y = a.y / b.y};
 }
+struct ivec ivec_mod(struct ivec a, struct ivec b) {
+  return (struct ivec){.x = a.x % b.x, .y = a.y % b.y};
+}
 void ivec_print(struct ivec v, const char *name) {
   printf("ivec \"%s\" -> %ld , %ld\n", name, v.x, v.y);
 }

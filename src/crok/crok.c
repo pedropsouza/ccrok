@@ -118,13 +118,12 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
   fvec_print(pmouse, "pmouse");
   ivec_print(target, "target");
   struct ivec force = ivec_sub(target, td->pb.pos);
-  force = ivec_div(force, (struct ivec){.x = CROK_TPS, .y = CROK_TPS});
+  physbody_force(&td->pb, ivec_div(td->pb.vel, (struct ivec){-1, -1}),
+                 CROK_TPS);
+  physbody_force(&td->pb, force, CROK_TPS);
   printf("|%f| ", (double)ivec_mag(force));
   ivec_print(force, "force");
-  if (ivec_mag(force) < (CROK_BOARD_DIAM / 20) * CROK_TPS) {
-    physbody_accel(&td->pb, force);
-  }
-  // td->pb.pos = target;
+  ivec_print(td->pb.facc, "facc");
 
   for (size_t i = 0; i < CROK_DISCS_TOTAL; i++) {
     struct crok_disc *disc = &d->crok.board.discs[i];
