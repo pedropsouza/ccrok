@@ -2,50 +2,66 @@
 #define CROK_INPUT_HG__
 
 #include "crok/config.h"
+#include "ivec.h"
 #include <stdio.h>
 #include <stdlib.h>
 
-struct crok_input_packet;
+#define CPK enum crok_input_packet_kind kind
+#define CIP struct crok_input_packet
+
+CIP;
 enum crok_input_packet_kind {
   CROK_INPUT_INVALID = 0,
-  CROK_INPUT_MOUSE,
+  CROK_INPUT_POS,
+  CROK_INPUT_LAY_DISC,
+  CROK_INPUT_AIM_DISC,
+  CROK_INPUT_RECALL_DISC,
+  CROK_INPUT_SHOOT_DISC,
+  CROK_INPUT_READY,
   CROK_INPUT_QUIT,
   CROK_INPUT_END,
 };
 
-struct crok_input_mouse {
-  enum crok_input_packet_kind kind;
-  int x, y;
+struct crok_input_pos {
+  CPK;
+  struct ivec pos;
 };
-struct crok_input_packet crok_input_mouse_packet(int x, int y);
 
-struct crok_input_quit {
-  enum crok_input_packet_kind kind;
+struct crok_input_lay_disc {
+  CPK;
+  struct ivec pos;
 };
-struct crok_input_packet crok_input_quit_packet();
 
-struct crok_input_end {
-  enum crok_input_packet_kind kind;
+struct crok_input_aim_disc {
+  CPK;
+  char disc_id;
+  struct ivec delta;
 };
-struct crok_input_packet crok_input_end_packet();
 
-struct crok_input_packet {
+struct crok_input_shoot_disc {
+  CPK;
+  char disc_id;
+  struct ivec impulse;
+};
+
+CIP {
   union {
-    enum crok_input_packet_kind kind;
-    struct crok_input_mouse mouse;
-    struct crok_input_quit quit;
-    struct crok_input_end end;
+    CPK;
+    struct crok_input_pos pos;
+    struct crok_input_lay_disc lay_d;
+    struct crok_input_aim_disc aim_d;
+    struct crok_input_shoot_disc shoot_d;
   };
 };
 
 // for future connection tracking or something
 struct crok_input_context {
   size_t buf_last;
-  struct crok_input_packet buf[CROK_INPUTPACKET_MAX];
+  CIP buf[CROK_INPUTPACKET_MAX];
 };
 
-typedef struct crok_input_packet (*crok_input_producer_fun)(
-    struct crok_input_context *ic, void *extra);
+typedef CIP (*crok_input_producer_fun)(struct crok_input_context *ic,
+                                       void *extra);
 
 // query the producer fun till it's empty, accumulating
 // its packets in the input context
@@ -58,4 +74,6 @@ int crok_input_accum(struct crok_input_context *ic, crok_input_producer_fun f,
 void crok_input_clean(struct crok_input_context *ic);
 void crok_input_print_context(FILE *stream, struct crok_input_context *ic);
 
+#undef CIP
+#undef CPK
 #endif // CROK_INPUT_HG__

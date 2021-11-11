@@ -1,7 +1,8 @@
 add_library(memutil SHARED
   memutil.c
 )
-add_library(fvec SHARED
+add_library(vec SHARED
+  ivec.c
   fvec.c
 )
 add_library(crok SHARED

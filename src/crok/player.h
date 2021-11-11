@@ -3,11 +3,11 @@
 
 #include "crok/data.h"
 
-struct crok_player *crok_player_new(struct crok_state *s, int side,
-                                    crok_input_producer_fun inputf, char *name);
+// FIXME: should return the initialized player's index, or <0 for errors
+struct crok_player *crok_append_player(struct crok_state *s, int side,
+                                       char *name);
 int crok_player_team(struct crok_player *);
 int crok_player_isvalid(struct crok_player *);
-enum crok_gamestage crok_player_tick(struct crok_player *, struct crok_state *);
 void crok_player_render(struct crok_player *p[2], struct crok_render_data *rd);
 
 #endif // CROK_PLAYER_HG__

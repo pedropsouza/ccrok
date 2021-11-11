@@ -1,18 +1,5 @@
 #include "crok/input.h"
 
-struct crok_input_packet crok_input_mouse_packet(int x, int y) {
-  return (struct crok_input_packet){
-      .mouse = {.kind = CROK_INPUT_MOUSE, .x = x, .y = y}};
-}
-
-struct crok_input_packet crok_input_quit_packet() {
-  return (struct crok_input_packet){.quit = {.kind = CROK_INPUT_QUIT}};
-}
-
-struct crok_input_packet crok_input_end_packet() {
-  return (struct crok_input_packet){.end = {.kind = CROK_INPUT_END}};
-}
-
 int crok_input_accum(struct crok_input_context *ic, crok_input_producer_fun f,
                      void *extra) {
   struct crok_input_packet p;

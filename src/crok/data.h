@@ -4,7 +4,7 @@
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_image.h"
 #include "crok/config.h"
-#include "crok/phys.h"
+#include "crok/unit.h"
 #include "draw.h"
 #include "fvec.h"
 #include "input.h"
@@ -14,6 +14,7 @@ enum crok_gamestage {
   CROK_GAMESTART = 0,
   CROK_SIDESEL,
   CROK_ROUNDSTART,
+  CROK_AIM,
   CROK_SHOT,
   CROK_VALID,
   CROK_FOUL,
@@ -33,31 +34,6 @@ struct crok_render_data {
   struct crok_render_board *rboard;
   int w, h, servermode;
   double a;
-};
-
-enum crok_player_flags {
-  CROK_PLAYER_VALID = 1 << 0,
-  CROK_PLAYER_TEAM1 = 1 << 1,
-  CROK_PLAYER_TEAM2 = 1 << 2,
-};
-
-struct crok_player {
-  uint8_t id;
-  char name[CROK_NAMELEN_MAX];
-  enum crok_player_flags flags;
-  SDL_Rect cursor_rect;
-  struct crok_input_context inputctx;
-  crok_input_producer_fun inputf;
-  uint32_t score;
-};
-
-enum crok_disc_flags { CROK_DISC_VALID = 1 << 0, CROK_DISC_FALLEN = 1 << 1 };
-
-struct crok_disc {
-  uint8_t id;
-  uint8_t owner_id;
-  struct physbody pb;
-  enum crok_disc_flags flags;
 };
 
 // units are in 1/UINT32_MAX whole boards,
@@ -102,6 +78,7 @@ struct crok_data {
   struct crok_render_board rboard;
   struct crok_render_data renderdata;
   struct crok_input_context input;
+  size_t my_player_id;
 };
 
 struct crok_state crok_state_init(struct crok_data *appdata);
@@ -112,7 +89,7 @@ struct crok_render_board crok_board_render_init(SDL_Renderer *renderer,
                                                 int px_size);
 void crok_board_render_finish(struct crok_render_board *rboard);
 void crok_state_finish(struct crok_state *cs);
-struct ivec crok_screen_to_world(struct crok_render_data *rd, double x,
-                                 double y);
+struct ivec crok_screen_to_board(struct crok_render_data *rd, struct fvec v);
+struct fvec crok_board_to_screen(struct crok_render_data *rd, struct ivec v);
 
 #endif // CROK_DATA_HG__

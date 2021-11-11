@@ -158,9 +158,17 @@ void crok_state_finish(struct crok_state *cs) {
   // crok_board_render_finish(&cs->rboard);
 }
 
-struct ivec crok_screen_to_world(struct crok_render_data *rd, double x,
-                                 double y) {
-  double xf = rd->rboard->dest.w;
-  struct ivec bcoord = {};
-  return bcoord;
+struct ivec crok_screen_to_board(struct crok_render_data *rd, struct fvec v) {
+  double units_per_px = CROK_BOARD_DIAM / (rd->rboard->arena_radius * 2);
+  double offx = v.x - rd->rboard->dest.x;
+  double offy = v.y - rd->rboard->dest.y;
+  return (struct ivec){.x = offx * units_per_px, .y = offy * units_per_px};
+}
+
+struct fvec crok_board_to_screen(struct crok_render_data *rd, struct ivec v) {
+  double units_per_px = CROK_BOARD_DIAM / (rd->rboard->arena_radius * 2);
+  double offx = v.x / units_per_px;
+  double offy = v.y / units_per_px;
+  return (struct fvec){.x = offx + rd->rboard->dest.x,
+                       .y = offy + rd->rboard->dest.y};
 }
