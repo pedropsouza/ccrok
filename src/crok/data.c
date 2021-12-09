@@ -1,13 +1,11 @@
 #include "crok/data.h"
 
-struct crok_state crok_state_init(struct crok_data *appdata) {
+struct crok_state crok_state_init() {
   struct crok_state s = {0};
   s.round = 1;
   s.gamestage = CROK_GAMESTART;
   s.overall_score = 0;
-
-  struct crok_data *d = appdata;
-  s.board = crok_board_calc(d);
+  s.board = crok_board_calc();
 
   return s;
 }
@@ -155,10 +153,6 @@ void crok_board_render_finish(struct crok_render_board *rboard) {
   }
 }
 
-void crok_state_finish(struct crok_state *cs) {
-  // crok_board_render_finish(&cs->rboard);
-}
-
 struct ivec crok_screen_to_board(struct crok_render_data *rd, struct fvec v) {
   double ox = ((double)v.x - rd->rboard->dest.x) / rd->rboard->diam;
   double oy = ((double)v.y - rd->rboard->dest.y) / rd->rboard->diam;
@@ -173,4 +167,16 @@ struct fvec crok_board_to_screen(struct crok_render_data *rd, struct ivec v) {
   double ox = (fx * rd->rboard->diam) + rd->rboard->dest.x;
   double oy = (fy * rd->rboard->diam) + rd->rboard->dest.y;
   return (struct fvec){.x = ox, .y = oy};
+}
+
+int64_t crok_disc_chksum(const struct crok_disc *d) {}
+int64_t crok_state_chksum(const struct crok_state *cs) {
+  int64_t disc_part = 0;
+  size_t disc_s = sizeof(cs->board.discs[0]);
+}
+
+char *crok_state_serialize(const struct crok_state *cs) { return NULL; }
+
+struct crok_state crok_state_deserialize(char *sd) {
+  return (struct crok_state){0};
 }

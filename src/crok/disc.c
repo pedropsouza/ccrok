@@ -1,22 +1,13 @@
 #include "crok/disc.h"
 
-struct crok_disc crok_disc_init(struct crok_state *s, uint8_t owner) {
-  struct crok_disc d = {.id = 0, // FIXME,
-                        .owner_id = owner,
+struct crok_disc crok_disc_init(struct crok_player *owner) {
+  struct crok_disc d = {.owner_team_num = owner->team_num,
                         .pb = physbody_zero("disc"),
-                        .flags = CROK_DISC_VALID};
+                        .flags = owner->flags};
   d.pb.pos.x = CROK_BOARD_DIAM / 2;
   d.pb.pos.y = CROK_BOARD_DIAM / 2;
   d.pb.radius = CROK_DISC_DIAM;
   return d;
-}
-
-int crok_disc_team(struct crok_disc *d, struct crok_state *s) {
-  return crok_player_team(&s->players[d->owner_id]);
-}
-
-int crok_disc_isvalid(struct crok_disc *d) {
-  return d->flags & CROK_DISC_VALID;
 }
 
 enum crok_gamestage crok_disc_tick(struct crok_disc *d, struct crok_state *s) {

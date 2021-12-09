@@ -33,13 +33,16 @@ struct sched_trans crok_setup(struct scheduler *s) {
       safe_calloc(sizeof(struct crok_data), "setup persistant_data alloc");
   struct crok_data *d = (struct crok_data *)s->persistant_data;
   struct crok_setup_data *setdat = (struct crok_setup_data *)s->setup_data;
-  struct crok_render_data *rdat = &d->renderdata;
 
-  rdat->w = setdat->width;
-  rdat->h = setdat->height;
-  rdat->a = 0.0;
-  rdat->servermode = setdat->servermode;
-  if (!rdat->servermode) {
+  d->crok = crok_state_init();
+
+  if (!setdat->servermode) {
+    struct crok_render_data *rdat = &d->renderdata;
+
+    rdat->w = setdat->width;
+    rdat->h = setdat->height;
+    rdat->a = 0.0;
+    rdat->servermode = setdat->servermode;
     SDL_Init(SDL_INIT_VIDEO);
     rdat->win = SDL_CreateWindow("ccrok", SDL_WINDOWPOS_UNDEFINED,
                                  SDL_WINDOWPOS_UNDEFINED, rdat->w, rdat->h, 0);
@@ -50,29 +53,27 @@ struct sched_trans crok_setup(struct scheduler *s) {
 
     // modified dimensions maybe
     SDL_GetRendererOutputSize(rdat->rdr, &rdat->w, &rdat->h);
+
+    int smaller = (rdat->w > rdat->h) ? rdat->h : rdat->w;
+    d->rboard = crok_board_render_init(rdat->rdr, &d->crok.board, rdat->w / 2,
+                                       rdat->h / 2, smaller * 0.9);
+    rdat->rboard = &d->rboard;
   }
-  d->crok = crok_state_init(d);
 
-  int smaller = (rdat->w > rdat->h) ? rdat->h : rdat->w;
-  d->rboard = crok_board_render_init(rdat->rdr, &d->crok.board, rdat->w / 2,
-                                     rdat->h / 2, smaller * 0.9);
-  rdat->rboard = &d->rboard;
-
-  crok_append_player(&d->crok, CROK_PLAYER_TEAM1, "local player");
-  assert(crok_player_isvalid(&d->crok.players[0]));
-  d->crok.active_player = 0;
-
-  d->crok.board.discs[0] = crok_disc_init(&d->crok, 0);
+  size_t pid = crok_spawn_player(
+      &d->crok, crok_player_init(CROK_U_TEAM1, 0, "local player"));
+  crok_spawn_disc(&d->crok, &d->crok.players[pid]);
 
   return (struct sched_trans){.s = SCHED_CONTINUE, .why = "setup finished"};
 }
 
 struct sched_trans crok_cleanup(struct scheduler *s) {
   struct crok_data *d = (struct crok_data *)s->persistant_data;
-  struct crok_render_data *r = &d->renderdata;
+  struct crok_setup_data *setdat = (struct crok_setup_data *)s->setup_data;
 
-  crok_state_finish(&d->crok);
-  if (!r->servermode) {
+  if (!setdat->servermode) {
+    struct crok_render_data *r = &d->renderdata;
+    crok_board_render_finish(d->renderdata.rboard);
     SDL_DestroyRenderer(r->rdr);
     SDL_DestroyWindow(r->win);
     SDL_Quit();
@@ -90,13 +91,13 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
   struct crok_state *cs = (struct crok_state *)&d->crok;
   static long num_ticks = 0;
   num_ticks += 1;
-  if (num_ticks * step_ns >= 60 * (long)1e9) {
+  if (num_ticks * step_ns >= 10 * (long)1e9) {
     return (struct sched_trans){.s = SCHED_CLEANUP,
                                 .why = "60 seconds elapsed"};
   }
 
   struct crok_player *p = &cs->players[cs->active_player];
-  if (!crok_player_isvalid(p)) {
+  if (!crok_unit_valid(p)) {
     cs->gamestage = CROK_ERROR;
     return (struct sched_trans){.s = SCHED_ERR, .why = "invalid active player"};
   }
@@ -113,21 +114,18 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
   struct crok_disc *td = cs->board.discs;
   struct crok_player *tp = cs->players;
 
-  struct fvec pmouse = {.x = tp->pos.x, .y = tp->pos.y};
-  struct ivec target = crok_screen_to_board(&d->renderdata, pmouse);
-  fvec_print(pmouse, "pmouse");
-  ivec_print(target, "target");
-  struct ivec force = ivec_sub(target, td->pb.pos);
-  physbody_force(&td->pb, ivec_div(td->pb.vel, (struct ivec){-1, -1}),
-                 CROK_TPS);
-  physbody_force(&td->pb, force, CROK_TPS);
-  printf("|%f| ", (double)ivec_mag(force));
-  ivec_print(force, "force");
-  ivec_print(td->pb.facc, "facc");
+  if (!d->renderdata.servermode) {
+    struct fvec pmouse = {.x = tp->pos.x, .y = tp->pos.y};
+    struct ivec target = crok_screen_to_board(&d->renderdata, pmouse);
+    struct ivec force = ivec_sub(target, td->pb.pos);
+    physbody_force(&td->pb, ivec_div(td->pb.vel, (struct ivec){-1, -1}),
+                   CROK_TPS);
+    physbody_force(&td->pb, force, CROK_TPS);
+  }
 
   for (size_t i = 0; i < CROK_DISCS_TOTAL; i++) {
     struct crok_disc *disc = &d->crok.board.discs[i];
-    if (crok_disc_isvalid(disc)) {
+    if (crok_unit_valid(disc)) {
       crok_disc_tick(disc, &d->crok);
     }
   }
@@ -145,14 +143,14 @@ void crok_render(struct scheduler *s, double a) {
   SDL_RenderCopy(r->rdr, d->rboard.tex, NULL, &d->rboard.dest);
   for (size_t i = 0; i < 4; i++) {
     struct crok_player *player[2] = {&d->crok.players[i], NULL};
-    if (crok_player_isvalid(player[0])) {
+    if (crok_unit_valid(player[0])) {
       crok_player_render(player, r);
     }
   }
 
   for (size_t i = 0; i < CROK_DISCS_TOTAL; i++) {
     struct crok_disc *disc[2] = {&d->crok.board.discs[i], NULL};
-    if (crok_disc_isvalid(disc[0])) {
+    if (crok_unit_valid(disc[0])) {
       crok_disc_render(disc, r);
     }
   }
@@ -198,4 +196,21 @@ enum crok_gamestage crok_process_input(struct crok_data *d) {
   }
   crok_input_clean(inpctx);
   return new_gst;
+}
+
+size_t crok_spawn_player(struct crok_state *cs, struct crok_player p) {
+  size_t i = crok_unit_vacantpos(cs->players, sizeof(struct crok_player), 4);
+  if (i >= 0) {
+    cs->players[i] = p;
+  }
+  return i;
+}
+
+size_t crok_spawn_disc(struct crok_state *cs, struct crok_player *owner) {
+  size_t i = crok_unit_vacantpos(cs->board.discs, sizeof(struct crok_disc),
+                                 CROK_DISCS_TOTAL);
+  if (i >= 0) {
+    cs->board.discs[i] = crok_disc_init(owner);
+  }
+  return i;
 }

@@ -13,6 +13,7 @@ add_library(crok SHARED
   crok/phys.c
   crok/player.c
   crok/disc.c
+  crok/unit.c
   draw.c
 )
 add_library(sched SHARED
@@ -26,7 +27,7 @@ if (${CMAKE_BUILD_TYPE} MATCHES "Coverage")
   if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
     file(GLOB ALL_SRC_C_FILES "*.c")
 
-    foreach(src ${ALL_SRC_C_FILES}) 
+    foreach(src ${ALL_SRC_C_FILES})
       get_filename_component(name ${src} NAME_WLE)
       message(STATUS "Coverage build for: ${name}")
       target_compile_options(${name} PRIVATE --coverage)

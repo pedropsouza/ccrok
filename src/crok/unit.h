@@ -6,27 +6,30 @@
 #include "ivec.h"
 #include <stdint.h>
 
-enum crok_player_flags {
-  CROK_PLAYER_VALID = 1 << 0,
-  CROK_PLAYER_TEAM1 = 1 << 1,
-  CROK_PLAYER_TEAM2 = 1 << 2,
+enum crok_unit_flags {
+  CROK_U_VALID = 1 << 0,
+  CROK_U_TEAM1 = 1 << 1,
+  CROK_U_TEAM2 = 1 << 2,
+  CROK_U_FALLEN = 1 << 3,
 };
 
 struct crok_player {
-  uint8_t id;
+  enum crok_unit_flags flags;
   struct ivec pos;
+  int team_num;
   char name[CROK_NAMELEN_MAX];
-  enum crok_player_flags flags;
   uint32_t score;
 };
 
-enum crok_disc_flags { CROK_DISC_VALID = 1 << 0, CROK_DISC_FALLEN = 1 << 1 };
-
 struct crok_disc {
-  uint8_t id;
-  uint8_t owner_id;
+  enum crok_unit_flags flags;
+  int owner_team_num;
   struct physbody pb;
-  enum crok_disc_flags flags;
 };
+
+/* ! units should start with the flags enum else this breaks ! */
+int crok_unit_team(const void *unit);
+int crok_unit_valid(const void *unit);
+size_t crok_unit_vacantpos(const void *unitarr, size_t elsize, size_t n);
 
 #endif // CROK_UNIT_HG__

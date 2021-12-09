@@ -1,33 +1,13 @@
 #include "crok/player.h"
 
-struct crok_player *crok_append_player(struct crok_state *s, int side,
-                                       char *name) {
-  // showing off i know how to use ternary operators yes
+struct crok_player crok_player_init(int side, int team_num, char *name) {
   struct crok_player p = {0};
-  uint8_t sideoff = (side - CROK_PLAYER_TEAM1) * 2;
-  int vacant =
-      sideoff + ((crok_player_isvalid(&s->players[sideoff + 0]) &&
-                  crok_player_isvalid(&s->players[sideoff + 1]))
-                     ? -1 // there's no space left in the game
-                     : (crok_player_isvalid(&s->players[sideoff + 0]) ? 1 : 0));
-  if (vacant < 0) {
-    return NULL;
-  }
-  p.id = vacant;
   memcpy(p.name, name, strnlen(name, CROK_NAMELEN_MAX - 1));
+  p.team_num = team_num;
   p.name[CROK_NAMELEN_MAX - 1] = '\0';
-  p.flags = CROK_PLAYER_VALID;
+  p.flags = CROK_U_VALID | side;
   p.score = 0;
-  s->players[vacant] = p;
-  return &s->players[vacant];
-}
-
-int crok_player_team(struct crok_player *p) {
-  return p->flags & (CROK_PLAYER_TEAM1 | CROK_PLAYER_TEAM2);
-}
-
-int crok_player_isvalid(struct crok_player *p) {
-  return p->id >= 0 && p->flags & CROK_PLAYER_VALID;
+  return p;
 }
 
 /**

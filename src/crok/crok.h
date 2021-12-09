@@ -23,4 +23,8 @@ void crok_render(struct scheduler *s, double a);
 
 enum crok_gamestage crok_process_input(struct crok_data *d);
 
+/* Utility functions, return <0 on error */
+size_t crok_spawn_player(struct crok_state *cs, struct crok_player p);
+size_t crok_spawn_disc(struct crok_state *cs, struct crok_player *owner);
+
 #endif // CROK_HG__

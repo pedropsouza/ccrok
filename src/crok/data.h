@@ -82,15 +82,18 @@ struct crok_data {
   size_t my_player_id;
 };
 
-struct crok_state crok_state_init(struct crok_data *appdata);
+struct crok_state crok_state_init();
 struct crok_board crok_board_calc();
 struct crok_render_board crok_board_render_init(SDL_Renderer *renderer,
                                                 const struct crok_board *subj,
                                                 int pos_x, int pos_y,
                                                 int px_size);
 void crok_board_render_finish(struct crok_render_board *rboard);
-void crok_state_finish(struct crok_state *cs);
 struct ivec crok_screen_to_board(struct crok_render_data *rd, struct fvec v);
 struct fvec crok_board_to_screen(struct crok_render_data *rd, struct ivec v);
+
+int64_t crok_state_chksum(const struct crok_state *);
+char *crok_state_serialize(const struct crok_state *);
+struct crok_state crok_state_deserialize(char *);
 
 #endif // CROK_DATA_HG__
