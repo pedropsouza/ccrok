@@ -16,7 +16,7 @@ enum crok_unit_flags {
 };
 
 #define CROK_PLAYER_SERLEN                                                     \
-  (sizeof(uint16_t) + sizeof(uint32_t) * 5 + CROK_NAMELEN_MAX)
+  (sizeof(uint16_t) + IVEC_SERLEN + sizeof(uint32_t) + CROK_NAMELEN_MAX)
 struct crok_player {
   enum crok_unit_flags flags;
   struct ivec pos;

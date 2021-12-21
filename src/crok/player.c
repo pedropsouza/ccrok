@@ -41,31 +41,13 @@ void crok_player_render(struct crok_player *p[2], struct crok_render_data *rd) {
 
 char *crok_player_serialize(const struct crok_player *p) {
   static char buf[CROK_PLAYER_SERLEN];
-  // Assuming the whole enum fits into a short uint
-  uint16_t flags = p->flags;
-  uint32_t posx_h = 0, posx_l = 0, posy_h = 0, posy_l = 0;
-  if (p->pos.x >= 0) {
-    posx_h = (uint32_t)(0xffffffff & (p->pos.x >> 32));
-    posx_l = (uint32_t)(0xffffffff & p->pos.x);
-  }
-  if (p->pos.y >= 0) {
-    posy_h = (uint32_t)(0xffffffff & (p->pos.y >> 32));
-    posy_l = (uint32_t)(0xffffffff & p->pos.y);
-  }
-  uint32_t score = p->score;
-
   char *w_head = buf;
-  *((uint16_t *)w_head) = htons(flags);
+  // Assuming the whole enum fits into a short uint
+  *((uint16_t *)w_head) = htons((uint16_t)p->flags);
   w_head += 2;
-  *((uint32_t *)w_head) = htonl(posx_h);
-  w_head += 4;
-  *((uint32_t *)w_head) = htonl(posx_l);
-  w_head += 4;
-  *((uint32_t *)w_head) = htonl(posy_h);
-  w_head += 4;
-  *((uint32_t *)w_head) = htonl(posy_l);
-  w_head += 4;
-  *((uint32_t *)w_head) = htonl(score);
+  memcpy(w_head, ivec_serialize(&p->pos), IVEC_SERLEN);
+  w_head += IVEC_SERLEN;
+  *((uint32_t *)w_head) = htonl((uint32_t)p->score);
   w_head += 4;
   strncpy(w_head, p->name, CROK_NAMELEN_MAX);
   return buf;
@@ -77,16 +59,8 @@ struct crok_player crok_player_deserialize(char buf[CROK_PLAYER_SERLEN]) {
   char *r_head = buf;
   p.flags = ntohs(*((uint16_t *)r_head));
   r_head += 2;
-  uint32_t posx_h = ntohl(*((uint32_t *)r_head));
-  r_head += 4;
-  uint32_t posx_l = ntohl(*((uint32_t *)r_head));
-  r_head += 4;
-  p.pos.x = ((uint64_t)posx_h << 32) | (uint64_t)posx_l;
-  uint32_t posy_h = ntohl(*((uint32_t *)r_head));
-  r_head += 4;
-  uint32_t posy_l = ntohl(*((uint32_t *)r_head));
-  r_head += 4;
-  p.pos.y = ((uint64_t)posy_h << 32) | (uint64_t)posy_l;
+  p.pos = ivec_deserialize(r_head);
+  r_head += IVEC_SERLEN;
   p.score = ntohl(*((uint32_t *)r_head));
   r_head += 4;
   strncpy(p.name, r_head, CROK_NAMELEN_MAX);
