@@ -1,9 +1,7 @@
 #include "crok/disc.h"
 
 struct crok_disc crok_disc_init(struct crok_player *owner) {
-  struct crok_disc d = {.owner_team_num = owner->team_num,
-                        .pb = physbody_zero("disc"),
-                        .flags = owner->flags};
+  struct crok_disc d = {.pb = physbody_zero("disc"), .flags = owner->flags};
   d.pb.pos.x = CROK_BOARD_DIAM / 2;
   d.pb.pos.y = CROK_BOARD_DIAM / 2;
   d.pb.radius = CROK_DISC_DIAM;

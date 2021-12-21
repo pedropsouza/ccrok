@@ -61,7 +61,7 @@ struct sched_trans crok_setup(struct scheduler *s) {
   }
 
   size_t pid = crok_spawn_player(
-      &d->crok, crok_player_init(CROK_U_TEAM1, 0, "local player"));
+      &d->crok, crok_player_init(CROK_U_TEAM1 | CROK_U_P1, "local player"));
   crok_spawn_disc(&d->crok, &d->crok.players[pid]);
 
   return (struct sched_trans){.s = SCHED_CONTINUE, .why = "setup finished"};

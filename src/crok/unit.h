@@ -10,20 +10,23 @@ enum crok_unit_flags {
   CROK_U_VALID = 1 << 0,
   CROK_U_TEAM1 = 1 << 1,
   CROK_U_TEAM2 = 1 << 2,
-  CROK_U_FALLEN = 1 << 3,
+  CROK_U_P1 = 1 << 3,
+  CROK_U_P2 = 1 << 4,
+  CROK_U_FALLEN = 1 << 5,
 };
 
+#define CROK_PLAYER_SERLEN                                                     \
+  (sizeof(uint16_t) + sizeof(uint32_t) * 5 + CROK_NAMELEN_MAX)
 struct crok_player {
   enum crok_unit_flags flags;
   struct ivec pos;
-  int team_num;
   char name[CROK_NAMELEN_MAX];
   uint32_t score;
 };
 
+#define CROK_DISC_SERLEN (sizeof(uint16_t) + sizeof(physbody))
 struct crok_disc {
   enum crok_unit_flags flags;
-  int owner_team_num;
   struct physbody pb;
 };
 
