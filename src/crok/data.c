@@ -169,14 +169,54 @@ struct fvec crok_board_to_screen(struct crok_render_data *rd, struct ivec v) {
   return (struct fvec){.x = ox, .y = oy};
 }
 
-int64_t crok_disc_chksum(const struct crok_disc *d) {}
-int64_t crok_state_chksum(const struct crok_state *cs) {
-  int64_t disc_part = 0;
-  size_t disc_s = sizeof(cs->board.discs[0]);
+// Cyclic mess
+#include "crok/disc.h"
+#include "crok/player.h"
+
+char *crok_state_serialize(const struct crok_state *cs) {
+  static char buf[CROK_STATE_SERLEN];
+
+  char *w_head = buf;
+  for (int i = 0; i < 4; i++) {
+    memcpy(w_head, crok_player_serialize(&(cs->players[i])),
+           CROK_PLAYER_SERLEN);
+    w_head += CROK_PLAYER_SERLEN;
+  }
+  for (int i = 0; i < CROK_DISCS_TOTAL; i++) {
+    memcpy(w_head, crok_disc_serialize(&(cs->discs[i])), CROK_DISC_SERLEN);
+    w_head += CROK_DISC_SERLEN;
+  }
+  *((uint32_t *)w_head) = htonl(cs->round);
+  w_head += sizeof(uint32_t);
+  *((uint32_t *)w_head) = htonl(cs->overall_score);
+  w_head += sizeof(uint32_t);
+  *((uint16_t *)w_head) = htons(cs->gamestage);
+  w_head += sizeof(int16_t);
+  *((int8_t *)w_head) = cs->active_player;
+
+  return buf;
 }
 
-char *crok_state_serialize(const struct crok_state *cs) { return NULL; }
+struct crok_state crok_state_deserialize(char buf[CROK_STATE_SERLEN]) {
+  struct crok_state cs;
 
-struct crok_state crok_state_deserialize(char *sd) {
-  return (struct crok_state){0};
+  char *r_head = buf;
+  for (int i = 0; i < 4; i++) {
+    cs.players[i] = crok_player_deserialize(r_head);
+    r_head += CROK_PLAYER_SERLEN;
+  }
+  for (int i = 0; i < CROK_DISCS_TOTAL; i++) {
+    cs.discs[i] = crok_disc_deserialize(r_head);
+    r_head += CROK_DISC_SERLEN;
+  }
+  cs.round = ntohl(*((uint32_t *)r_head));
+  r_head += sizeof(uint32_t);
+  cs.overall_score = ntohl(*((uint32_t *)r_head));
+  r_head += sizeof(uint32_t);
+  cs.gamestage = ntohs(*((uint16_t *)r_head));
+  r_head += sizeof(uint16_t);
+  cs.active_player = *((uint8_t *)r_head);
+
+  cs.board = crok_board_calc();
+  return cs;
 }

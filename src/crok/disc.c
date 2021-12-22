@@ -24,3 +24,24 @@ void crok_disc_render(struct crok_disc *d[2], struct crok_render_data *rd) {
 
   SDL_RenderCopy(rd->rdr, rd->rboard->disc_tex, NULL, &dest);
 }
+
+char *crok_disc_serialize(const struct crok_disc *d) {
+  static char buf[CROK_DISC_SERLEN];
+
+  char *w_head = buf;
+  *((uint32_t *)w_head) = htons(d->flags);
+  w_head += sizeof(uint32_t);
+  memcpy(w_head, physbody_serialize(&d->pb), PHYSBODY_SERLEN);
+
+  return buf;
+}
+struct crok_disc crok_disc_deserialize(char buf[CROK_DISC_SERLEN]) {
+  struct crok_disc d;
+
+  char *r_head = buf;
+  d.flags = ntohs(*((uint16_t *)r_head));
+  r_head += sizeof(uint32_t);
+  d.pb = physbody_deserialize(r_head);
+
+  return d;
+}

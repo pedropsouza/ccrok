@@ -11,8 +11,9 @@ int crok_unit_valid(const void *unit) {
 size_t crok_unit_vacantpos(const void *unitarr, size_t elsize, size_t n) {
   size_t i = 0;
   char *cur = (char *)unitarr;
-  for (size_t i = 0; i < n && crok_unit_valid((void *)cur); i++, cur += elsize)
-    ;
+  for (i = 0; i < n && crok_unit_valid((void *)cur); i++) {
+    cur += elsize;
+  }
   if (i >= n) {
     i = -1;
   }

@@ -24,7 +24,7 @@ struct crok_player {
   uint32_t score;
 };
 
-#define CROK_DISC_SERLEN (sizeof(uint16_t) + sizeof(physbody))
+#define CROK_DISC_SERLEN (sizeof(uint32_t) + PHYSBODY_SERLEN)
 struct crok_disc {
   enum crok_unit_flags flags;
   struct physbody pb;

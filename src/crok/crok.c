@@ -111,7 +111,7 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
     break;
   }
 
-  struct crok_disc *td = cs->board.discs;
+  struct crok_disc *td = cs->discs;
   struct crok_player *tp = cs->players;
 
   if (!d->renderdata.servermode) {
@@ -124,7 +124,7 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
   }
 
   for (size_t i = 0; i < CROK_DISCS_TOTAL; i++) {
-    struct crok_disc *disc = &d->crok.board.discs[i];
+    struct crok_disc *disc = &d->crok.discs[i];
     if (crok_unit_valid(disc)) {
       crok_disc_tick(disc, &d->crok);
     }
@@ -149,7 +149,7 @@ void crok_render(struct scheduler *s, double a) {
   }
 
   for (size_t i = 0; i < CROK_DISCS_TOTAL; i++) {
-    struct crok_disc *disc[2] = {&d->crok.board.discs[i], NULL};
+    struct crok_disc *disc[2] = {&d->crok.discs[i], NULL};
     if (crok_unit_valid(disc[0])) {
       crok_disc_render(disc, r);
     }
@@ -207,10 +207,10 @@ size_t crok_spawn_player(struct crok_state *cs, struct crok_player p) {
 }
 
 size_t crok_spawn_disc(struct crok_state *cs, struct crok_player *owner) {
-  size_t i = crok_unit_vacantpos(cs->board.discs, sizeof(struct crok_disc),
+  size_t i = crok_unit_vacantpos(cs->discs, sizeof(struct crok_disc),
                                  CROK_DISCS_TOTAL);
   if (i >= 0) {
-    cs->board.discs[i] = crok_disc_init(owner);
+    cs->discs[i] = crok_disc_init(owner);
   }
   return i;
 }

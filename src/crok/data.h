@@ -46,7 +46,6 @@ struct crok_board {
   uint32_t disc_radius;
 
   struct fvec posts[8];
-  struct crok_disc discs[CROK_DISCS_TOTAL];
 };
 
 // units in pixels
@@ -64,12 +63,17 @@ struct crok_render_board {
   double disc_diam;
 };
 
+#define CROK_STATE_SERLEN                                                      \
+  (sizeof(int8_t) + CROK_PLAYER_SERLEN * 4 +                                   \
+   CROK_DISC_SERLEN * CROK_DISCS_TOTAL + sizeof(uint32_t) * 2 +                \
+   sizeof(uint16_t))
 struct crok_state {
-  size_t active_player;
-  // either 2 or 4, as 2 sides
+  int8_t active_player;
+  // either 2, or 4 as 2 sides
   struct crok_player players[4];
-  unsigned int round;
-  int overall_score;
+  struct crok_disc discs[CROK_DISCS_TOTAL];
+  uint32_t round;
+  uint32_t overall_score;
   enum crok_gamestage gamestage;
   struct crok_board board;
 };
@@ -92,8 +96,7 @@ void crok_board_render_finish(struct crok_render_board *rboard);
 struct ivec crok_screen_to_board(struct crok_render_data *rd, struct fvec v);
 struct fvec crok_board_to_screen(struct crok_render_data *rd, struct ivec v);
 
-int64_t crok_state_chksum(const struct crok_state *);
-char *crok_state_serialize(const struct crok_state *);
-struct crok_state crok_state_deserialize(char *);
+char *crok_state_serialize(const struct crok_state *st);
+struct crok_state crok_state_deserialize(char buf[CROK_STATE_SERLEN]);
 
 #endif // CROK_DATA_HG__

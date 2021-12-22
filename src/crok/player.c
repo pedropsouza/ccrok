@@ -42,14 +42,14 @@ void crok_player_render(struct crok_player *p[2], struct crok_render_data *rd) {
 char *crok_player_serialize(const struct crok_player *p) {
   static char buf[CROK_PLAYER_SERLEN];
   char *w_head = buf;
-  // Assuming the whole enum fits into a short uint
-  *((uint16_t *)w_head) = htons((uint16_t)p->flags);
-  w_head += 2;
   memcpy(w_head, ivec_serialize(&p->pos), IVEC_SERLEN);
   w_head += IVEC_SERLEN;
   *((uint32_t *)w_head) = htonl((uint32_t)p->score);
-  w_head += 4;
+  w_head += sizeof(uint32_t);
   strncpy(w_head, p->name, CROK_NAMELEN_MAX);
+  w_head += CROK_NAMELEN_MAX;
+  // Assuming the whole enum fits into a short uint
+  *((uint16_t *)w_head) = htons((uint16_t)p->flags);
   return buf;
 }
 
@@ -57,12 +57,12 @@ struct crok_player crok_player_deserialize(char buf[CROK_PLAYER_SERLEN]) {
   struct crok_player p;
 
   char *r_head = buf;
-  p.flags = ntohs(*((uint16_t *)r_head));
-  r_head += 2;
   p.pos = ivec_deserialize(r_head);
   r_head += IVEC_SERLEN;
   p.score = ntohl(*((uint32_t *)r_head));
-  r_head += 4;
+  r_head += sizeof(uint32_t);
   strncpy(p.name, r_head, CROK_NAMELEN_MAX);
+  r_head += CROK_NAMELEN_MAX;
+  p.flags = ntohs(*((uint16_t *)r_head));
   return p;
 }
