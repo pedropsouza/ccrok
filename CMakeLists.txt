@@ -1,6 +1,6 @@
 # Setup
 cmake_minimum_required(VERSION 3.17)
-project(ExampleSDL2C)
+project(ccrok)
 include(CTest)
 include(FetchContent)
 set(FETCHCONTENT_QUIET 0)
@@ -15,6 +15,13 @@ find_package(SDL2_image REQUIRED)
 
 include_directories(${SDL2_INCLUDE_DIR}
                     ${SDL2_IMAGE_INCLUDE_DIR})
+
+# libcrc
+include_directories("${PROJECT_SOURCE_DIR}/libcrc/include/")
+set(CRC_LIBRARY "${PROJECT_SOURCE_DIR}/libcrc/lib/libcrc.a")
+
+add_library(crc STATIC IMPORTED GLOBAL)
+set_property(TARGET crc PROPERTY IMPORTED_LOCATION "${CRC_LIBRARY}")
 
 # Download / Include Unity Test Runner
 FetchContent_Declare(

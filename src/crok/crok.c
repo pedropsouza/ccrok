@@ -63,6 +63,8 @@ struct sched_trans crok_setup(struct scheduler *s) {
   size_t pid = crok_spawn_player(
       &d->crok, crok_player_init(CROK_U_TEAM1 | CROK_U_P1, "local player"));
   crok_spawn_disc(&d->crok, &d->crok.players[pid]);
+  d->crok.players[pid].pos.x = CROK_BOARD_DIAM / 2;
+  d->crok.players[pid].pos.y = CROK_BOARD_DIAM / 2;
 
   return (struct sched_trans){.s = SCHED_CONTINUE, .why = "setup finished"};
 }
@@ -101,6 +103,7 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
     cs->gamestage = CROK_ERROR;
     return (struct sched_trans){.s = SCHED_ERR, .why = "invalid active player"};
   }
+  // Side effect-y, mutates this clients players
   enum crok_gamestage gst = crok_process_input(d);
   switch (gst) {
   case CROK_LEAVE:
@@ -115,10 +118,9 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
   struct crok_player *tp = cs->players;
 
   if (!d->renderdata.servermode) {
-    struct fvec pmouse = {.x = tp->pos.x, .y = tp->pos.y};
-    struct ivec target = crok_screen_to_board(&d->renderdata, pmouse);
+    struct ivec target = tp->pos;
     struct ivec force = ivec_sub(target, td->pb.pos);
-    physbody_force(&td->pb, ivec_div(td->pb.vel, (struct ivec){-1, -1}),
+    physbody_force(&td->pb, ivec_mul(td->pb.vel, (struct ivec){-1, -1}),
                    CROK_TPS);
     physbody_force(&td->pb, force, CROK_TPS);
   }
@@ -129,6 +131,10 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
       crok_disc_tick(disc, &d->crok);
     }
   }
+
+  const unsigned char *state_ser = (unsigned char *)crok_state_serialize(cs);
+  uint32_t chksum = crc_32(state_ser, CROK_STATE_SERLEN);
+  printf("tick %ld chk %u\n", num_ticks, chksum);
 
   return (struct sched_trans){.s = SCHED_CONTINUE, .why = "fixed call"};
 }
@@ -162,8 +168,10 @@ void crok_render(struct scheduler *s, double a) {
 enum crok_gamestage crok_process_input(struct crok_data *d) {
   struct crok_state *st = &d->crok;
   struct crok_input_context *inpctx = &d->input;
+  struct crok_render_data *rdr = &d->renderdata;
   struct crok_player *driven_player = &st->players[d->my_player_id];
   enum crok_gamestage new_gst = st->gamestage;
+  struct fvec spos;
 
   crok_input_accum(inpctx, crok_local_input, NULL);
   for (size_t i = 0; i <= inpctx->buf_last; i++) {
@@ -173,8 +181,8 @@ enum crok_gamestage crok_process_input(struct crok_data *d) {
       // FIXME: Should this fail?
       break;
     case CROK_INPUT_POS:
-      driven_player->pos.x = pckt.pos.pos.x;
-      driven_player->pos.y = pckt.pos.pos.y;
+      spos = (struct fvec){.x = pckt.pos.pos.x, .y = pckt.pos.pos.y};
+      driven_player->pos = crok_screen_to_board(rdr, spos);
       break;
     case CROK_INPUT_LAY_DISC:
       break;

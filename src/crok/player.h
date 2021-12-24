@@ -3,6 +3,7 @@
 
 #include "arpa/inet.h"
 #include "crok/data.h"
+#include "draw.h"
 #include "string.h"
 
 struct crok_player crok_player_init(uint16_t flags, char *name);

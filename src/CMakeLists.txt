@@ -16,6 +16,11 @@ add_library(crok SHARED
   crok/unit.c
   draw.c
 )
+
+target_link_libraries(crok
+  crc
+)
+
 add_library(sched SHARED
   sched.c
 )

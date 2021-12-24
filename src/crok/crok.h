@@ -1,6 +1,7 @@
 #ifndef CROK_HG__
 #define CROK_HG__
 
+#include "../../libcrc/include/checksum.h"
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_image.h"
 #include "crok/data.h"

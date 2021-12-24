@@ -37,6 +37,9 @@ enum crok_gamestage crok_player_tick(struct crok_player *p,
 }**/
 
 void crok_player_render(struct crok_player *p[2], struct crok_render_data *rd) {
+  struct fvec spos = crok_board_to_screen(rd, p[0]->pos);
+  SDL_SetRenderDrawColor(rd->rdr, 255, 255, 255, 255);
+  SDL_RenderDrawCircle(rd->rdr, spos.x, spos.y, rd->w / 200);
 }
 
 char *crok_player_serialize(const struct crok_player *p) {
