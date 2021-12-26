@@ -4,9 +4,9 @@
 // A mechanism to control the number of executions per second of a game loop
 // Inner state machine driven by the callbacks' returned state transitions,
 // tracks external data through the setup and cleanup functions which may
-// allocate and deallocate persistant_data.
+// allocate and deallocate persistent_data.
 //
-// Cleanup callback is only called if persistant_data != NULL
+// Cleanup callback is only called if persistent_data != NULL
 // Each sched_exec should only call one kind of callback, multiple times
 // if running behind schedule (only tick and draw)
 //
@@ -57,7 +57,7 @@ struct scheduler {
   int forced_trans;
 
   const char *name;
-  void *persistant_data; // modified by the callbacks, MAY be set
+  void *persistent_data; // modified by the callbacks, MAY be set
                          // to something != NULL after setup to make sure
                          // cleanup is called
   void *setup_data; // not modified internally, used only for setup and cleanup

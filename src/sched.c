@@ -70,7 +70,7 @@ struct scheduler sched_init(setup_fun s, cleanup_fun c, fixed_fun f,
 enum sched_state sched_handover(struct scheduler *s) {
   enum sched_state st;
   sched_exec_till_change(s, SCHED_SETUP_MAX_EXECS, "handover setup");
-  if (sched_get_cur_state(s) != SCHED_CONTINUE)
+  if (sched_get_state(s) != SCHED_CONTINUE)
     sched_exec_till_change(s, SCHED_SETUP_MAX_EXECS, "handover setup");
 }
 
@@ -107,7 +107,7 @@ int sched_exec(struct scheduler *s) {
   long framet_ns, snooze_ns;
   struct timespec new_ts, snooze_ts;
   int ticks_this_call = 0;
-  enum sched_state cur_st = sched_get_cur_state(s);
+  enum sched_state cur_st = sched_get_state(s);
 
   switch (cur_st) {
   case SCHED_NONE:
@@ -233,10 +233,10 @@ int sched_exec(struct scheduler *s) {
 enum sched_state sched_exec_till_change(struct scheduler *s, unsigned int n,
                                         const char *why) {
   enum sched_state old, new;
-  old = new = sched_get_cur_state(s);
+  old = new = sched_get_state(s);
   for (int i = 0; i <= n; i++) {
     sched_exec(s);
-    new = sched_get_cur_state(s);
+    new = sched_get_state(s);
     if (new != old) {
       return new;
     }
@@ -247,7 +247,7 @@ enum sched_state sched_exec_till_change(struct scheduler *s, unsigned int n,
           "called with why: \"%s\"\n",
           s->name, sched_state_name(old), n, why);
   sched_force_transition(s, SCHED_ERR, "runtime error");
-  return sched_get_cur_state(s);
+  return sched_get_state(s);
 }
 
 void sched_exec_till_state(struct scheduler *s, enum sched_state st,
@@ -255,7 +255,7 @@ void sched_exec_till_state(struct scheduler *s, enum sched_state st,
   enum sched_state old = sched_get_newest_state(s);
   for (int i = 0; i < n; i++) {
     sched_exec(s);
-    if (sched_get_cur_state(s) == st) {
+    if (sched_get_state(s) == st) {
       return;
     }
   }
@@ -273,19 +273,19 @@ struct sched_trans sched_exit(struct scheduler *s, const char *why) {
   return s->trans_hist[s->trans_hist_idx];
 }
 
-enum sched_state sched_get_cur_state(struct scheduler *s) {
+enum sched_state sched_get_state(struct scheduler *s) {
   return s->trans_hist[s->trans_hist_idx].s;
 }
 
 enum sched_state sched_get_newest_state(struct scheduler *s) {
   enum sched_state queued = s->trans_queue[s->trans_queue_lidx].s;
   if (queued == SCHED_NONE) {
-    return sched_get_cur_state(s);
+    return sched_get_state(s);
   }
   return queued;
 }
 
-int sched_isclean(struct scheduler *s) { return (s->persistant_data == NULL); }
+int sched_isclean(struct scheduler *s) { return (s->persistent_data == NULL); }
 
 // TODO: implement only printing up to tail
 void sched_print_circular_buffer(FILE *stream, struct sched_trans *buf,

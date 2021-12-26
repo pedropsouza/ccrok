@@ -29,9 +29,9 @@ struct crok_input_packet crok_local_input(struct crok_input_context *ic,
 }
 
 struct sched_trans crok_setup(struct scheduler *s) {
-  s->persistant_data =
-      safe_calloc(sizeof(struct crok_data), "setup persistant_data alloc");
-  struct crok_data *d = (struct crok_data *)s->persistant_data;
+  s->persistent_data =
+      safe_calloc(sizeof(struct crok_data), "setup persistent_data alloc");
+  struct crok_data *d = (struct crok_data *)s->persistent_data;
   struct crok_setup_data *setdat = (struct crok_setup_data *)s->setup_data;
 
   d->crok = crok_state_init();
@@ -44,8 +44,8 @@ struct sched_trans crok_setup(struct scheduler *s) {
     setdat->sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (setdat->sockfd == -1) {
       perror("Couldn't setup a network socket");
-      free(s->persistant_data);
-      s->persistant_data = NULL;
+      free(s->persistent_data);
+      s->persistent_data = NULL;
       return (struct sched_trans){.s = SCHED_HALT, .why = "setup error"};
     }
   } else {
@@ -82,7 +82,7 @@ struct sched_trans crok_setup(struct scheduler *s) {
 }
 
 struct sched_trans crok_cleanup(struct scheduler *s) {
-  struct crok_data *d = (struct crok_data *)s->persistant_data;
+  struct crok_data *d = (struct crok_data *)s->persistent_data;
   struct crok_setup_data *setdat = (struct crok_setup_data *)s->setup_data;
 
   if (!setdat->servermode) {
@@ -94,14 +94,14 @@ struct sched_trans crok_cleanup(struct scheduler *s) {
   }
 
   d = NULL;
-  free(s->persistant_data);
-  s->persistant_data = NULL;
+  free(s->persistent_data);
+  s->persistent_data = NULL;
 
   return (struct sched_trans){.s = SCHED_HALT, .why = "cleanup finished"};
 }
 
 struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
-  struct crok_data *d = (struct crok_data *)s->persistant_data;
+  struct crok_data *d = (struct crok_data *)s->persistent_data;
   struct crok_state *cs = (struct crok_state *)&d->crok;
   static long num_ticks = 0;
   num_ticks += 1;
@@ -152,7 +152,7 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
 }
 
 void crok_render(struct scheduler *s, double a) {
-  struct crok_data *d = (struct crok_data *)s->persistant_data;
+  struct crok_data *d = (struct crok_data *)s->persistent_data;
   struct crok_render_data *r = &d->renderdata;
 
   SDL_SetRenderDrawColor(r->rdr, 0, 0, 0, SDL_ALPHA_OPAQUE);

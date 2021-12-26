@@ -21,12 +21,12 @@ void tearDown(void) {
   // clean stuff up here
 }
 struct sched_trans test_setup(struct scheduler *s) {
-  s->persistant_data = "foo";
+  s->persistent_data = "foo";
   return (struct sched_trans){.s = SCHED_CONTINUE, .why = "setup finished"};
 }
 
 struct sched_trans test_cleanup(struct scheduler *s) {
-  s->persistant_data = NULL;
+  s->persistent_data = NULL;
   return (struct sched_trans){.s = SCHED_HALT, .why = "cleanup finished"};
 }
 
