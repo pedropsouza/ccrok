@@ -64,13 +64,14 @@ struct scheduler sched_init(setup_fun s, cleanup_fun c, fixed_fun f,
 
   sched_force_transition(&sched, SCHED_SETUP, "sched_init call");
   sched_exec_till_change(&sched, SCHED_SETUP_MAX_EXECS, "sched_init call");
-  assert(!sched_isclean(&sched));
   return sched;
 }
 
-void sched_handover(struct scheduler *s) {
-  while (sched_exec(s))
-    ;
+enum sched_state sched_handover(struct scheduler *s) {
+  enum sched_state st;
+  sched_exec_till_change(s, SCHED_SETUP_MAX_EXECS, "handover setup");
+  if (sched_get_cur_state(s) != SCHED_CONTINUE)
+    sched_exec_till_change(s, SCHED_SETUP_MAX_EXECS, "handover setup");
 }
 
 int sched_transition(struct scheduler *s, enum sched_state new_st,
@@ -119,9 +120,19 @@ int sched_exec(struct scheduler *s) {
     s->curt_ns = new_ts.tv_sec * (long)1e9 + new_ts.tv_nsec;
   } break;
   case SCHED_CLEANUP: {
+    if (sched_isclean(s)) {
+      sched_force_transition(s, SCHED_HALT, "no cleanup needed");
+      break;
+    }
     struct sched_trans t = s->cleanup(s);
     sched_force_transition(s, t.s, t.why);
-  } break;
+    if (s->cleanup_ticks > SCHED_CLEANUP_MAX_EXECS) {
+      sched_force_transition(s, SCHED_ERR, "cleanup max ticks exceeded!");
+      s->cleanup_ticks = 0; // Just so the error is only thrown once, preferably
+    }
+    s->cleanup_ticks++;
+    break;
+  }
 
   case SCHED_CONTINUE:
     // TODO FIXME: implement state interpolation
@@ -193,7 +204,8 @@ int sched_exec(struct scheduler *s) {
   case SCHED_ERR:
     fprintf(stderr, "scheduler %s: SCHED_ERR reached!\n", s->name);
     sched_debugprint(stderr, s);
-    abort();
+    // Try and make a clean exit
+    sched_force_transition(s, SCHED_CLEANUP, "runtime error");
     break;
   }
 
@@ -222,7 +234,7 @@ enum sched_state sched_exec_till_change(struct scheduler *s, unsigned int n,
                                         const char *why) {
   enum sched_state old, new;
   old = new = sched_get_cur_state(s);
-  for (int i = 0; i < n; i++) {
+  for (int i = 0; i <= n; i++) {
     sched_exec(s);
     new = sched_get_cur_state(s);
     if (new != old) {
@@ -232,9 +244,10 @@ enum sched_state sched_exec_till_change(struct scheduler *s, unsigned int n,
   fprintf(stderr,
           "scheduler %s: failed to change from state %s in less than %d "
           "executions! "
-          "called with why: \"%s\"; aborting.\n",
+          "called with why: \"%s\"\n",
           s->name, sched_state_name(old), n, why);
-  abort();
+  sched_force_transition(s, SCHED_ERR, "runtime error");
+  return sched_get_cur_state(s);
 }
 
 void sched_exec_till_state(struct scheduler *s, enum sched_state st,
@@ -251,7 +264,7 @@ void sched_exec_till_state(struct scheduler *s, enum sched_state st,
           "%d executions! "
           "called with why: \"%s\"; aborting.\n",
           s->name, sched_state_name(st), sched_state_name(old), n, why);
-  abort();
+  sched_force_transition(s, SCHED_ERR, "runtime error");
 }
 
 struct sched_trans sched_exit(struct scheduler *s, const char *why) {

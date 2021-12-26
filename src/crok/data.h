@@ -25,7 +25,7 @@ enum crok_gamestage {
 };
 
 struct crok_setup_data {
-  int width, height, servermode;
+  int width, height, servermode, sockfd;
 };
 
 struct crok_render_data {

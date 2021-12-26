@@ -1,6 +1,16 @@
 #ifndef SCHED_HG__
 #define SCHED_HG__
 
+// A mechanism to control the number of executions per second of a game loop
+// Inner state machine driven by the callbacks' returned state transitions,
+// tracks external data through the setup and cleanup functions which may
+// allocate and deallocate persistant_data.
+//
+// Cleanup callback is only called if persistant_data != NULL
+// Each sched_exec should only call one kind of callback, multiple times
+// if running behind schedule (only tick and draw)
+//
+// Follows justified programming for ease of debugging
 #include <SDL.h>
 #include <assert.h>
 #include <errno.h>
@@ -11,20 +21,19 @@
 #define SCHED_TRANS_HISTORY_SIZE 32
 #define SCHED_TRANS_QUEUE_SIZE 16
 #define SCHED_CALL_MAX_TICKS 32
-// forbid overly long setups/cleanups
+// forbid overly long setups/cleanups when in sched_handover
 #define SCHED_SETUP_MAX_EXECS 16
 #define SCHED_CLEANUP_MAX_EXECS 16
 // how much time to leave out of the nanosleep, in nanoseconds
 #define SCHED_SLEEP_MARGIN 0
 
 enum sched_state {
-  SCHED_NONE = 0,
+  SCHED_HALT = 0,
   SCHED_SETUP,
   SCHED_CLEANUP,
   SCHED_CONTINUE,
   SCHED_DROPPED,
   SCHED_PAUSE,
-  SCHED_HALT,
   SCHED_ERR,
 };
 
@@ -48,8 +57,9 @@ struct scheduler {
   int forced_trans;
 
   const char *name;
-  void *persistant_data; // modified by the subordinate functions, MUST be set
-                         // to something != NULL after setup! (breaks isclean)
+  void *persistant_data; // modified by the callbacks, MAY be set
+                         // to something != NULL after setup to make sure
+                         // cleanup is called
   void *setup_data; // not modified internally, used only for setup and cleanup
   size_t trans_queue_fidx;
   size_t trans_queue_lidx;
@@ -89,16 +99,18 @@ void sched_force_transition(struct scheduler *s, enum sched_state new_st,
                             const char *why);
 
 // follow the run through to the end, unsupervised.
-void sched_handover(struct scheduler *s);
+//
+// returns the final state
+enum sched_state sched_handover(struct scheduler *s);
 
 // advance execution.
 //
-// returns truthy if the run hasn't ended yet, falsy if it has
-int sched_exec(struct scheduler *s);
+// returns the next exec state
+enum sched_state sched_exec(struct scheduler *s);
 
-// advance enough to change the next exec()'s state.
+// advance enough to change the next exec state, but exec no more than n.
 //
-// returns the new state, maximum n execs ahead.
+// returns the next exec state
 enum sched_state sched_exec_till_change(struct scheduler *s, unsigned int n,
                                         const char *why);
 
@@ -111,15 +123,16 @@ void sched_exec_till_state(struct scheduler *s, enum sched_state st,
 // returns a copy of the transition applied.
 struct sched_trans sched_exit(struct scheduler *s, const char *why);
 
-// returns the next exec()'s state.
-enum sched_state sched_get_cur_state(struct scheduler *s);
+// returns the next exec state.
+enum sched_state sched_get_state(struct scheduler *s);
 
-// returns the newest requested state, or the current state if no transition
+// returns the newest requested state, or the next exec state if no transition
 // requests have been made.
 enum sched_state sched_get_newest_state(struct scheduler *s);
 
 // returns truthy if dropping the scheduler wouldn't leak memory/leave resources
-// allocated, falsy otherwise. is falsy after init, truthy after cleanup.
+// allocated, falsy otherwise. is falsy after an allocating setup, truthy after
+// cleanup.
 int sched_isclean(struct scheduler *s);
 
 // prints a report of relevant internals for debugging to the specified stream.

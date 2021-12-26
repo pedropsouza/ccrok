@@ -45,9 +45,10 @@ int main(int argc, char *argv[]) {
   return EXIT_SUCCESS;
 
 invalid_arg:
-  fprintf(stderr,
-          "Bad arguments, usage:\n\t$ %s -d [<WIDTH>x<HEIGHT>]\ne.g.\t$ %s -d "
-          "1720x968\n",
-          argv[0], argv[0]);
+  fprintf(
+      stderr,
+      "Bad arguments, usage:\n\t$ %s [-s] [-d <WIDTH>x<HEIGHT>]\ne.g.\t$ %s -d "
+      "1720x968\n",
+      argv[0], argv[0]);
   return EXIT_FAILURE;
 }

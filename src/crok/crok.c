@@ -36,7 +36,19 @@ struct sched_trans crok_setup(struct scheduler *s) {
 
   d->crok = crok_state_init();
 
-  if (!setdat->servermode) {
+  // setup the network sockets first, if that fails
+  // the cleanup is easier
+  if (setdat->servermode) {
+    struct sockaddr_in addrdat;
+    int opt;
+    setdat->sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (setdat->sockfd == -1) {
+      perror("Couldn't setup a network socket");
+      free(s->persistant_data);
+      s->persistant_data = NULL;
+      return (struct sched_trans){.s = SCHED_HALT, .why = "setup error"};
+    }
+  } else {
     struct crok_render_data *rdat = &d->renderdata;
 
     rdat->w = setdat->width;

@@ -5,7 +5,8 @@ set(Tests
   memutil_test
   ticktime_test
   unit_serde_test
-  state_serde_test)
+  state_serde_test
+  sched_edgecase_test)
 
 # 2. Declare dependencies of each test file
 set(memutil_test_deps
@@ -33,12 +34,16 @@ set(state_serde_test_deps
   ${SDL2_IMAGE_LIBRARIES}
   )
 
+set(sched_edgecase_test_deps
+  sched)
+
 # 3. Add dependencies to a list, need to be in the same order as item 1
 set(Dependencies
   memutil_test_deps
   ticktime_test_deps
   unit_serde_test_deps
-  state_serde_test_deps)
+  state_serde_test_deps
+  sched_edgecase_test_deps)
 
 ###################################################################
 
