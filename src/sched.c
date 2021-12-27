@@ -14,8 +14,8 @@ struct sched_trans sched_advance_queue(struct scheduler *s) {
   size_t last = s->trans_queue_lidx;
   size_t first = s->trans_queue_fidx;
   struct sched_trans first_trans = s->trans_queue[first];
-  if (first_trans.s != SCHED_NONE) {
-    // consumed slots must be reset to SCHED_NONE
+  if (first_trans.s != SCHED_HALT) {
+    // consumed slots must be reset to SCHED_HALT
     s->trans_queue[first] = (struct sched_trans){0};
 
     size_t next = (first + 1) % SCHED_TRANS_QUEUE_SIZE;
@@ -63,15 +63,37 @@ struct scheduler sched_init(setup_fun s, cleanup_fun c, fixed_fun f,
   sched.acc[1] = renderstep_ns;
 
   sched_force_transition(&sched, SCHED_SETUP, "sched_init call");
-  sched_exec_till_change(&sched, SCHED_SETUP_MAX_EXECS, "sched_init call");
   return sched;
 }
 
 enum sched_state sched_handover(struct scheduler *s) {
   enum sched_state st;
-  sched_exec_till_change(s, SCHED_SETUP_MAX_EXECS, "handover setup");
-  if (sched_get_state(s) != SCHED_CONTINUE)
-    sched_exec_till_change(s, SCHED_SETUP_MAX_EXECS, "handover setup");
+  int loops = 0;
+  do {
+    st = sched_get_state(s);
+    switch (st) {
+    case SCHED_SETUP:
+      st = sched_exec_till_change(s, SCHED_SETUP_MAX_EXECS, "handover setup");
+      /* fallthrough */
+    case SCHED_CONTINUE:
+      do {
+        st = sched_exec(s);
+        // FIXME: ignoring dropped ticks might not be the best
+      } while (st == SCHED_CONTINUE || st == SCHED_DROPPED || st == SCHED_ERR);
+
+      /* fallthrough */
+    case SCHED_CLEANUP:
+      if (st == SCHED_CLEANUP) {
+        st = sched_exec_till_state(s, SCHED_HALT, SCHED_CLEANUP_MAX_EXECS,
+                                   "handover cleanup");
+      }
+      /* fallthrough */
+    default:
+      st = sched_exec(s);
+    }
+    loops++;
+  } while (st != SCHED_HALT && loops < SCHED_MAX_LOOPS);
+  return st;
 }
 
 int sched_transition(struct scheduler *s, enum sched_state new_st,
@@ -81,7 +103,7 @@ int sched_transition(struct scheduler *s, enum sched_state new_st,
     size_t first = s->trans_queue_fidx;
     size_t target = last;
     const size_t max_s = SCHED_TRANS_QUEUE_SIZE;
-    if (s->trans_queue[last].s != SCHED_NONE) {
+    if (s->trans_queue[last].s != SCHED_HALT) {
       target = last + 1 % max_s;
       if (target == first) {
         // queue overflow!
@@ -103,16 +125,13 @@ void sched_force_transition(struct scheduler *s, enum sched_state new_st,
   s->forced_trans = 1;
 }
 
-int sched_exec(struct scheduler *s) {
+enum sched_state sched_exec(struct scheduler *s) {
   long framet_ns, snooze_ns;
   struct timespec new_ts, snooze_ts;
   int ticks_this_call = 0;
   enum sched_state cur_st = sched_get_state(s);
 
   switch (cur_st) {
-  case SCHED_NONE:
-    sched_force_transition(s, SCHED_ERR, "tried to exec with no state!");
-    break;
   case SCHED_SETUP: {
     struct sched_trans t = s->setup(s);
     sched_force_transition(s, t.s, t.why);
@@ -126,16 +145,10 @@ int sched_exec(struct scheduler *s) {
     }
     struct sched_trans t = s->cleanup(s);
     sched_force_transition(s, t.s, t.why);
-    if (s->cleanup_ticks > SCHED_CLEANUP_MAX_EXECS) {
-      sched_force_transition(s, SCHED_ERR, "cleanup max ticks exceeded!");
-      s->cleanup_ticks = 0; // Just so the error is only thrown once, preferably
-    }
-    s->cleanup_ticks++;
     break;
   }
 
   case SCHED_CONTINUE:
-    // TODO FIXME: implement state interpolation
     clock_gettime(CLOCK_MONOTONIC, &new_ts);
     s->newt_ns = new_ts.tv_sec * (long)1e9 + new_ts.tv_nsec;
 
@@ -195,7 +208,7 @@ int sched_exec(struct scheduler *s) {
 
   case SCHED_HALT:
     if (sched_isclean(s)) {
-      return 0; // no further ticks required
+      return SCHED_HALT; // no further ticks required
     } else {
       sched_force_transition(s, SCHED_ERR,
                              "tried to halt without cleaning up first!");
@@ -204,15 +217,20 @@ int sched_exec(struct scheduler *s) {
   case SCHED_ERR:
     fprintf(stderr, "scheduler %s: SCHED_ERR reached!\n", s->name);
     sched_debugprint(stderr, s);
-    // Try and make a clean exit
-    sched_force_transition(s, SCHED_CLEANUP, "runtime error");
+    if (s->error != NULL) {
+      struct sched_trans errt = s->error(s);
+      sched_force_transition(s, errt.s, errt.why);
+    } else {
+      // Try to make a clean exit
+      sched_force_transition(s, SCHED_CLEANUP, "error cleanup");
+    }
     break;
   }
 
   if (!s->forced_trans) {
     // consume enqueued transitions from oldest to newest
     struct sched_trans t = sched_advance_queue(s);
-    if (t.s != SCHED_NONE) {
+    if (t.s != SCHED_HALT) {
       sched_push_hist(s, t);
     }
   } else {
@@ -227,7 +245,7 @@ int sched_exec(struct scheduler *s) {
          s->acc[1] / 1e9, s->rendert_ns / 1e9);
 #endif
 
-  return 1; // more ticks are necessary
+  return sched_get_state(s);
 }
 
 enum sched_state sched_exec_till_change(struct scheduler *s, unsigned int n,
@@ -250,21 +268,22 @@ enum sched_state sched_exec_till_change(struct scheduler *s, unsigned int n,
   return sched_get_state(s);
 }
 
-void sched_exec_till_state(struct scheduler *s, enum sched_state st,
-                           unsigned int n, const char *why) {
+enum sched_state sched_exec_till_state(struct scheduler *s, enum sched_state st,
+                                       unsigned int n, const char *why) {
   enum sched_state old = sched_get_newest_state(s);
-  for (int i = 0; i < n; i++) {
+  for (int i = 0; i <= n; i++) {
     sched_exec(s);
     if (sched_get_state(s) == st) {
-      return;
+      return st;
     }
   }
   fprintf(stderr,
           "scheduler %s: failed to reach state %s from state %s in less than "
           "%d executions! "
-          "called with why: \"%s\"; aborting.\n",
+          "called with why: \"%s\"\n",
           s->name, sched_state_name(st), sched_state_name(old), n, why);
   sched_force_transition(s, SCHED_ERR, "runtime error");
+  return SCHED_ERR;
 }
 
 struct sched_trans sched_exit(struct scheduler *s, const char *why) {
@@ -279,7 +298,7 @@ enum sched_state sched_get_state(struct scheduler *s) {
 
 enum sched_state sched_get_newest_state(struct scheduler *s) {
   enum sched_state queued = s->trans_queue[s->trans_queue_lidx].s;
-  if (queued == SCHED_NONE) {
+  if (queued == SCHED_HALT) {
     return sched_get_state(s);
   }
   return queued;
@@ -287,13 +306,17 @@ enum sched_state sched_get_newest_state(struct scheduler *s) {
 
 int sched_isclean(struct scheduler *s) { return (s->persistent_data == NULL); }
 
+void sched_set_error_callbk(struct scheduler *s, error_fun ef) {
+  s->error = ef;
+}
+
 // TODO: implement only printing up to tail
 void sched_print_circular_buffer(FILE *stream, struct sched_trans *buf,
                                  size_t head, const size_t cap) {
   for (int i = 0; i < cap; i++) {
     size_t idx = (cap + head - i) % cap;
     struct sched_trans t = buf[idx];
-    if (t.s != SCHED_NONE) {
+    if (t.s != SCHED_HALT || (t.s == SCHED_HALT && t.why != NULL)) {
       fprintf(stream, "\t#%d - %s reason \"%s\"\n", i, sched_state_name(t.s),
               t.why);
     }
@@ -314,8 +337,6 @@ void sched_debugprint(FILE *stream, struct scheduler *s) {
 const char *sched_state_name(enum sched_state st) {
   // TODO maybe transform into a macro?
   switch (st) {
-  case SCHED_NONE:
-    return "NONE";
   case SCHED_SETUP:
     return "SETUP";
   case SCHED_CLEANUP:

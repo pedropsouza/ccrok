@@ -21,6 +21,7 @@ struct sched_trans cleanup_countdown(struct scheduler *s) {
   int *c = (int *)s->setup_data;
   if (c[1] > 0) {
     c[1] = c[1] - 1;
+    printf("cleanup %s #%d\n", s->name, c[1]);
     return (struct sched_trans){.s = SCHED_CLEANUP, .why = "counter"};
   } else {
     s->persistent_data = NULL;
@@ -31,30 +32,47 @@ struct sched_trans cleanup_countdown(struct scheduler *s) {
 struct sched_trans bailtick(struct scheduler *s, long _) {
   return (struct sched_trans){.s = SCHED_CLEANUP, .why = "immediate bail"};
 }
+
+struct sched_trans errstore(struct scheduler *s) {
+  int *errc = (int *)s->setup_data;
+  errc[2]++;
+  printf("scheduler %s: error #%d\n", s->name, errc[2]);
+  fflush(stdout);
+  fflush(stderr);
+  // Try and make a clean exit
+  return (struct sched_trans){.s = SCHED_CLEANUP, .why = "errstore cleanup"};
+}
+
 void noop() {}
 
 void long_setupcleanup() {
   struct scheduler justright, toolong;
-  long tns = 100;
+  long tns = 10000;
   int maxwait = SCHED_SETUP_MAX_EXECS * 4;
-  int cjr[] = {SCHED_SETUP_MAX_EXECS, SCHED_CLEANUP_MAX_EXECS};
-  int ctl[] = {SCHED_SETUP_MAX_EXECS + 1, SCHED_CLEANUP_MAX_EXECS + 1};
+  int cjr[] = {SCHED_SETUP_MAX_EXECS, SCHED_CLEANUP_MAX_EXECS, 0};
+  int ctl[] = {SCHED_SETUP_MAX_EXECS + 1, SCHED_CLEANUP_MAX_EXECS + 1, 0};
+  enum sched_state st;
   justright = sched_init(setup_countdown, cleanup_countdown, bailtick, noop,
                          tns, tns, cjr, "justright");
-  TEST_ASSERT(sched_get_state(&justright) == SCHED_CONTINUE);
-  sched_exec_till_state(&justright, SCHED_CLEANUP, maxwait,
-                        "clear out any misc transitions");
-  sched_exec_till_state(&justright, SCHED_HALT, maxwait, "test justright");
+  sched_set_error_callbk(&justright, errstore);
+  st = sched_handover(&justright);
+  TEST_ASSERT(st == SCHED_HALT);
+  TEST_ASSERT(((int *)justright.setup_data)[2] == 0);
+
+  fflush(stdout);
+  fflush(stderr);
 
   toolong = sched_init(setup_countdown, cleanup_countdown, bailtick, noop, tns,
                        tns, ctl, "toolong");
-  TEST_ASSERT(sched_get_state(&toolong) == SCHED_ERR);
+  sched_set_error_callbk(&toolong, errstore);
+  // make sure the cleanup function is actually called
   toolong.persistent_data = (void *)0xdeadbeef;
-  sched_force_transition(&toolong, SCHED_CLEANUP, "test cleanup");
-  sched_exec_till_change(&toolong, maxwait, "test toolong");
-  TEST_ASSERT(sched_get_state(&toolong) == SCHED_ERR);
-  // It should still cleanly exit
-  sched_exec_till_state(&toolong, SCHED_HALT, maxwait, "test toolong");
+
+  st = sched_handover(&toolong);
+  sched_debugprint(stdout, &toolong);
+  // errstore should've been triggered twice
+  TEST_ASSERT(st == SCHED_HALT);
+  TEST_ASSERT(((int *)toolong.setup_data)[2] == 2);
 }
 
 int main(void) {

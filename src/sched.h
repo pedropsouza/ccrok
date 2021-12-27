@@ -10,6 +10,9 @@
 // Each sched_exec should only call one kind of callback, multiple times
 // if running behind schedule (only tick and draw)
 //
+// Errors can be thrown, and will call the error callback once per throw, upon
+// the next exec
+//
 // Follows justified programming for ease of debugging
 #include <SDL.h>
 #include <assert.h>
@@ -21,9 +24,10 @@
 #define SCHED_TRANS_HISTORY_SIZE 32
 #define SCHED_TRANS_QUEUE_SIZE 16
 #define SCHED_CALL_MAX_TICKS 32
-// forbid overly long setups/cleanups when in sched_handover
-#define SCHED_SETUP_MAX_EXECS 16
-#define SCHED_CLEANUP_MAX_EXECS 16
+// forbid overly long schedules when in sched_handover
+#define SCHED_SETUP_MAX_EXECS 8
+#define SCHED_CLEANUP_MAX_EXECS 8
+#define SCHED_MAX_LOOPS 4
 // how much time to leave out of the nanosleep, in nanoseconds
 #define SCHED_SLEEP_MARGIN 0
 
@@ -46,6 +50,7 @@ struct scheduler;
 typedef struct sched_trans (*setup_fun)(struct scheduler *s);
 typedef struct sched_trans (*cleanup_fun)(struct scheduler *s);
 typedef struct sched_trans (*fixed_fun)(struct scheduler *s, long step_ns);
+typedef struct sched_trans (*error_fun)(struct scheduler *s);
 typedef void (*render_fun)(struct scheduler *s, double a);
 
 // UB after nanosecond readings of ~2.6 centuries, as per long limits.
@@ -70,6 +75,7 @@ struct scheduler {
   fixed_fun fixed;
   render_fun render;
   cleanup_fun cleanup;
+  error_fun error;
 };
 
 // initialize a scheduler.
@@ -115,8 +121,10 @@ enum sched_state sched_exec_till_change(struct scheduler *s, unsigned int n,
                                         const char *why);
 
 // advance to the specified state, maximum n execs ahead.
-void sched_exec_till_state(struct scheduler *s, enum sched_state st,
-                           unsigned int n, const char *why);
+//
+// returns the achieved state, which could be different than the target
+enum sched_state sched_exec_till_state(struct scheduler *s, enum sched_state st,
+                                       unsigned int n, const char *why);
 
 // runs up to but not including a clean halt, failing that, an error.
 //
@@ -134,6 +142,9 @@ enum sched_state sched_get_newest_state(struct scheduler *s);
 // allocated, falsy otherwise. is falsy after an allocating setup, truthy after
 // cleanup.
 int sched_isclean(struct scheduler *s);
+
+// sets the optional error callback
+void sched_set_error_callbk(struct scheduler *s, error_fun ef);
 
 // prints a report of relevant internals for debugging to the specified stream.
 void sched_debugprint(FILE *stream, struct scheduler *s);
