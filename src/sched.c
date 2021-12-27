@@ -62,7 +62,7 @@ struct scheduler sched_init(setup_fun s, cleanup_fun c, fixed_fun f,
   sched.t[1] = -renderstep_ns;
   sched.acc[1] = renderstep_ns;
 
-  sched_force_transition(&sched, SCHED_SETUP, "sched_init call");
+  sched_force_transition(&sched, SCHED_SETUP, "sched_init");
   return sched;
 }
 
@@ -73,7 +73,7 @@ enum sched_state sched_handover(struct scheduler *s) {
     st = sched_get_state(s);
     switch (st) {
     case SCHED_SETUP:
-      st = sched_exec_till_change(s, SCHED_SETUP_MAX_EXECS, "handover setup");
+      st = sched_exec_till_change(s, SCHED_SETUP_MAX_EXECS, "handover");
       /* fallthrough */
     case SCHED_CONTINUE:
       do {
@@ -85,7 +85,7 @@ enum sched_state sched_handover(struct scheduler *s) {
     case SCHED_CLEANUP:
       if (st == SCHED_CLEANUP) {
         st = sched_exec_till_state(s, SCHED_HALT, SCHED_CLEANUP_MAX_EXECS,
-                                   "handover cleanup");
+                                   "handover");
       }
       /* fallthrough */
     default:
@@ -264,7 +264,7 @@ enum sched_state sched_exec_till_change(struct scheduler *s, unsigned int n,
           "executions! "
           "called with why: \"%s\"\n",
           s->name, sched_state_name(old), n, why);
-  sched_force_transition(s, SCHED_ERR, "runtime error");
+  sched_force_transition(s, SCHED_ERR, "sched_exec_till_change error");
   return sched_get_state(s);
 }
 
@@ -282,7 +282,7 @@ enum sched_state sched_exec_till_state(struct scheduler *s, enum sched_state st,
           "%d executions! "
           "called with why: \"%s\"\n",
           s->name, sched_state_name(st), sched_state_name(old), n, why);
-  sched_force_transition(s, SCHED_ERR, "runtime error");
+  sched_force_transition(s, SCHED_ERR, "sched_exec_till_state error");
   return SCHED_ERR;
 }
 
