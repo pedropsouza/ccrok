@@ -3,7 +3,7 @@
 struct crok_state crok_state_init() {
   struct crok_state s = {0};
   s.round = 1;
-  s.gamestage = CROK_GAMESTART;
+  s.gamestage = CROK_LOBBY;
   s.overall_score = 0;
   s.board = crok_board_calc();
 
@@ -193,6 +193,8 @@ char *crok_state_serialize(const struct crok_state *cs) {
   *((uint16_t *)w_head) = htons(cs->gamestage);
   w_head += sizeof(int16_t);
   *((int8_t *)w_head) = cs->active_player;
+  w_head += sizeof(int8_t);
+  *((int8_t *)w_head) = cs->total_players;
 
   return buf;
 }
@@ -216,6 +218,8 @@ struct crok_state crok_state_deserialize(char buf[CROK_STATE_SERLEN]) {
   cs.gamestage = ntohs(*((uint16_t *)r_head));
   r_head += sizeof(uint16_t);
   cs.active_player = *((uint8_t *)r_head);
+  r_head += sizeof(uint8_t);
+  cs.total_players = *((uint8_t *)r_head);
 
   cs.board = crok_board_calc();
   return cs;

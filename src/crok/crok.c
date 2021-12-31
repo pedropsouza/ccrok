@@ -34,21 +34,34 @@ struct sched_trans crok_setup(struct scheduler *s) {
   struct crok_data *d = (struct crok_data *)s->persistent_data;
   struct crok_setup_data *setdat = (struct crok_setup_data *)s->setup_data;
 
+  d->width = setdat->width;
+  d->height = setdat->height;
+  d->servermode = setdat->servermode;
   d->crok = crok_state_init();
+
+  struct sockaddr_in *saddr = &d->saddr;
+  ssize_t addrl = sizeof(*saddr);
+  memcpy(saddr, &setdat->saddr, addrl);
+
+  d->sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  if (d->sockfd == -1) {
+    perror("Couldn't create a network socket");
+    goto neterr;
+  }
 
   // setup the network sockets first, if that fails
   // the cleanup is easier
-  if (setdat->servermode) {
-    struct sockaddr_in addrdat;
-    int opt;
-    setdat->sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (setdat->sockfd == -1) {
-      perror("Couldn't setup a network socket");
-      free(s->persistent_data);
-      s->persistent_data = NULL;
-      return (struct sched_trans){.s = SCHED_HALT, .why = "setup error"};
+  if (d->servermode) { // server
+    saddr->sin_addr.s_addr = INADDR_ANY;
+
+    int retc = bind(d->sockfd, (struct sockaddr *)saddr, addrl);
+    if (retc < 0) {
+      perror("Couldn't bind network socket");
+      goto neterr;
     }
-  } else {
+
+    printf("server running on port %d...\n", CROK_PORT);
+  } else { // client
     struct crok_render_data *rdat = &d->renderdata;
 
     rdat->w = setdat->width;
@@ -70,15 +83,14 @@ struct sched_trans crok_setup(struct scheduler *s) {
     d->rboard = crok_board_render_init(rdat->rdr, &d->crok.board, rdat->w / 2,
                                        rdat->h / 2, smaller * 0.9);
     rdat->rboard = &d->rboard;
+
+    printf("using server %s on port %d...\n", inet_ntoa(saddr->sin_addr),
+           CROK_PORT);
   }
 
-  size_t pid = crok_spawn_player(
-      &d->crok, crok_player_init(CROK_U_TEAM1 | CROK_U_P1, "local player"));
-  crok_spawn_disc(&d->crok, &d->crok.players[pid]);
-  d->crok.players[pid].pos.x = CROK_BOARD_DIAM / 2;
-  d->crok.players[pid].pos.y = CROK_BOARD_DIAM / 2;
-
   return (struct sched_trans){.s = SCHED_CONTINUE, .why = "setup finished"};
+neterr:
+  return (struct sched_trans){.s = SCHED_ERR, .why = "network setup error"};
 }
 
 struct sched_trans crok_cleanup(struct scheduler *s) {
@@ -110,31 +122,32 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
                                 .why = "60 seconds elapsed"};
   }
 
-  struct crok_player *p = &cs->players[cs->active_player];
-  if (!crok_unit_valid(p)) {
-    cs->gamestage = CROK_ERROR;
-    return (struct sched_trans){.s = SCHED_ERR, .why = "invalid active player"};
-  }
-  // Side effect-y, mutates this clients players
-  enum crok_gamestage gst = crok_process_input(d);
-  switch (gst) {
-  case CROK_LEAVE:
-    return (struct sched_trans){.s = SCHED_CLEANUP,
-                                .why = "user requested quit"};
-    break;
-  default:
-    break;
+  if (cs->total_players > 0) {
+    struct crok_player *p = &cs->players[cs->active_player];
+    if (!crok_unit_valid(p)) {
+      cs->gamestage = CROK_ERROR;
+      return (struct sched_trans){.s = SCHED_ERR,
+                                  .why = "invalid active player"};
+    }
   }
 
-  struct crok_disc *td = cs->discs;
-  struct crok_player *tp = cs->players;
+  if (!d->servermode) {
+    // Side effect-y, mutates this clients player
+    enum crok_gamestage gst = crok_process_input(d);
+    switch (gst) {
+    case CROK_LEAVE:
+      return (struct sched_trans){.s = SCHED_CLEANUP,
+                                  .why = "user requested quit"};
+      break;
+    default:
+      break;
+    }
 
-  if (!d->renderdata.servermode) {
-    struct ivec target = tp->pos;
-    struct ivec force = ivec_sub(target, td->pb.pos);
-    physbody_force(&td->pb, ivec_mul(td->pb.vel, (struct ivec){-1, -1}),
-                   CROK_TPS);
-    physbody_force(&td->pb, force, CROK_TPS);
+    /* struct ivec target = tp->pos; */
+    /* struct ivec force = ivec_sub(target, td->pb.pos); */
+    /* physbody_force(&td->pb, ivec_mul(td->pb.vel, (struct ivec){-1, -1}), */
+    /*                CROK_TPS); */
+    /* physbody_force(&td->pb, force, CROK_TPS); */
   }
 
   for (size_t i = 0; i < CROK_DISCS_TOTAL; i++) {
@@ -146,7 +159,7 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
 
   const unsigned char *state_ser = (unsigned char *)crok_state_serialize(cs);
   uint32_t chksum = crc_32(state_ser, CROK_STATE_SERLEN);
-  printf("tick %ld chk %u\n", num_ticks, chksum);
+  // printf("tick %ld chk %u\n", num_ticks, chksum);
 
   return (struct sched_trans){.s = SCHED_CONTINUE, .why = "fixed call"};
 }

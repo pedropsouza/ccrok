@@ -11,7 +11,7 @@
 #include <stdint.h>
 
 enum crok_gamestage {
-  CROK_GAMESTART = 0,
+  CROK_LOBBY = 0,
   CROK_SIDESEL,
   CROK_ROUNDSTART,
   CROK_AIM,
@@ -25,7 +25,8 @@ enum crok_gamestage {
 };
 
 struct crok_setup_data {
-  int width, height, servermode, sockfd;
+  int width, height, servermode;
+  struct sockaddr_in saddr;
 };
 
 struct crok_render_data {
@@ -64,11 +65,11 @@ struct crok_render_board {
 };
 
 #define CROK_STATE_SERLEN                                                      \
-  (sizeof(int8_t) + CROK_PLAYER_SERLEN * 4 +                                   \
+  (sizeof(int8_t) * 2 + CROK_PLAYER_SERLEN * 4 +                               \
    CROK_DISC_SERLEN * CROK_DISCS_TOTAL + sizeof(uint32_t) * 2 +                \
    sizeof(uint16_t))
 struct crok_state {
-  int8_t active_player;
+  int8_t active_player, total_players;
   // either 2, or 4 as 2 sides
   struct crok_player players[4];
   struct crok_disc discs[CROK_DISCS_TOTAL];
@@ -84,6 +85,9 @@ struct crok_data {
   struct crok_render_data renderdata;
   struct crok_input_context input;
   size_t my_player_id;
+
+  int width, height, servermode, sockfd;
+  struct sockaddr_in saddr;
 };
 
 struct crok_state crok_state_init();

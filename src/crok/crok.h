@@ -16,11 +16,14 @@
 #include <string.h>
 #include <sys/socket.h>
 
+#define CROK_PORT 33850
+
 struct crok_input_packet crok_local_input(struct crok_input_context *ic,
                                           void *extra);
 struct sched_trans crok_setup(struct scheduler *s);
 struct sched_trans crok_cleanup(struct scheduler *s);
 struct sched_trans crok_fixed(struct scheduler *s, long step_ns);
+
 void crok_render(struct scheduler *s, double a);
 
 enum crok_gamestage crok_process_input(struct crok_data *d);
