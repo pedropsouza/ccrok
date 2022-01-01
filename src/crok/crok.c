@@ -1,31 +1,34 @@
 #include "crok.h"
 
-struct crok_input_packet crok_local_input(struct crok_input_context *ic,
-                                          void *extra) {
-#define CIP struct crok_input_packet
+struct crok_input_packet crok_local_input(struct crok_state *cs,
+                                          uint64_t ticknum) {
 
   SDL_Event input;
+  struct crok_input_packet ipckt = {0};
+  ipckt.header.ticknum = ticknum;
+  ipckt.header.statesum =
+      crc_32((unsigned char *)crok_state_serialize(cs), CROK_STATE_SERLEN);
 
   if (SDL_PollEvent(&input) > 0) {
     switch (input.type) {
     case SDL_QUIT:
-      return (CIP){.kind = CROK_INPUT_QUIT};
+      ipckt.header.kind = CROK_INPUT_QUIT;
       break;
     case SDL_MOUSEMOTION:
-      return (CIP){.pos = {.kind = CROK_INPUT_POS,
-                           .pos = {.x = input.motion.x, .y = input.motion.y}}};
+      ipckt.header.kind = CROK_INPUT_POS;
+      ipckt.pos = (struct ivec){.x = input.motion.x, .y = input.motion.y};
       break;
     case SDL_MOUSEBUTTONUP:
       break;
     case SDL_MOUSEBUTTONDOWN:
       break;
     default:
-      return (CIP){0};
       break;
     }
+  } else {
+    ipckt.header.kind = CROK_INPUT_END;
   }
-  return (CIP){.kind = CROK_INPUT_END};
-#undef CIP
+  return ipckt;
 }
 
 struct sched_trans crok_setup(struct scheduler *s) {
@@ -86,6 +89,11 @@ struct sched_trans crok_setup(struct scheduler *s) {
 
     printf("using server %s on port %d...\n", inet_ntoa(saddr->sin_addr),
            CROK_PORT);
+
+    int tpid = crok_spawn_player(
+        &d->crok, crok_player_init(CROK_U_TEAM1 | CROK_U_P1, "test player"));
+    d->crok.active_player = tpid;
+    crok_spawn_disc(&d->crok, &d->crok.players[tpid]);
   }
 
   return (struct sched_trans){.s = SCHED_CONTINUE, .why = "setup finished"};
@@ -115,9 +123,8 @@ struct sched_trans crok_cleanup(struct scheduler *s) {
 struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
   struct crok_data *d = (struct crok_data *)s->persistent_data;
   struct crok_state *cs = (struct crok_state *)&d->crok;
-  static long num_ticks = 0;
-  num_ticks += 1;
-  if (num_ticks * step_ns >= 10 * (long)1e9) {
+  d->ticknum += 1;
+  if (d->ticknum * step_ns >= 10 * (long)1e9) {
     return (struct sched_trans){.s = SCHED_CLEANUP,
                                 .why = "60 seconds elapsed"};
   }
@@ -143,11 +150,13 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
       break;
     }
 
-    /* struct ivec target = tp->pos; */
-    /* struct ivec force = ivec_sub(target, td->pb.pos); */
-    /* physbody_force(&td->pb, ivec_mul(td->pb.vel, (struct ivec){-1, -1}), */
-    /*                CROK_TPS); */
-    /* physbody_force(&td->pb, force, CROK_TPS); */
+    struct crok_player *tp = &cs->players[cs->active_player];
+    struct crok_disc *td = &cs->discs[0];
+    struct ivec target = tp->pos;
+    struct ivec force = ivec_sub(target, td->pb.pos);
+    physbody_force(&td->pb, ivec_mul(td->pb.vel, (struct ivec){-1, -1}),
+                   CROK_TPS);
+    physbody_force(&td->pb, force, CROK_TPS);
   }
 
   for (size_t i = 0; i < CROK_DISCS_TOTAL; i++) {
@@ -198,15 +207,19 @@ enum crok_gamestage crok_process_input(struct crok_data *d) {
   enum crok_gamestage new_gst = st->gamestage;
   struct fvec spos;
 
-  crok_input_accum(inpctx, crok_local_input, NULL);
+  crok_input_accum(inpctx, st, crok_local_input, d->ticknum);
   for (size_t i = 0; i <= inpctx->buf_last; i++) {
     struct crok_input_packet pckt = inpctx->buf[i];
-    switch (pckt.kind) {
+    switch (pckt.header.kind) {
     case CROK_INPUT_INVALID:
       // FIXME: Should this fail?
       break;
+    case CROK_INPUT_REGISTER:
+      break;
+    case CROK_INPUT_STATEDUMP:
+      break;
     case CROK_INPUT_POS:
-      spos = (struct fvec){.x = pckt.pos.pos.x, .y = pckt.pos.pos.y};
+      spos = (struct fvec){.x = pckt.pos.x, .y = pckt.pos.y};
       driven_player->pos = crok_screen_to_board(rdr, spos);
       break;
     case CROK_INPUT_LAY_DISC:

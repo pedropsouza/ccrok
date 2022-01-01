@@ -2,16 +2,17 @@
 #define CROK_INPUT_HG__
 
 #include "crok/config.h"
+#include "crok/state.h"
 #include "ivec.h"
 #include <stdio.h>
 #include <stdlib.h>
 
-#define CPK enum crok_input_packet_kind kind
-#define CIP struct crok_input_packet
-
-CIP;
 enum crok_input_packet_kind {
   CROK_INPUT_INVALID = 0,
+
+  CROK_INPUT_REGISTER,
+  CROK_INPUT_STATEDUMP,
+
   CROK_INPUT_POS,
   CROK_INPUT_LAY_DISC,
   CROK_INPUT_AIM_DISC,
@@ -22,58 +23,42 @@ enum crok_input_packet_kind {
   CROK_INPUT_END,
 };
 
-struct crok_input_pos {
-  CPK;
-  struct ivec pos;
+struct crok_input_packet_header {
+  enum crok_input_packet_kind kind;
+  uint64_t ticknum;
+  uint32_t statesum;
+  uint32_t pcktsum;
 };
 
-struct crok_input_lay_disc {
-  CPK;
-  struct ivec pos;
-};
-
-struct crok_input_aim_disc {
-  CPK;
-  char disc_id;
-  struct ivec delta;
-};
-
-struct crok_input_shoot_disc {
-  CPK;
-  char disc_id;
-  struct ivec impulse;
-};
-
-CIP {
+struct crok_input_packet {
+  struct crok_input_packet_header header;
   union {
-    CPK;
-    struct crok_input_pos pos;
-    struct crok_input_lay_disc lay_d;
-    struct crok_input_aim_disc aim_d;
-    struct crok_input_shoot_disc shoot_d;
+    struct ivec pos;
+    struct ivec lay_disc;
+    struct ivec aim_disc;
+    struct ivec shoot_disc;
+    char serstr[CROK_STATE_SERLEN];
   };
 };
 
-// for future connection tracking or something
 struct crok_input_context {
   size_t buf_last;
-  CIP buf[CROK_INPUTPACKET_MAX];
+  struct crok_input_packet buf[CROK_INPUTPACKET_MAX];
 };
 
-typedef CIP (*crok_input_producer_fun)(struct crok_input_context *ic,
-                                       void *extra);
+typedef struct crok_input_packet (*crok_input_producer_fun)(
+    struct crok_state *cs, uint64_t ticknum);
 
 // query the producer fun till it's empty, accumulating
 // its packets in the input context
 //
 // returns the number of accumulated packets
-int crok_input_accum(struct crok_input_context *ic, crok_input_producer_fun f,
-                     void *extra);
+int crok_input_accum(struct crok_input_context *ic, struct crok_state *cs,
+                     crok_input_producer_fun f, uint64_t ticknum);
 
 // clean the input context in preparation for the next frame
 void crok_input_clean(struct crok_input_context *ic);
 void crok_input_print_context(FILE *stream, struct crok_input_context *ic);
 
-#undef CIP
-#undef CPK
+#undef CINPCKTHEAD
 #endif // CROK_INPUT_HG__

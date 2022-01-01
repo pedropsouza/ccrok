@@ -1,9 +1,12 @@
 #ifndef CROK_UNIT_HG__
 #define CROK_UNIT_HG__
 
+#include "arpa/inet.h"
 #include "crok/config.h"
 #include "crok/phys.h"
+#include "draw.h"
 #include "ivec.h"
+#include "string.h"
 #include <stdint.h>
 
 enum crok_unit_flags {
@@ -34,5 +37,11 @@ struct crok_disc {
 int crok_unit_team(const void *unit);
 int crok_unit_valid(const void *unit);
 size_t crok_unit_vacantpos(const void *unitarr, size_t elsize, size_t n);
+
+char *crok_player_serialize(const struct crok_player *p);
+struct crok_player crok_player_deserialize(char buf[CROK_PLAYER_SERLEN]);
+
+char *crok_disc_serialize(const struct crok_disc *d);
+struct crok_disc crok_disc_deserialize(char buf[CROK_DISC_SERLEN]);
 
 #endif // CROK_UNIT_HG__

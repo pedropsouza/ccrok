@@ -1,4 +1,4 @@
-#include "crok/player.h"
+#include "crok/gloop.h"
 
 struct crok_player crok_player_init(uint16_t flags, char *name) {
   struct crok_player p = {0};
@@ -42,30 +42,27 @@ void crok_player_render(struct crok_player *p[2], struct crok_render_data *rd) {
   SDL_RenderDrawCircle(rd->rdr, spos.x, spos.y, rd->w / 200);
 }
 
-char *crok_player_serialize(const struct crok_player *p) {
-  static char buf[CROK_PLAYER_SERLEN];
-  char *w_head = buf;
-  memcpy(w_head, ivec_serialize(&p->pos), IVEC_SERLEN);
-  w_head += IVEC_SERLEN;
-  *((uint32_t *)w_head) = htonl((uint32_t)p->score);
-  w_head += sizeof(uint32_t);
-  strncpy(w_head, p->name, CROK_NAMELEN_MAX);
-  w_head += CROK_NAMELEN_MAX;
-  // Assuming the whole enum fits into a short uint
-  *((uint16_t *)w_head) = htons((uint16_t)p->flags);
-  return buf;
+struct crok_disc crok_disc_init(struct crok_player *owner) {
+  struct crok_disc d = {.pb = physbody_zero("disc"), .flags = owner->flags};
+  d.pb.pos.x = CROK_BOARD_DIAM / 2;
+  d.pb.pos.y = CROK_BOARD_DIAM / 2;
+  d.pb.radius = CROK_DISC_DIAM;
+  return d;
 }
 
-struct crok_player crok_player_deserialize(char buf[CROK_PLAYER_SERLEN]) {
-  struct crok_player p;
+enum crok_gamestage crok_disc_tick(struct crok_disc *d, struct crok_state *s) {
+  physbody_tick(&d->pb);
+  return s->gamestage;
+}
 
-  char *r_head = buf;
-  p.pos = ivec_deserialize(r_head);
-  r_head += IVEC_SERLEN;
-  p.score = ntohl(*((uint32_t *)r_head));
-  r_head += sizeof(uint32_t);
-  strncpy(p.name, r_head, CROK_NAMELEN_MAX);
-  r_head += CROK_NAMELEN_MAX;
-  p.flags = ntohs(*((uint16_t *)r_head));
-  return p;
+void crok_disc_render(struct crok_disc *d[2], struct crok_render_data *rd) {
+  SDL_Rect dest = {0};
+  double s = rd->rboard->disc_diam;
+  struct fvec spos = crok_board_to_screen(rd, d[0]->pb.pos);
+  dest.w = s;
+  dest.h = s;
+  dest.x = spos.x - (s - 1.0) / 2.0;
+  dest.y = spos.y - (s - 1.0) / 2.0;
+
+  SDL_RenderCopy(rd->rdr, rd->rboard->disc_tex, NULL, &dest);
 }

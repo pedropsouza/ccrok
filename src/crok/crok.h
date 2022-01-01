@@ -5,9 +5,8 @@
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_image.h"
 #include "crok/data.h"
-#include "crok/disc.h"
+#include "crok/gloop.h"
 #include "crok/input.h"
-#include "crok/player.h"
 #include "fvec.h"
 #include "memutil.h"
 #include "sched.h"
@@ -18,8 +17,8 @@
 
 #define CROK_PORT 33850
 
-struct crok_input_packet crok_local_input(struct crok_input_context *ic,
-                                          void *extra);
+struct crok_input_packet crok_local_input(struct crok_state *cs,
+                                          uint64_t ticknum);
 struct sched_trans crok_setup(struct scheduler *s);
 struct sched_trans crok_cleanup(struct scheduler *s);
 struct sched_trans crok_fixed(struct scheduler *s, long step_ns);
