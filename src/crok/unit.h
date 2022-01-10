@@ -18,16 +18,13 @@ enum crok_unit_flags {
   CROK_U_FALLEN = 1 << 5,
 };
 
-#define CROK_PLAYER_SERLEN                                                     \
-  (sizeof(uint16_t) + IVEC_SERLEN + sizeof(uint32_t) + CROK_NAMELEN_MAX)
 struct crok_player {
   enum crok_unit_flags flags;
   struct ivec pos;
-  char name[CROK_NAMELEN_MAX];
+  char name[CROK_PLAYER_NAME_MAXLEN];
   uint32_t score;
 };
 
-#define CROK_DISC_SERLEN (sizeof(uint32_t) + PHYSBODY_SERLEN)
 struct crok_disc {
   enum crok_unit_flags flags;
   struct physbody pb;
@@ -38,10 +35,7 @@ int crok_unit_team(const void *unit);
 int crok_unit_valid(const void *unit);
 size_t crok_unit_vacantpos(const void *unitarr, size_t elsize, size_t n);
 
-char *crok_player_serialize(const struct crok_player *p);
-struct crok_player crok_player_deserialize(char buf[CROK_PLAYER_SERLEN]);
-
-char *crok_disc_serialize(const struct crok_disc *d);
-struct crok_disc crok_disc_deserialize(char buf[CROK_DISC_SERLEN]);
+void crok_player_print(struct crok_player *p);
+void crok_disc_print(struct crok_player *d);
 
 #endif // CROK_UNIT_HG__

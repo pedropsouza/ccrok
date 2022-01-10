@@ -34,8 +34,9 @@ void state_equal(a, b) struct crok_state *a, *b;
 }
 
 void state_serde() {
-  struct crok_state cs = crok_state_init();
-  printf("CROK_STATE_SERLEN %ld\n", CROK_STATE_SERLEN);
+  struct crok_state cs, deser;
+  cs = crok_state_init();
+  size_t len;
   crok_spawn_player(&cs, crok_player_init(CROK_U_TEAM1 | CROK_U_P1, "Dan"));
   cs.active_player = crok_spawn_player(
       &cs, crok_player_init(CROK_U_TEAM2 | CROK_U_P1, "Malf"));
@@ -45,8 +46,9 @@ void state_serde() {
   crok_spawn_disc(&cs, &cs.players[cs.active_player]);
   crok_spawn_disc(&cs, &cs.players[cs.active_player]);
 
-  char *ser = crok_state_serialize(&cs);
-  struct crok_state deser = crok_state_deserialize(ser);
+  pbuf_t ser[sizeof(struct crok_state) * 2];
+  len = crok_state_pack(ser, &cs);
+  crok_state_unpack(ser, &deser);
   state_equal(&cs, &deser);
 }
 

@@ -8,15 +8,23 @@
 #define CROK_DITCH_DIAM (CROK_BOARD_DIAM / 24)
 #define CROK_HOLE_DIAM (CROK_BOARD_DIAM / 28)
 
+// WARN
+// The total can't be an expression as it is copied verbatim to a format string
+// in serde.c
 #define CROK_DISCS_PER_SIDE 12
-#define CROK_DISCS_TOTAL (CROK_DISCS_PER_SIDE * 2)
+#define CROK_DISCS_TOTAL 24
+
 #define CROK_DISC_DIAM (CROK_BOARD_DIAM / 32)
 #define CROK_POST_DIAM (CROK_BOARD_DIAM / 64)
-#define CROK_NAMELEN_MAX 26
-#define CROK_INPUTPACKET_MAX 128
+#define CROK_PLAYER_NAME_MAXLEN 32
+#define CROK_NETPACKET_MAX 128
 
 #define CROK_TPS 100
 #define CROK_FPS 100
+
+// For expanding macros inside string literals
+#define MACROSTR2(X) #X
+#define MACROSTR(X) MACROSTR2(X)
 
 // Debugging aid
 #ifdef NDEBUG

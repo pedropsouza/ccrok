@@ -13,10 +13,14 @@ void tearDown(void) {
 
 void chksumTest() {
   struct crok_state cs = crok_state_init();
-  crok_spawn_player(&cs, crok_player_init(CROK_U_TEAM1, 0, "local player"));
-  crok_spawn_player(&cs, crok_player_init(CROK_U_TEAM1, 1, "remote player1"));
-  crok_spawn_player(&cs, crok_player_init(CROK_U_TEAM2, 0, "remote player2"));
-  crok_spawn_player(&cs, crok_player_init(CROK_U_TEAM2, 1, "remote player3"));
+  crok_spawn_player(&cs,
+                    crok_player_init(CROK_U_TEAM1 | CROK_U_P1, "local player"));
+  crok_spawn_player(
+      &cs, crok_player_init(CROK_U_TEAM1 | CROK_U_P2, "remote player1"));
+  crok_spawn_player(
+      &cs, crok_player_init(CROK_U_TEAM2 | CROK_U_P1, "remote player2"));
+  crok_spawn_player(
+      &cs, crok_player_init(CROK_U_TEAM2 | CROK_U_P2, "remote player3"));
   crok_spawn_disc(&cs, &cs.players[0]);
   crok_spawn_disc(&cs, &cs.players[0]);
   crok_spawn_disc(&cs, &cs.players[0]);
@@ -30,9 +34,16 @@ void chksumTest() {
   crok_spawn_disc(&cs, &cs.players[3]);
   crok_spawn_disc(&cs, &cs.players[3]);
 
-  int64_t first = crok_state_chksum(&cs);
-  cs.board.discs[4].pb.pos.x = 10;
-  cs.board.discs[4].pb.pos.y = 60;
+  pbuf_t buf[sizeof(struct crok_state)];
+  size_t len = crok_state_pack(buf, &cs);
+
+  int32_t first = crc_32((unsigned char *)&buf, len);
+  cs.discs[4].pb.pos = (struct ivec){10, 60};
+
+  len = crok_state_pack(buf, &cs);
+  int32_t second = crc_32((unsigned char *)&buf, len);
+
+  TEST_ASSERT(first != second);
 }
 
 int main(void) {

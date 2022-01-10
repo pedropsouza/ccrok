@@ -7,8 +7,6 @@
 #include <string.h>
 
 #define PHYSBODY_NAME_MAXLEN 16
-#define PHYSBODY_SERLEN                                                        \
-  (IVEC_SERLEN * 4 + sizeof(uint32_t) + PHYSBODY_NAME_MAXLEN)
 struct physbody {
   struct ivec pos;
   struct ivec vel;
@@ -26,8 +24,5 @@ void physbody_tick(struct physbody *pb);
 void physbody_accel(struct physbody *pb, struct ivec v);
 void physbody_force(struct physbody *pb, struct ivec v, long tps);
 void physbody_print(struct physbody *pb);
-
-char *physbody_serialize(const struct physbody *pb);
-struct physbody physbody_deserialize(char buf[PHYSBODY_SERLEN]);
 
 #endif // CROK_PHYS_HG__

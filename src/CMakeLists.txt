@@ -7,7 +7,7 @@ add_library(vec SHARED
 )
 add_library(crok SHARED
   crok/crok.c
-  crok/input.c
+  crok/net.c
   crok/data.c
   crok/state.c
   crok/board.c
@@ -15,6 +15,7 @@ add_library(crok SHARED
   crok/gloop.c
   crok/unit.c
   draw.c
+  serde.c
 )
 
 target_link_libraries(crok

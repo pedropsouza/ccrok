@@ -13,7 +13,7 @@ int main(int argc, char *argv[]) {
   struct crok_setup_data setdat = {
       .width = 800, .height = 450, .servermode = 0, .saddr = {0}};
   // default address
-  inet_aton("127.0.0.1", &setdat.saddr.sin_addr);
+  inet_pton(AF_INET, "127.0.0.1", &setdat.saddr.sin_addr);
   setdat.saddr.sin_family = AF_INET;
   setdat.saddr.sin_port = htons(CROK_PORT);
 
@@ -24,7 +24,7 @@ int main(int argc, char *argv[]) {
       setdat.servermode = 1;
       break;
     case 'a':
-      if (inet_aton(optarg, &setdat.saddr.sin_addr) == 0) {
+      if (inet_pton(AF_INET, optarg, &setdat.saddr.sin_addr) == 0) {
         fprintf(stderr, "Invalid address \"%s\"\n", optarg);
         goto invalid_arg;
       }

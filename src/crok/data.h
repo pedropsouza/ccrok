@@ -8,7 +8,7 @@
 #include "crok/unit.h"
 #include "draw.h"
 #include "fvec.h"
-#include "input.h"
+#include "net.h"
 #include <stdint.h>
 
 struct crok_setup_data {
@@ -28,12 +28,11 @@ struct crok_data {
   struct crok_state crok;
   struct crok_render_board rboard;
   struct crok_render_data renderdata;
-  struct crok_input_context input;
+  struct crok_net_context net;
   size_t my_player_id;
   uint64_t ticknum;
 
-  int width, height, servermode, sockfd;
-  struct sockaddr_in saddr;
+  int width, height, servermode;
 };
 
 struct ivec crok_screen_to_board(struct crok_render_data *rd, struct fvec v);
