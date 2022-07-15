@@ -141,7 +141,7 @@ size_t pack_unpack(pbuf_t *head, char mode, char *fmt, va_list va) {
         } else {
           *v.u64 = (uint64_t)htonl(*((uint32_t *)head)) << 32;
           head += sizeof(uint32_t);
-          *v.u64 &= (uint64_t)ntohl(*((uint32_t *)head));
+          *v.u64 |= (uint64_t)ntohl(*((uint32_t *)head));
           head += sizeof(uint32_t);
         }
         size += sizeof(uint64_t);

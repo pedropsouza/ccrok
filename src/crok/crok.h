@@ -13,6 +13,7 @@
 #include "serde.h"
 #include <fcntl.h>
 #include <math.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/socket.h>

@@ -1,6 +1,6 @@
 #include "crok/phys.h"
 
-struct physbody physbody_zero(char name[PHYSBODY_NAME_MAXLEN]) {
+struct physbody physbody_zero(char *name) {
   struct physbody pb = {.pos = ivec_zero(),
                         .vel = ivec_zero(),
                         .acc = ivec_zero(),

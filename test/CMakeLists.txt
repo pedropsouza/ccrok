@@ -4,8 +4,7 @@
 set(Tests
   memutil_test
   ticktime_test
-  unit_serde_test
-  state_serde_test
+  serde_test
   sched_edgecase_test)
 
 # 2. Declare dependencies of each test file
@@ -16,16 +15,7 @@ set(memutil_test_deps
 set(ticktime_test_deps
   sched)
 
-set(unit_serde_test_deps
-  memutil
-  vec
-  crok
-  sched
-  ${SDL2_LIBRARY}
-  ${SDL2_IMAGE_LIBRARIES}
-  )
-
-set(state_serde_test_deps
+set(serde_test_deps
   memutil
   vec
   crok
@@ -41,8 +31,7 @@ set(sched_edgecase_test_deps
 set(Dependencies
   memutil_test_deps
   ticktime_test_deps
-  unit_serde_test_deps
-  state_serde_test_deps
+  serde_test_deps
   sched_edgecase_test_deps)
 
 ###################################################################

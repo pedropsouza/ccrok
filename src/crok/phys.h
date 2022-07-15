@@ -19,7 +19,7 @@ struct physbody {
   char name[PHYSBODY_NAME_MAXLEN];
 };
 
-struct physbody physbody_zero(char name[PHYSBODY_NAME_MAXLEN]);
+struct physbody physbody_zero(char *name);
 void physbody_tick(struct physbody *pb);
 void physbody_accel(struct physbody *pb, struct ivec v);
 void physbody_force(struct physbody *pb, struct ivec v, long tps);
