@@ -320,17 +320,17 @@ enum crok_gamestage crok_process_server(struct crok_data *d) {
   return new_gst;
 }
 
-size_t crok_spawn_player(struct crok_state *cs, struct crok_player p) {
-  size_t i = crok_unit_vacantpos(cs->players, sizeof(struct crok_player), 4);
+ssize_t crok_spawn_player(struct crok_state *cs, struct crok_player p) {
+  ssize_t i = crok_unit_vacantpos(cs->players, sizeof(struct crok_player), 4);
   if (i >= 0) {
     cs->players[i] = p;
   }
   return i;
 }
 
-size_t crok_spawn_disc(struct crok_state *cs, struct crok_player *owner) {
-  size_t i = crok_unit_vacantpos(cs->discs, sizeof(struct crok_disc),
-                                 CROK_DISCS_TOTAL);
+ssize_t crok_spawn_disc(struct crok_state *cs, struct crok_player *owner) {
+  ssize_t i = crok_unit_vacantpos(cs->discs, sizeof(struct crok_disc),
+                                  CROK_DISCS_TOTAL);
   if (i >= 0) {
     cs->discs[i] = crok_disc_init(owner);
   }

@@ -33,7 +33,7 @@ struct crok_disc {
 /* ! units should start with the flags enum else this breaks ! */
 int crok_unit_team(const void *unit);
 int crok_unit_valid(const void *unit);
-size_t crok_unit_vacantpos(const void *unitarr, size_t elsize, size_t n);
+ssize_t crok_unit_vacantpos(const void *unitarr, size_t elsize, size_t n);
 
 void crok_player_print(struct crok_player *p);
 void crok_disc_print(struct crok_player *d);

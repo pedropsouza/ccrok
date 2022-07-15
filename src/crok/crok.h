@@ -33,7 +33,7 @@ enum crok_gamestage crok_process_client(struct crok_data *d);
 enum crok_gamestage crok_process_server(struct crok_data *d);
 
 /* Utility functions, return <0 on error */
-size_t crok_spawn_player(struct crok_state *cs, struct crok_player p);
-size_t crok_spawn_disc(struct crok_state *cs, struct crok_player *owner);
+ssize_t crok_spawn_player(struct crok_state *cs, struct crok_player p);
+ssize_t crok_spawn_disc(struct crok_state *cs, struct crok_player *owner);
 
 #endif // CROK_HG__
