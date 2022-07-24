@@ -1,13 +1,11 @@
 #ifndef CROK_UNIT_HG__
 #define CROK_UNIT_HG__
 
-#include "arpa/inet.h"
 #include "crok/config.h"
+#include "crok/globaltypes.h"
 #include "crok/phys.h"
 #include "draw.h"
 #include "ivec.h"
-#include "string.h"
-#include <stdint.h>
 
 enum crok_unit_flags {
   CROK_U_VALID = 1 << 0,

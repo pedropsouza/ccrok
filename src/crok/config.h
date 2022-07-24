@@ -1,6 +1,5 @@
 #ifndef CROK_CONFIG_HG__
 #define CROK_CONFIG_HG__
-#include <stdint.h>
 
 // these are in game units, with each unit being a UINT32_MAX-th of the board
 // diameter, including the ditch
@@ -17,10 +16,12 @@
 #define CROK_DISC_DIAM (CROK_BOARD_DIAM / 32)
 #define CROK_POST_DIAM (CROK_BOARD_DIAM / 64)
 #define CROK_PLAYER_NAME_MAXLEN 32
-#define CROK_NETPACKET_MAX 128
+#define CROK_NETPACKET_MAX 32
+#define CROK_ROLLBACK_MAX 48
 
 #define CROK_TPS 100
 #define CROK_FPS 100
+#define CROK_PACKET_DATA_SIZE 2048
 
 // For expanding macros inside string literals
 #define MACROSTR2(X) #X

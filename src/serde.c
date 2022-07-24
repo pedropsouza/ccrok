@@ -1,11 +1,29 @@
 #include "serde.h"
 
+#define NETPACKET_FMTSTR "CCQI" MACROSTR(CROK_PACKET_DATA_SIZE) "s"
+size_t netpacket_pack(pbuf_t *dst, struct crok_net_packet *pckt) {
+  return pack(dst, NETPACKET_FMTSTR, &pckt->conn_uid, &pckt->kind,
+              &pckt->ticknum, &pckt->statesum, &pckt->data);
+}
+size_t netpacket_unpack(pbuf_t *src, struct crok_net_packet *pckt) {
+  return unpack(src, NETPACKET_FMTSTR, &pckt->conn_uid, &pckt->kind,
+                &pckt->ticknum, &pckt->statesum, &pckt->data);
+}
+
 #define IVEC_FMTSTR "QQ"
 size_t ivec_pack(pbuf_t *dst, struct ivec *v) {
   return pack(dst, IVEC_FMTSTR, &v->x, &v->y);
 }
 size_t ivec_unpack(pbuf_t *src, struct ivec *v) {
   return unpack(src, IVEC_FMTSTR, &v->x, &v->y);
+}
+
+#define FVEC_FMTSTR "II"
+size_t fvec_pack(pbuf_t *dst, struct fvec *v) {
+  return pack(dst, FVEC_FMTSTR, &v->x, &v->y);
+}
+size_t fvec_unpack(pbuf_t *src, struct fvec *v) {
+  return unpack(src, FVEC_FMTSTR, &v->x, &v->y);
 }
 
 #define PHYSBODY_FMTSTR "vvvvI" MACROSTR(PHYSBODY_NAME_MAXLEN) "s"

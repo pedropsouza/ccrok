@@ -1,20 +1,21 @@
 #include "crok.h"
 
-struct crok_net_packet crok_local_input(struct crok_net_context *ic) {
-
+struct crok_net_packet crok_local_input(void *data) {
   SDL_Event input;
   struct crok_net_packet ipckt = {0};
-  ipckt.header.ticknum = ic->ticknum;
-  ipckt.header.statesum = ic->state_chksum;
+  struct crok_tick_data *td = data;
+  ipckt.ticknum = td->tnum;
+  ipckt.statesum = td->tsum;
 
   if (SDL_PollEvent(&input) > 0) {
     switch (input.type) {
     case SDL_QUIT:
-      ipckt.header.kind = CROK_NET_QUIT;
+      ipckt.kind = CROK_NET_QUIT;
       break;
     case SDL_MOUSEMOTION:
-      ipckt.header.kind = CROK_NET_POS;
-      ipckt.pos = (struct ivec){.x = input.motion.x, .y = input.motion.y};
+      ipckt.kind = CROK_NET_CLIENT_POS;
+      struct fvec spos = {.x = input.motion.x, .y = input.motion.y};
+      fvec_pack(ipckt.data, &spos);
       break;
     case SDL_MOUSEBUTTONUP:
       break;
@@ -24,12 +25,26 @@ struct crok_net_packet crok_local_input(struct crok_net_context *ic) {
       break;
     }
   } else {
-    ipckt.header.kind = CROK_NET_END;
+    ipckt.kind = CROK_NET_END;
   }
   return ipckt;
 }
 
-struct crok_net_packet crok_network_input(struct crok_net_context *ic) {}
+struct crok_net_packet crok_network_input(void *data) {
+  struct crok_net_packet ipckt = {0};
+  struct crok_net_context *nc = data;
+  pbuf_t buf[sizeof(ipckt)];
+  // memset(peekbuf, 0, sizeof(peekbuf)); // not sure if needed
+
+  ssize_t retv = recv(nc->sockfd, buf, CROK_PACKET_DATA_SIZE, 0);
+  if (retv < 0) {
+    perror("net error");
+    ipckt.kind = CROK_NET_INVALID;
+  } else {
+    netpacket_unpack(buf, &ipckt);
+  }
+  return ipckt;
+}
 
 struct sched_trans crok_setup(struct scheduler *s) {
   s->persistent_data =
@@ -133,10 +148,10 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
   struct crok_data *d = (struct crok_data *)s->persistent_data;
   struct crok_state *cs = (struct crok_state *)&d->crok;
   d->ticknum += 1;
-  if (d->ticknum * step_ns >= 10 * (long)1e9) {
-    return (struct sched_trans){.s = SCHED_CLEANUP,
-                                .why = "60 seconds elapsed"};
-  }
+  /* if (d->ticknum * step_ns >= 10 * (long)1e9) { */
+  /*   return (struct sched_trans){.s = SCHED_CLEANUP, */
+  /*                               .why = "60 seconds elapsed"}; */
+  /* } */
 
   if (cs->total_players > 0) {
     struct crok_player *p = &cs->players[cs->active_player];
@@ -159,23 +174,41 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
       break;
     }
 
-    struct crok_player *tp = &cs->players[cs->active_player];
-    struct crok_disc *td = &cs->discs[0];
-    struct ivec target = tp->pos;
-    struct ivec force = ivec_sub(target, td->pb.pos);
-    physbody_force(&td->pb, ivec_mul(td->pb.vel, (struct ivec){-1, -1}),
-                   CROK_TPS);
-    physbody_force(&td->pb, force, CROK_TPS);
-  }
-
-  for (size_t i = 0; i < CROK_DISCS_TOTAL; i++) {
-    struct crok_disc *disc = &d->crok.discs[i];
-    if (crok_unit_valid(disc)) {
-      crok_disc_tick(disc, &d->crok);
+  } else {
+    enum crok_gamestage gst = crok_process_server(d);
+    switch (gst) {
+    case CROK_LEAVE:
+      return (struct sched_trans){.s = SCHED_CLEANUP,
+                                  .why = "all users requested quit"};
+      break;
+    default:
+      break;
     }
   }
 
   return (struct sched_trans){.s = SCHED_CONTINUE, .why = "fixed call"};
+}
+
+uint32_t crok_simulate(struct crok_state *cs) {
+  static pbuf_t stateser[sizeof(struct crok_state)];
+
+  struct crok_player *tp = &cs->players[cs->active_player];
+  struct crok_disc *td = &cs->discs[0];
+  struct ivec target = tp->pos;
+  struct ivec force = ivec_sub(target, td->pb.pos);
+  physbody_force(&td->pb, ivec_mul(td->pb.vel, (struct ivec){-1, -1}),
+                 CROK_TPS);
+  physbody_force(&td->pb, force, CROK_TPS);
+
+  for (size_t i = 0; i < CROK_DISCS_TOTAL; i++) {
+    struct crok_disc *disc = &cs->discs[i];
+    if (crok_unit_valid(disc)) {
+      crok_disc_tick(disc, cs);
+    }
+  }
+
+  size_t len = crok_state_pack(stateser, cs);
+  return crc_32((unsigned char *)stateser, len);
 }
 
 void crok_render(struct scheduler *s, double a) {
@@ -212,15 +245,19 @@ enum crok_gamestage crok_process_client(struct crok_data *d) {
   enum crok_gamestage new_gst = st->gamestage;
   struct fvec spos;
 
-  pbuf_t stateser[sizeof(struct crok_state)];
-  size_t len = crok_state_pack(stateser, st);
+  uint32_t state_chksum = crok_simulate(&d->crok);
 
-  crok_net_tickdata(inpctx, d->ticknum, crc_32((unsigned char *)stateser, len));
+  struct crok_tick_data td = {
+    .tnum = d->ticknum,
+    .tsum = state_chksum
+  };
 
-  crok_net_accum(inpctx, crok_local_input);
-  for (size_t i = 0; i <= inpctx->buf_last; i++) {
-    struct crok_net_packet pckt = inpctx->buf[i];
-    switch (pckt.header.kind) {
+  size_t old_head = inpctx->circular_head;
+  size_t n_new_pckts = crok_net_accum(inpctx, crok_local_input, &td);
+  for (size_t i = 0; i < n_new_pckts; i++) {
+    size_t pckt_idx = (old_head + i) % CROK_NETPACKET_MAX;
+    struct crok_net_packet pckt = inpctx->buf[pckt_idx];
+    switch (pckt.kind) {
     case CROK_NET_INVALID:
       // FIXME: Should this fail?
       break;
@@ -234,9 +271,21 @@ enum crok_gamestage crok_process_client(struct crok_data *d) {
       printf("leaving...\n");
       break;
 
+    case CROK_NET_CLIENT_POS: {
+        fvec_unpack(pckt.data, &spos);
+	struct ivec bpos = crok_screen_to_board(rdr, spos);
+	struct crok_net_packet tx_pckt = {
+          .ticknum = td.tnum,
+	  .statesum = td.tsum,
+	  .kind = CROK_NET_POS,
+	  .conn_uid = 0 //FIXME
+	};
+	ivec_pack(tx_pckt.data, &bpos);
+        crok_net_send_packet(inpctx, &tx_pckt);
+        break;
+      }
     case CROK_NET_POS:
-      spos = (struct fvec){.x = pckt.pos.x, .y = pckt.pos.y};
-      driven_player->pos = crok_screen_to_board(rdr, spos);
+      ivec_unpack(pckt.data, &st->players[pckt.conn_uid].pos);
       break;
     case CROK_NET_LAY_DISC:
       break;
@@ -258,7 +307,7 @@ enum crok_gamestage crok_process_client(struct crok_data *d) {
       break;
     }
   }
-  crok_net_clean(inpctx);
+
   return new_gst;
 }
 
@@ -266,19 +315,22 @@ enum crok_gamestage crok_process_server(struct crok_data *d) {
   struct crok_state *st = &d->crok;
   struct crok_net_context *inpctx = &d->net;
   struct crok_render_data *rdr = &d->renderdata;
-  struct crok_player *driven_player = &st->players[d->my_player_id];
   enum crok_gamestage new_gst = st->gamestage;
   struct fvec spos;
+  
+  uint32_t state_chksum = crok_simulate(&d->crok);
 
-  pbuf_t stateser[sizeof(struct crok_state)];
-  size_t len = crok_state_pack(stateser, st);
+  struct crok_tick_data td = {
+    .tnum = d->ticknum,
+    .tsum = state_chksum
+  };
 
-  crok_net_tickdata(inpctx, d->ticknum, crc_32((unsigned char *)stateser, len));
-
-  crok_net_accum(inpctx, crok_local_input);
-  for (size_t i = 0; i <= inpctx->buf_last; i++) {
-    struct crok_net_packet pckt = inpctx->buf[i];
-    switch (pckt.header.kind) {
+  size_t old_head = inpctx->circular_head;
+  size_t n_new_pckts = crok_net_accum(inpctx, crok_local_input, &td);
+  for (size_t i = 0; i < n_new_pckts; i++) {
+    size_t pckt_idx = (old_head + i) % CROK_NETPACKET_MAX;
+    struct crok_net_packet pckt = inpctx->buf[pckt_idx];
+    switch (pckt.kind) {
     case CROK_NET_INVALID:
       // FIXME: Should this fail?
       break;
@@ -292,9 +344,10 @@ enum crok_gamestage crok_process_server(struct crok_data *d) {
       printf("leaving...\n");
       break;
 
+    case CROK_NET_CLIENT_POS: // shouldn't happen
+      break;
     case CROK_NET_POS:
-      spos = (struct fvec){.x = pckt.pos.x, .y = pckt.pos.y};
-      driven_player->pos = crok_screen_to_board(rdr, spos);
+      ivec_unpack(pckt.data, &st->players[pckt.conn_uid].pos);
       break;
     case CROK_NET_LAY_DISC:
       break;
@@ -316,7 +369,6 @@ enum crok_gamestage crok_process_server(struct crok_data *d) {
       break;
     }
   }
-  crok_net_clean(inpctx);
   return new_gst;
 }
 

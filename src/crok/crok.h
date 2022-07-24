@@ -5,28 +5,25 @@
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_image.h"
 #include "crok/data.h"
+#include "crok/globaltypes.h"
 #include "crok/gloop.h"
 #include "crok/net.h"
 #include "fvec.h"
 #include "memutil.h"
 #include "sched.h"
 #include "serde.h"
-#include <fcntl.h>
-#include <math.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <string.h>
-#include <sys/socket.h>
 
 #define CROK_PORT 33850
 
-struct crok_net_packet crok_local_input(struct crok_net_context *ic);
-struct crok_net_packet crok_network_input(struct crok_net_context *ic);
+struct crok_tick_data { uint64_t tnum; uint32_t tsum; };
+struct crok_net_packet crok_local_input(void *data);
+struct crok_net_packet crok_network_input(void *data);
 
 struct sched_trans crok_setup(struct scheduler *s);
 struct sched_trans crok_cleanup(struct scheduler *s);
 struct sched_trans crok_fixed(struct scheduler *s, long step_ns);
 
+uint32_t crok_simulate(struct crok_state *cs);
 void crok_render(struct scheduler *s, double a);
 
 enum crok_gamestage crok_process_client(struct crok_data *d);

@@ -2,6 +2,7 @@
 #define SERDE_HG__
 
 #include "crok/config.h"
+#include "crok/globaltypes.h"
 #include "crok/state.h"
 #include "crok/unit.h"
 #include <assert.h>
@@ -9,10 +10,14 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-typedef unsigned char pbuf_t;
+size_t netpacket_pack(pbuf_t *dst, struct crok_net_packet *pckt);
+size_t netpacket_unpack(pbuf_t *src, struct crok_net_packet *pckt);
 
 size_t ivec_pack(pbuf_t *dst, struct ivec *v);
 size_t ivec_unpack(pbuf_t *src, struct ivec *v);
+
+size_t fvec_pack(pbuf_t *dst, struct fvec *v);
+size_t fvec_unpack(pbuf_t *src, struct fvec *v);
 
 size_t physbody_pack(pbuf_t *dst, struct physbody *pb);
 size_t physbody_unpack(pbuf_t *src, struct physbody *pb);
