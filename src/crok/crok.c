@@ -326,7 +326,7 @@ enum crok_gamestage crok_process_server(struct crok_data *d) {
   };
 
   size_t old_head = inpctx->circular_head;
-  size_t n_new_pckts = crok_net_accum(inpctx, crok_local_input, &td);
+  size_t n_new_pckts = crok_net_accum(inpctx, crok_network_input, &td);
   for (size_t i = 0; i < n_new_pckts; i++) {
     size_t pckt_idx = (old_head + i) % CROK_NETPACKET_MAX;
     struct crok_net_packet pckt = inpctx->buf[pckt_idx];
@@ -348,6 +348,7 @@ enum crok_gamestage crok_process_server(struct crok_data *d) {
       break;
     case CROK_NET_POS:
       ivec_unpack(pckt.data, &st->players[pckt.conn_uid].pos);
+      printf("received player pos packet");
       break;
     case CROK_NET_LAY_DISC:
       break;
