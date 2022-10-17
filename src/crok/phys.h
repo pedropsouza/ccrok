@@ -6,7 +6,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#define PHYSBODY_NAME_MAXLEN 16
 struct physbody {
   struct ivec pos;
   struct ivec vel;

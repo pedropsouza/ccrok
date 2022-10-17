@@ -1,13 +1,22 @@
 #include "serde.h"
+// C - byte
+// H - u16
+// I - u32
+// Q - u64
+// s - string
+// v - ivec
+// P - player
+// D - disc
+// S - state
 
-#define NETPACKET_FMTSTR "CCQI" MACROSTR(CROK_PACKET_DATA_SIZE) "s"
+#define NETPACKET_FMTSTR "QICC" MACROSTR(CROK_PACKET_DATA_SIZE) "s"
 size_t netpacket_pack(pbuf_t *dst, struct crok_net_packet *pckt) {
-  return pack(dst, NETPACKET_FMTSTR, &pckt->conn_uid, &pckt->kind,
-              &pckt->ticknum, &pckt->statesum, &pckt->data);
+  return pack(dst, NETPACKET_FMTSTR, &pckt->ticknum, &pckt->statesum,
+              &pckt->conn_uid, &pckt->kind, &pckt->data);
 }
 size_t netpacket_unpack(pbuf_t *src, struct crok_net_packet *pckt) {
-  return unpack(src, NETPACKET_FMTSTR, &pckt->conn_uid, &pckt->kind,
-                &pckt->ticknum, &pckt->statesum, &pckt->data);
+  return unpack(src, NETPACKET_FMTSTR, &pckt->ticknum, &pckt->statesum,
+                &pckt->conn_uid, &pckt->kind, &pckt->data);
 }
 
 #define IVEC_FMTSTR "QQ"
@@ -36,21 +45,22 @@ size_t physbody_unpack(pbuf_t *src, struct physbody *pb) {
                 &pb->radius, &pb->name);
 }
 
-#define CROK_PLAYER_FMTSTR "vI" MACROSTR(CROK_PLAYER_NAME_MAXLEN) "sH"
+#define CROK_PLAYER_FMTSTR "vIH" MACROSTR(CROK_PLAYER_NAME_MAXLEN) "s"
 size_t crok_player_pack(pbuf_t *dst, struct crok_player *p) {
-  return pack(dst, CROK_PLAYER_FMTSTR, &p->pos, &p->score, &p->name, &p->flags);
+  return pack(dst, CROK_PLAYER_FMTSTR, &p->pos, &p->score, &p->flags, &p->name);
 }
 size_t crok_player_unpack(pbuf_t *src, struct crok_player *p) {
-  return unpack(src, CROK_PLAYER_FMTSTR, &p->pos, &p->score, &p->name,
-                &p->flags);
+  return unpack(src, CROK_PLAYER_FMTSTR, &p->pos, &p->score, &p->flags, &p->name);
 }
 
-#define CROK_DISC_FMTSTR "Ip"
+#define CROK_DISC_FMTSTR "pII"
 size_t crok_disc_pack(pbuf_t *dst, struct crok_disc *d) {
-  return pack(dst, CROK_DISC_FMTSTR, &d->flags, &d->pb);
+  uint32_t padding;
+  return pack(dst, CROK_DISC_FMTSTR, &d->pb, &d->flags, &padding);
 }
 size_t crok_disc_unpack(pbuf_t *src, struct crok_disc *d) {
-  return unpack(src, CROK_DISC_FMTSTR, &d->flags, &d->pb);
+  uint32_t padding;
+  return unpack(src, CROK_DISC_FMTSTR, &d->pb, &d->flags, &padding);
 }
 
 #define CROK_STATE_FMTSTR "4P" MACROSTR(CROK_DISCS_TOTAL) "DIIHCC"
