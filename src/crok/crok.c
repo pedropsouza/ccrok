@@ -286,6 +286,9 @@ enum crok_gamestage crok_process_client(struct crok_data *d) {
       }
     case CROK_NET_POS:
       ivec_unpack(pckt.data, &st->players[pckt.conn_uid].pos);
+      printf("fixed CROK_NET_POS, %s\n", pckt.data);
+      /* spos = (struct fvec){.x = pckt.pos.x, .y = pckt.pos.y}; */
+      /* driven_player->pos = crok_screen_to_board(rdr, spos); */
       break;
     case CROK_NET_LAY_DISC:
       break;
@@ -349,6 +352,8 @@ enum crok_gamestage crok_process_server(struct crok_data *d) {
     case CROK_NET_POS:
       ivec_unpack(pckt.data, &st->players[pckt.conn_uid].pos);
       printf("received player pos packet");
+      /* spos = (struct fvec){.x = pckt.pos.x, .y = pckt.pos.y}; */
+      /* driven_player->pos = crok_screen_to_board(rdr, spos); */
       break;
     case CROK_NET_LAY_DISC:
       break;
