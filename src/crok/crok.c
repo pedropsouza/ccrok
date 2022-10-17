@@ -290,9 +290,6 @@ enum crok_gamestage crok_process_client(struct crok_data *d) {
       }
     case CROK_NET_POS:
       ivec_unpack(pckt.data, &st->players[pckt.conn_uid].pos);
-      printf("fixed CROK_NET_POS, %s\n", pckt.data);
-      /* spos = (struct fvec){.x = pckt.pos.x, .y = pckt.pos.y}; */
-      /* driven_player->pos = crok_screen_to_board(rdr, spos); */
       break;
     case CROK_NET_LAY_DISC:
       break;
@@ -357,12 +354,23 @@ enum crok_gamestage crok_process_server(struct crok_data *d) {
 
     case CROK_NET_CLIENT_POS: // shouldn't happen
       break;
-    case CROK_NET_POS:
-      ivec_unpack(pckt.data, &st->players[pckt.conn_uid].pos);
-      ivec_print(st->players[pckt.conn_uid].pos, "player pos");
-      /* spos = (struct fvec){.x = pckt.pos.x, .y = pckt.pos.y}; */
-      /* driven_player->pos = crok_screen_to_board(rdr, spos); */
-      break;
+    case CROK_NET_POS: {
+        struct ivec recvd_pos;
+        ivec_unpack(pckt.data, &recvd_pos);
+        ivec_print(recvd_pos, "player pos");
+        st->players[pckt.conn_uid].pos.x = recvd_pos.x;
+        st->players[pckt.conn_uid].pos.y = recvd_pos.y;
+        struct crok_net_packet tx_pckt = {
+          .ticknum = td.tnum,
+  	      .statesum = td.tsum,
+  	      .kind = CROK_NET_POS,
+  	      .conn_uid = 0 //FIXME
+        };
+        ivec_pack(tx_pckt.data, &recvd_pos);
+        // needs to be a broadcast send
+        //crok_net_send_packet(inpctx, &tx_pckt);
+        break;
+      }
     case CROK_NET_LAY_DISC:
       break;
     case CROK_NET_AIM_DISC:
