@@ -32,14 +32,18 @@ struct crok_net_packet crok_local_input(void *data) {
 
 struct crok_net_packet crok_network_input(void *data) {
   struct crok_net_packet ipckt = {0};
-  struct crok_net_context *nc = data;
+  struct crok_netinput_data *nid = data;
   pbuf_t buf[sizeof(ipckt)];
   // memset(peekbuf, 0, sizeof(peekbuf)); // not sure if needed
 
-  ssize_t retv = recv(nc->sockfd, buf, CROK_PACKET_DATA_SIZE, 0);
+  ssize_t retv = recv(nid->nc->sockfd, buf, CROK_PACKET_DATA_SIZE, 0);
   if (retv < 0) {
-    perror("net error");
-    ipckt.kind = CROK_NET_INVALID;
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+      ipckt.kind = CROK_NET_END;
+    } else {
+      perror("net error");
+      ipckt.kind = CROK_NET_INVALID;
+    }
   } else {
     netpacket_unpack(buf, &ipckt);
   }
@@ -273,14 +277,14 @@ enum crok_gamestage crok_process_client(struct crok_data *d) {
 
     case CROK_NET_CLIENT_POS: {
         fvec_unpack(pckt.data, &spos);
-	struct ivec bpos = crok_screen_to_board(rdr, spos);
-	struct crok_net_packet tx_pckt = {
+	      struct ivec bpos = crok_screen_to_board(rdr, spos);
+      	struct crok_net_packet tx_pckt = {
           .ticknum = td.tnum,
-	  .statesum = td.tsum,
-	  .kind = CROK_NET_POS,
-	  .conn_uid = 0 //FIXME
-	};
-	ivec_pack(tx_pckt.data, &bpos);
+	        .statesum = td.tsum,
+	        .kind = CROK_NET_POS,
+	        .conn_uid = 0 //FIXME
+      	};
+      	ivec_pack(tx_pckt.data, &bpos);
         crok_net_send_packet(inpctx, &tx_pckt);
         break;
       }
@@ -327,9 +331,13 @@ enum crok_gamestage crok_process_server(struct crok_data *d) {
     .tnum = d->ticknum,
     .tsum = state_chksum
   };
+  struct crok_netinput_data nid = {
+    .nc = inpctx,
+    .td = &td
+  };
 
   size_t old_head = inpctx->circular_head;
-  size_t n_new_pckts = crok_net_accum(inpctx, crok_network_input, &td);
+  size_t n_new_pckts = crok_net_accum(inpctx, crok_network_input, &nid);
   for (size_t i = 0; i < n_new_pckts; i++) {
     size_t pckt_idx = (old_head + i) % CROK_NETPACKET_MAX;
     struct crok_net_packet pckt = inpctx->buf[pckt_idx];
@@ -351,7 +359,7 @@ enum crok_gamestage crok_process_server(struct crok_data *d) {
       break;
     case CROK_NET_POS:
       ivec_unpack(pckt.data, &st->players[pckt.conn_uid].pos);
-      printf("received player pos packet");
+      ivec_print(st->players[pckt.conn_uid].pos, "player pos");
       /* spos = (struct fvec){.x = pckt.pos.x, .y = pckt.pos.y}; */
       /* driven_player->pos = crok_screen_to_board(rdr, spos); */
       break;

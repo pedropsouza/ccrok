@@ -16,6 +16,7 @@
 #define CROK_PORT 33850
 
 struct crok_tick_data { uint64_t tnum; uint32_t tsum; };
+struct crok_netinput_data { struct crok_net_context *nc; struct crok_tick_data *td; };
 struct crok_net_packet crok_local_input(void *data);
 struct crok_net_packet crok_network_input(void *data);
 

@@ -43,9 +43,11 @@ crok_net_send_packet(
   pbuf_t serbuf[sizeof(struct crok_net_packet)];
   size_t p_size = netpacket_pack(serbuf, pckt);
   ssize_t retval = send(nc->sockfd, serbuf, p_size, 0);
-  if (retval == EAGAIN || retval == EWOULDBLOCK) {
-    fprintf(stderr, "crok_net_send_packet would block, ignoring\n");
-  } else {
-    perror("crok_net_send_packet");
+  if (retval < 0) {
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+      fprintf(stderr, "crok_net_send_packet would block, ignoring\n");
+    } else {
+      perror("crok_net_send_packet");
+    }
   }
 }
