@@ -71,7 +71,7 @@ bool state_equal(a, b) struct crok_state *a, *b;
   }
   for (int i = 0; i < CROK_DISCS_TOTAL; i++) {
     struct crok_disc *l = &a->discs[i], *r = &b->discs[i];
-    RIF(!disc_equal(a,b));
+    RIF(!disc_equal(l,r));
   }
   return true;
 }
@@ -95,9 +95,51 @@ void state_serde() {
   TEST_ASSERT(state_equal(&cs, &deser));
 }
 
+void ivec_serde() {
+  struct ivec v,uv;
+
+  pbuf_t ser[sizeof(struct ivec)];
+  size_t len;
+
+  for (int x = -1; x <= 1; x++) {
+    for (int y = -1; y <= 1; y++) {
+      len = ivec_pack(ser, &v);
+      ivec_unpack(ser, &uv);
+      TEST_ASSERT(v.x == uv.x && v.y == uv.y);
+    }
+  }
+}
+
+void netpacket_serde() {
+  struct ivec v,uv;
+
+  pbuf_t ser[sizeof(struct crok_net_packet)];
+  size_t len;
+  struct crok_net_packet pckt = {
+    .ticknum = 0xdeadbeef,
+    .statesum = 0xdead,
+    .kind = CROK_NET_POS,
+    .conn_uid = 0 //FIXME
+	};
+
+  struct crok_net_packet deser;
+
+  for (int x = -1; x <= 1; x++) {
+    for (int y = -1; y <= 1; y++) {
+      ivec_pack(pckt.data, &v);
+      len = netpacket_pack(ser, &pckt);
+      netpacket_unpack(ser, &deser);
+      ivec_unpack(deser.data, &uv);
+      TEST_ASSERT(v.x == uv.x && v.y == uv.y);
+    }
+  }
+}
+
 int main(void) {
   UNITY_BEGIN();
   RUN_TEST(player_serde);
   RUN_TEST(state_serde);
+  RUN_TEST(ivec_serde);
+  RUN_TEST(netpacket_serde);
   return UNITY_END();
 }
