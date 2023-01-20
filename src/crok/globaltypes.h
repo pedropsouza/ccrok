@@ -16,6 +16,7 @@ typedef unsigned char pbuf_t;
 
 enum crok_net_packet_kind {
   CROK_NET_INVALID = 0,
+  CROK_NET_IGNORE = 1,
 
   // Client side requests
   CROK_NET_CONNECT,

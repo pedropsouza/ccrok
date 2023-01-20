@@ -33,5 +33,10 @@ crok_net_send_packet(
   struct crok_net_context *nc,
   struct crok_net_packet *pckt);
 
+void
+crok_net_print_packet(
+  FILE *stream,  
+  struct crok_net_packet *pckt);
+
 #undef CINPCKTHEAD
 #endif // CROK_NET_HG__

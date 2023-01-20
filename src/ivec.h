@@ -23,9 +23,6 @@ struct ivec ivec_mul(struct ivec a, struct ivec b);
 struct ivec ivec_div(struct ivec a, struct ivec b);
 struct ivec ivec_mod(struct ivec a, struct ivec b);
 
-char *ivec_serialize(const struct ivec *v);
-struct ivec ivec_deserialize(char buf[IVEC_SERLEN]);
-
 void ivec_print(struct ivec v, const char *name);
 
 #endif // IVEC_HG__

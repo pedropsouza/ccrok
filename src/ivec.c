@@ -29,31 +29,3 @@ void ivec_print(struct ivec v, const char *name) {
   printf("ivec \"%s\" -> %ld , %ld\n", name, v.x, v.y);
 }
 
-char *ivec_serialize(const struct ivec *v) {
-  static char buf[IVEC_SERLEN];
-
-  char *w_head = buf;
-  *((uint32_t *)w_head) = htonl((uint32_t)(0xffffffff & (v->x >> 32)));
-  w_head += 4;
-  *((uint32_t *)w_head) = htonl((uint32_t)(0xffffffff & (v->x)));
-  w_head += 4;
-  *((uint32_t *)w_head) = htonl((uint32_t)(0xffffffff & (v->y >> 32)));
-  w_head += 4;
-  *((uint32_t *)w_head) = htonl((uint32_t)(0xffffffff & (v->y)));
-
-  return buf;
-}
-
-struct ivec ivec_deserialize(char buf[IVEC_SERLEN]) {
-  char *r_head = buf;
-  uint64_t xh = ntohl(*((uint32_t *)r_head));
-  r_head += 4;
-  uint64_t xl = ntohl(*((uint32_t *)r_head));
-  r_head += 4;
-  uint64_t yh = ntohl(*((uint32_t *)r_head));
-  r_head += 4;
-  uint64_t yl = ntohl(*((uint32_t *)r_head));
-
-  return (struct ivec){.x = (int64_t)(xh << 32 | xl),
-                       .y = (int64_t)(yh << 32 | yl)};
-}

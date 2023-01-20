@@ -7,19 +7,21 @@ struct crok_net_packet crok_local_input(void *data) {
   ipckt.ticknum = td->tnum;
   ipckt.statesum = td->tsum;
 
+  ipckt.kind = CROK_NET_IGNORE;
+
   if (SDL_PollEvent(&input) > 0) {
     switch (input.type) {
     case SDL_QUIT:
       ipckt.kind = CROK_NET_QUIT;
       break;
     case SDL_MOUSEMOTION:
-      ipckt.kind = CROK_NET_CLIENT_POS;
-      struct fvec spos = {.x = input.motion.x, .y = input.motion.y};
-      fvec_pack(ipckt.data, &spos);
       break;
     case SDL_MOUSEBUTTONUP:
       break;
     case SDL_MOUSEBUTTONDOWN:
+      ipckt.kind = CROK_NET_CLIENT_POS;
+      struct fvec spos = {.x = input.motion.x, .y = input.motion.y};
+      fvec_pack(ipckt.data, &spos);
       break;
     default:
       break;
@@ -277,7 +279,7 @@ enum crok_gamestage crok_process_client(struct crok_data *d) {
 
     case CROK_NET_CLIENT_POS: {
         fvec_unpack(pckt.data, &spos);
-	      struct ivec bpos = crok_screen_to_board(rdr, spos);
+        struct ivec bpos = crok_screen_to_board(rdr, spos);
       	struct crok_net_packet tx_pckt = {
           .ticknum = td.tnum,
 	        .statesum = td.tsum,
@@ -286,6 +288,7 @@ enum crok_gamestage crok_process_client(struct crok_data *d) {
       	};
       	ivec_pack(tx_pckt.data, &bpos);
         crok_net_send_packet(inpctx, &tx_pckt);
+        crok_net_print_packet(stdout, &tx_pckt);
         break;
       }
     case CROK_NET_POS:
@@ -307,6 +310,7 @@ enum crok_gamestage crok_process_client(struct crok_data *d) {
     case CROK_NET_DESYNC:
       break;
 
+    case CROK_NET_IGNORE:
     case CROK_NET_END:
       break;
     }
@@ -357,9 +361,9 @@ enum crok_gamestage crok_process_server(struct crok_data *d) {
     case CROK_NET_POS: {
         struct ivec recvd_pos;
         ivec_unpack(pckt.data, &recvd_pos);
-        ivec_print(recvd_pos, "player pos");
         st->players[pckt.conn_uid].pos.x = recvd_pos.x;
         st->players[pckt.conn_uid].pos.y = recvd_pos.y;
+        ivec_print(recvd_pos, "player pos");
         struct crok_net_packet tx_pckt = {
           .ticknum = td.tnum,
   	      .statesum = td.tsum,
@@ -387,6 +391,7 @@ enum crok_gamestage crok_process_server(struct crok_data *d) {
     case CROK_NET_DESYNC:
       break;
 
+    case CROK_NET_IGNORE:
     case CROK_NET_END:
       break;
     }

@@ -11,7 +11,7 @@
 void setUp() {}
 void tearDown() {}
 
-bool player_equal(a, b) struct crok_player *a, *b;
+bool player_equal(struct crok_player *a, struct crok_player *b)
 {
   RIF(a->flags != b->flags);
   RIF(a->pos.x != b->pos.x && a->pos.y == b->pos.y);
@@ -22,7 +22,7 @@ bool player_equal(a, b) struct crok_player *a, *b;
 
 }
 
-bool disc_equal(a,b) struct crok_disc *a, *b;
+bool disc_equal(struct crok_disc *a, struct crok_disc *b)
 {
   RIF(a->flags != b->flags);
   RIF_VEQNE(a->pb.pos, b->pb.pos);
@@ -59,7 +59,7 @@ void player_serde() {
   TEST_ASSERT(player_equal(&p, &pdeser));
 }
 
-bool state_equal(a, b) struct crok_state *a, *b;
+bool state_equal(struct crok_state *a, struct crok_state *b)
 {
   RIF(a->active_player != b->active_player);
   RIF(a->gamestage != b->gamestage);
@@ -101,8 +101,8 @@ void ivec_serde() {
   pbuf_t ser[sizeof(struct ivec)];
   size_t len;
 
-  for (int x = -1; x <= 1; x++) {
-    for (int y = -1; y <= 1; y++) {
+  for (int x = -100; x <= 100; x++) {
+    for (int y = -100; y <= 100; y++) {
       len = ivec_pack(ser, &v);
       ivec_unpack(ser, &uv);
       TEST_ASSERT(v.x == uv.x && v.y == uv.y);
@@ -124,8 +124,8 @@ void netpacket_serde() {
 
   struct crok_net_packet deser;
 
-  for (int x = -1; x <= 1; x++) {
-    for (int y = -1; y <= 1; y++) {
+  for (int x = -100; x <= 100; x++) {
+    for (int y = -100; y <= 100; y++) {
       ivec_pack(pckt.data, &v);
       len = netpacket_pack(ser, &pckt);
       netpacket_unpack(ser, &deser);

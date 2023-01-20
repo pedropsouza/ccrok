@@ -16,6 +16,7 @@ int crok_net_accum(struct crok_net_context *nc, crok_net_producer_fun f, void *f
       nc->circular_head = new_head;
     } else {
       fprintf(stderr, "received an invalid packet\n");
+      crok_net_print_packet(stderr, &p);
     }
   }
   if (n == CROK_NETPACKET_MAX) {
@@ -50,4 +51,11 @@ crok_net_send_packet(
       perror("crok_net_send_packet");
     }
   }
+}
+
+void
+crok_net_print_packet(FILE *stream, struct crok_net_packet *pckt) {
+  fprintf(stream, "tick %lu sum %u id %hhu kind %hhu\n",
+    pckt->ticknum, pckt->statesum,
+    pckt->conn_uid, (char)pckt->kind);
 }

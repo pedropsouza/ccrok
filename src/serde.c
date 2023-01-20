@@ -183,7 +183,7 @@ size_t pack_unpack(pbuf_t *head, char mode, char *fmt, va_list va) {
       assert(valcount > 0);
       v.str = va_arg(va, char *);
       if (mode == SERDE_MODE_PACK) {
-        len = strlen(v.str);
+        len = valcount;
         *((uint16_t *)head) = htons((uint16_t)valcount);
         head += sizeof(uint16_t);
         memcpy(head, v.str, len);
