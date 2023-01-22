@@ -10,6 +10,10 @@
 #include <errno.h>
 
 struct crok_net_context {
+  struct crok_net_packet tx;
+  struct crok_net_packet rx;
+  pbuf_t serbuf[sizeof(struct crok_net_packet)];
+
   size_t circular_head;
   struct crok_net_packet buf[CROK_NETPACKET_MAX];
 
@@ -29,9 +33,16 @@ int crok_net_accum(struct crok_net_context *nc, crok_net_producer_fun f, void* f
 void crok_net_print_context(FILE *stream, struct crok_net_context *nc);
 
 void
-crok_net_send_packet(
-  struct crok_net_context *nc,
-  struct crok_net_packet *pckt);
+crok_net_tx_to_server(struct crok_net_context *nc);
+
+void
+crok_net_tx_to_player(struct crok_net_context *nc, char player_id);
+
+void
+crok_net_tx_to_game(struct crok_net_context *nc);
+
+void
+crok_net_rx(struct crok_net_context *nc);
 
 void
 crok_net_print_packet(

@@ -33,23 +33,10 @@ struct crok_net_packet crok_local_input(void *data) {
 }
 
 struct crok_net_packet crok_network_input(void *data) {
-  struct crok_net_packet ipckt = {0};
   struct crok_netinput_data *nid = data;
-  pbuf_t buf[sizeof(ipckt)];
-  // memset(peekbuf, 0, sizeof(peekbuf)); // not sure if needed
 
-  ssize_t retv = recv(nid->nc->sockfd, buf, CROK_PACKET_DATA_SIZE, 0);
-  if (retv < 0) {
-    if (errno == EAGAIN || errno == EWOULDBLOCK) {
-      ipckt.kind = CROK_NET_END;
-    } else {
-      perror("net error");
-      ipckt.kind = CROK_NET_INVALID;
-    }
-  } else {
-    netpacket_unpack(buf, &ipckt);
-  }
-  return ipckt;
+  crok_net_rx(nid->nc);
+  return nid->nc->rx;
 }
 
 struct sched_trans crok_setup(struct scheduler *s) {
@@ -92,6 +79,10 @@ struct sched_trans crok_setup(struct scheduler *s) {
       perror("Couldn't connect to server");
       goto neterr;
     }
+
+    struct crok_net_packet pckt = {0};
+    // announce our presence
+    pckt.kind = CROK_NET_CONNECT;
 
     struct crok_render_data *rdat = &d->renderdata;
 
@@ -280,15 +271,13 @@ enum crok_gamestage crok_process_client(struct crok_data *d) {
     case CROK_NET_CLIENT_POS: {
         fvec_unpack(pckt.data, &spos);
         struct ivec bpos = crok_screen_to_board(rdr, spos);
-      	struct crok_net_packet tx_pckt = {
-          .ticknum = td.tnum,
-	        .statesum = td.tsum,
-	        .kind = CROK_NET_POS,
-	        .conn_uid = 0 //FIXME
-      	};
-      	ivec_pack(tx_pckt.data, &bpos);
-        crok_net_send_packet(inpctx, &tx_pckt);
-        crok_net_print_packet(stdout, &tx_pckt);
+      	inpctx->tx.ticknum = td.tnum;
+	      inpctx->tx.statesum = td.tsum;
+	      inpctx->tx.kind = CROK_NET_POS;
+	      inpctx->tx.conn_uid = 0; //FIXME
+      	ivec_pack(inpctx->tx.data, &bpos);
+        crok_net_tx_to_server(inpctx);
+        crok_net_print_packet(stdout, &inpctx->tx);
         break;
       }
     case CROK_NET_POS:
