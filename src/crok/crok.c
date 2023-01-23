@@ -192,9 +192,9 @@ enum crok_gamestage crok_process(struct crok_data *d) {
     struct crok_net_pcktrecord *r = nc->buf + pckt_idx;
     struct crok_net_packet *pckt = &r->pckt;
 
-    if(1 || pckt->kind != CROK_NET_POS) {
+    if(pckt->kind != CROK_NET_POS) {
       crok_net_print_pcktrecord(stdout, r);
-    }    
+    }
     switch (pckt->kind) {
 
     case CROK_NET_CONNECT:
@@ -239,7 +239,6 @@ enum crok_gamestage crok_process(struct crok_data *d) {
     case CROK_NET_POS: {
       struct ivec recvd_pos;
       ivec_unpack(pckt->data, &recvd_pos);
-      ivec_print(recvd_pos, "pos");
       st->players[pckt->conn_uid].pos = recvd_pos;
 
       if (d->servermode) {
@@ -255,6 +254,11 @@ enum crok_gamestage crok_process(struct crok_data *d) {
       break;
     }
     case CROK_NET_LAY_DISC:
+      st->active_player = pckt->conn_uid;
+      if (d->servermode) {
+        nc->tx = *pckt;
+        crok_net_tx_to_game(nc);
+      }
       break;
     case CROK_NET_AIM_DISC:
       break;
@@ -304,6 +308,12 @@ enum crok_gamestage crok_process(struct crok_data *d) {
     case SDL_MOUSEBUTTONUP:
       break;
     case SDL_MOUSEBUTTONDOWN:
+      if (st->active_player != d->my_player_id) {
+          nc->tx.kind = CROK_NET_LAY_DISC;
+          nc->tx.conn_uid = d->my_player_id;
+          nc->tx.data_len = 0;
+          crok_net_tx_to_server(nc);
+        }
       break;
     default:
       break;
