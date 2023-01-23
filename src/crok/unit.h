@@ -34,6 +34,6 @@ int crok_unit_valid(const void *unit);
 ssize_t crok_unit_vacantpos(const void *unitarr, size_t elsize, size_t n);
 
 void crok_player_print(struct crok_player *p);
-void crok_disc_print(struct crok_player *d);
+void crok_disc_print(struct crok_disc *d);
 
 #endif // CROK_UNIT_HG__

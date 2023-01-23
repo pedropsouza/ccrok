@@ -24,7 +24,6 @@ enum crok_net_packet_kind {
   CROK_NET_QUIT,
 
   // Game actions
-  CROK_NET_CLIENT_POS,
   CROK_NET_POS,
   CROK_NET_LAY_DISC,
   CROK_NET_AIM_DISC,
@@ -36,13 +35,14 @@ enum crok_net_packet_kind {
   CROK_NET_ACK,
   CROK_NET_DESYNC,
 
-  CROK_NET_END,
+  CROK_NET_END = 0xff,
 };
 
 struct crok_net_packet {
   uint64_t ticknum;
-  pbuf_t data[CROK_PACKET_DATA_SIZE];
+  pbuf_t data[CROK_PACKET_MAX_DATA_SIZE];
   uint32_t statesum;
+  uint32_t data_len;
   enum crok_net_packet_kind kind;
   uint8_t conn_uid;
 };

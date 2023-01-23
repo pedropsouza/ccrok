@@ -1,98 +1,162 @@
 #include "serde.h"
+
+
+#define NETPACKET_FMTSTR_PARTIAL "QICC"
+size_t netpacket_pack(pbuf_t *dst, struct crok_net_packet *pckt) {
+  char fmt[32] = NETPACKET_FMTSTR_PARTIAL;
+  size_t plen = strlen(fmt);
+  snprintf(fmt + plen, 32 - plen, "%us", pckt->data_len);
+  return pack(dst, alignof(struct crok_net_packet), fmt,
+          &pckt->ticknum, &pckt->statesum,
+          &pckt->conn_uid, &pckt->kind, &pckt->data);
+}
+size_t netpacket_unpack(pbuf_t *src, struct crok_net_packet *pckt) {
+  return unpack(src, alignof(struct crok_net_packet),
+          NETPACKET_FMTSTR_PARTIAL "s?", &pckt->ticknum, &pckt->statesum,
+          &pckt->conn_uid, &pckt->kind, &pckt->data, &pckt->data_len);
+}
+
+#define IVEC_FMTSTR "QQ"
+size_t ivec_pack(pbuf_t *dst, struct ivec *v) {
+  return pack(dst, alignof(struct ivec), IVEC_FMTSTR, &v->x, &v->y);
+}
+size_t ivec_unpack(pbuf_t *src, struct ivec *v) {
+  return unpack(src, alignof(struct ivec), IVEC_FMTSTR, &v->x, &v->y);
+}
+
+#define FVEC_FMTSTR "II"
+size_t fvec_pack(pbuf_t *dst, struct fvec *v) {
+  return pack(dst, alignof(struct fvec), FVEC_FMTSTR, &v->x, &v->y);
+}
+size_t fvec_unpack(pbuf_t *src, struct fvec *v) {
+  return unpack(src, alignof(struct fvec), FVEC_FMTSTR, &v->x, &v->y);
+}
+
+#define PHYSBODY_FMTSTR "vvvvI" MACROSTR(PHYSBODY_NAME_MAXLEN) "s"
+size_t physbody_pack(pbuf_t *dst, struct physbody *pb) {
+  return pack(dst, alignof(struct physbody), PHYSBODY_FMTSTR,
+          &pb->pos, &pb->vel, &pb->acc, &pb->facc, &pb->radius, &pb->name);
+}
+size_t physbody_unpack(pbuf_t *src, struct physbody *pb) {
+  return unpack(src, alignof(struct physbody), PHYSBODY_FMTSTR,
+          &pb->pos, &pb->vel, &pb->acc, &pb->facc, &pb->radius, &pb->name);
+}
+
+#define CROK_PLAYER_FMTSTR "vIH" MACROSTR(CROK_PLAYER_NAME_MAXLEN) "s"
+size_t crok_player_pack(pbuf_t *dst, struct crok_player *p) {
+  return pack(dst, alignof(struct crok_player), CROK_PLAYER_FMTSTR,
+          &p->pos, &p->score, &p->flags, &p->name);
+}
+size_t crok_player_unpack(pbuf_t *src, struct crok_player *p) {
+  return unpack(src, alignof(struct crok_player), CROK_PLAYER_FMTSTR,
+          &p->pos, &p->score, &p->flags, &p->name);
+}
+
+#define CROK_DISC_FMTSTR "pI"
+size_t crok_disc_pack(pbuf_t *dst, struct crok_disc *d) {
+  return pack(dst, alignof(struct crok_disc), CROK_DISC_FMTSTR, &d->pb, &d->flags);
+}
+size_t crok_disc_unpack(pbuf_t *src, struct crok_disc *d) {
+  return unpack(src, alignof(struct crok_disc), CROK_DISC_FMTSTR, &d->pb, &d->flags);
+}
+
+#define CROK_STATE_FMTSTR "4P" MACROSTR(CROK_DISCS_TOTAL) "DIIHCC"
+size_t crok_state_pack(pbuf_t *dst, struct crok_state *st) {
+  return pack(dst, alignof(struct crok_state), CROK_STATE_FMTSTR,
+              &st->players, &st->discs, &st->round,
+              &st->overall_score, &st->gamestage, &st->active_player,
+              &st->total_players);
+}
+
+size_t crok_state_unpack(pbuf_t *src, struct crok_state *st) {
+  return unpack(src, alignof(struct crok_state), CROK_STATE_FMTSTR,
+                &st->players, &st->discs, &st->round,
+                &st->overall_score, &st->gamestage, &st->active_player,
+                &st->total_players);
+}
+
+static size_t pad_align(pbuf_t **head, int alignment) {
+  size_t padl = 0;
+  while((uintptr_t)*head % alignment != 0) {
+    #ifdef DEBUG
+    *(*head) = 0xad;
+    #endif
+    (*head)++;
+    padl++;
+  }
+  return padl;
+}
+
+// calculates the naive size, without padding
+size_t calcsize(char *fmt) {
+  size_t a = 0;
+  ssize_t valcount = 1;
+  int counted = 0;
+  for(; *fmt != '\0'; fmt++) {
+    switch (*fmt) {
+      case 'C': a += valcount * 1; break;
+      case 'H': a += valcount * 2; break;
+      case 'I': a += valcount * 4; break;
+      case 'Q': a += valcount * 8; break;
+      case 's': a += 2 + valcount; break;
+      case 'v': a += valcount * calcsize(IVEC_FMTSTR); break;
+      case 'p': a += valcount * calcsize(PHYSBODY_FMTSTR); break;
+      case 'P': a += valcount * calcsize(CROK_PLAYER_FMTSTR); break;
+      case 'D': a += valcount * calcsize(CROK_DISC_FMTSTR); break;
+      case 'S': a += valcount * calcsize(CROK_STATE_FMTSTR); break;
+      default:
+        if (isdigit(*fmt)) {
+          if(!counted) { counted = 1; valcount = 0; };
+          valcount = 10 * valcount + (*fmt - '0');
+          continue;
+        }
+        break;
+    }
+    valcount = 1;
+    counted = 0;
+  }
+  return a;
+}
+
 // C - byte
 // H - u16
 // I - u32
 // Q - u64
 // s - string
 // v - ivec
+// p - physbody
 // P - player
 // D - disc
 // S - state
-
-#define NETPACKET_FMTSTR "QICC" MACROSTR(CROK_PACKET_DATA_SIZE) "s"
-size_t netpacket_pack(pbuf_t *dst, struct crok_net_packet *pckt) {
-  return pack(dst, NETPACKET_FMTSTR, &pckt->ticknum, &pckt->statesum,
-              &pckt->conn_uid, &pckt->kind, &pckt->data);
-}
-size_t netpacket_unpack(pbuf_t *src, struct crok_net_packet *pckt) {
-  return unpack(src, NETPACKET_FMTSTR, &pckt->ticknum, &pckt->statesum,
-                &pckt->conn_uid, &pckt->kind, &pckt->data);
-}
-
-#define IVEC_FMTSTR "QQ"
-size_t ivec_pack(pbuf_t *dst, struct ivec *v) {
-  return pack(dst, IVEC_FMTSTR, &v->x, &v->y);
-}
-size_t ivec_unpack(pbuf_t *src, struct ivec *v) {
-  return unpack(src, IVEC_FMTSTR, &v->x, &v->y);
-}
-
-#define FVEC_FMTSTR "II"
-size_t fvec_pack(pbuf_t *dst, struct fvec *v) {
-  return pack(dst, FVEC_FMTSTR, &v->x, &v->y);
-}
-size_t fvec_unpack(pbuf_t *src, struct fvec *v) {
-  return unpack(src, FVEC_FMTSTR, &v->x, &v->y);
-}
-
-#define PHYSBODY_FMTSTR "vvvvI" MACROSTR(PHYSBODY_NAME_MAXLEN) "s"
-size_t physbody_pack(pbuf_t *dst, struct physbody *pb) {
-  return pack(dst, PHYSBODY_FMTSTR, &pb->pos, &pb->vel, &pb->acc, &pb->facc,
-              &pb->radius, &pb->name);
-}
-size_t physbody_unpack(pbuf_t *src, struct physbody *pb) {
-  return unpack(src, PHYSBODY_FMTSTR, &pb->pos, &pb->vel, &pb->acc, &pb->facc,
-                &pb->radius, &pb->name);
-}
-
-#define CROK_PLAYER_FMTSTR "vIH" MACROSTR(CROK_PLAYER_NAME_MAXLEN) "s"
-size_t crok_player_pack(pbuf_t *dst, struct crok_player *p) {
-  return pack(dst, CROK_PLAYER_FMTSTR, &p->pos, &p->score, &p->flags, &p->name);
-}
-size_t crok_player_unpack(pbuf_t *src, struct crok_player *p) {
-  return unpack(src, CROK_PLAYER_FMTSTR, &p->pos, &p->score, &p->flags, &p->name);
-}
-
-#define CROK_DISC_FMTSTR "pII"
-size_t crok_disc_pack(pbuf_t *dst, struct crok_disc *d) {
-  uint32_t padding;
-  return pack(dst, CROK_DISC_FMTSTR, &d->pb, &d->flags, &padding);
-}
-size_t crok_disc_unpack(pbuf_t *src, struct crok_disc *d) {
-  uint32_t padding;
-  return unpack(src, CROK_DISC_FMTSTR, &d->pb, &d->flags, &padding);
-}
-
-#define CROK_STATE_FMTSTR "4P" MACROSTR(CROK_DISCS_TOTAL) "DIIHCC"
-size_t crok_state_pack(pbuf_t *dst, struct crok_state *st) {
-  return pack(dst, CROK_STATE_FMTSTR, &st->players, &st->discs, &st->round,
-              &st->overall_score, &st->gamestage, &st->active_player,
-              &st->total_players);
-}
-
-size_t crok_state_unpack(pbuf_t *src, struct crok_state *st) {
-  return unpack(src, CROK_STATE_FMTSTR, &st->players, &st->discs, &st->round,
-                &st->overall_score, &st->gamestage, &st->active_player,
-                &st->total_players);
-}
-
-size_t pack(pbuf_t *dst, char *fmt, ...) {
+size_t pack(pbuf_t *dst, size_t align, char *fmt, ...) {
   va_list argl;
   va_start(argl, fmt);
-  size_t len = pack_unpack(dst, SERDE_MODE_PACK, fmt, argl);
+  size_t len = pack_unpack(dst, SERDE_MODE_PACK, align, fmt, argl);
   va_end(argl);
   return len;
 }
 
-size_t unpack(pbuf_t *src, char *fmt, ...) {
+
+// C - byte
+// H - u16
+// I - u32
+// Q - u64
+// s - string
+// v - ivec
+// p - physbody
+// P - player
+// D - disc
+// S - state
+// ? interrogate length of last string
+size_t unpack(pbuf_t *src, size_t align, char *fmt, ...) {
   va_list argl;
   va_start(argl, fmt);
-  size_t len = pack_unpack(src, SERDE_MODE_UNPACK, fmt, argl);
+  size_t len = pack_unpack(src, SERDE_MODE_UNPACK, align, fmt, argl);
   va_end(argl);
   return len;
 }
 
-size_t pack_unpack(pbuf_t *head, char mode, char *fmt, va_list va) {
+size_t pack_unpack(pbuf_t *head, char mode, size_t align, char *fmt, va_list va) {
   union {
     struct crok_state *st;
     struct crok_player *p;
@@ -103,14 +167,18 @@ size_t pack_unpack(pbuf_t *head, char mode, char *fmt, va_list va) {
     uint32_t *u32;
     uint16_t *u16;
     uint8_t *u8;
+    uint32_t *len;
     char *str;
   } v;
 
+  size_t slen;
   size_t len;
   ssize_t valcount = 0;
 
   size_t size = 0;
 
+  size += pad_align(&head, align);
+  assert((uintptr_t)head % align == 0);
   for (; *fmt != '\0'; fmt++) {
     switch (*fmt) {
     case 'C': // byte
@@ -126,9 +194,9 @@ size_t pack_unpack(pbuf_t *head, char mode, char *fmt, va_list va) {
         v.u8++;
         valcount--;
       } while (valcount > 0);
-      valcount = 0;
       break;
     case 'H': // u16
+      size += pad_align(&head, alignof(uint16_t));
       v.u16 = (uint16_t *)va_arg(va, void *);
       do {
         if (mode == SERDE_MODE_PACK) {
@@ -141,9 +209,9 @@ size_t pack_unpack(pbuf_t *head, char mode, char *fmt, va_list va) {
         v.u16++;
         valcount--;
       } while (valcount > 0);
-      valcount = 0;
       break;
     case 'I': // u32
+      size += pad_align(&head, alignof(uint32_t));
       v.u32 = (uint32_t *)va_arg(va, void *);
       do {
         if (mode == SERDE_MODE_PACK) {
@@ -156,9 +224,9 @@ size_t pack_unpack(pbuf_t *head, char mode, char *fmt, va_list va) {
         v.u32++;
         valcount--;
       } while (valcount > 0);
-      valcount = 0;
       break;
     case 'Q': // u64
+      size += pad_align(&head, alignof(uint64_t));
       v.u64 = (uint64_t *)va_arg(va, void *);
       do {
         if (mode == SERDE_MODE_PACK) {
@@ -176,29 +244,33 @@ size_t pack_unpack(pbuf_t *head, char mode, char *fmt, va_list va) {
         v.u64++;
         valcount--;
       } while (valcount > 0);
-      valcount = 0;
+      break;
+    case '?': // interrogate length of last string
+      if (mode == SERDE_MODE_UNPACK) {
+        v.len = va_arg(va, uint32_t *);
+        *v.len = slen;
+      } else {
+        fprintf(stderr, "'?' in a packing format string, shenanigans will ensue\n");
+      }
       break;
     case 's': // string
-      // WARN: won't accept a count on the format, already used for len
-      assert(valcount > 0);
+      // WARN: won't accept a count on the format, already used for length
+      size += pad_align(&head, alignof(uint32_t));
       v.str = va_arg(va, char *);
       if (mode == SERDE_MODE_PACK) {
-        len = valcount;
-        *((uint16_t *)head) = htons((uint16_t)valcount);
-        head += sizeof(uint16_t);
-        memcpy(head, v.str, len);
-        head += len;
-        memset(head, 0, valcount - len);
-        head += valcount - len;
-        size += valcount + sizeof(uint16_t);
+        slen = valcount;
+        *((uint32_t *)head) = htons((uint32_t)valcount);
+        head += sizeof(uint32_t);
+        strncpy((char *)head, v.str, slen);
+        head += slen;
+        size += sizeof(uint32_t) + valcount;
       } else {
-        len = ntohs(*(uint16_t *)head);
-        head += sizeof(uint16_t);
-        memcpy(v.str, head, len);
-        head += len;
-        size += len + sizeof(uint16_t);
+        slen = ntohs(*(uint32_t *)head);
+        head += sizeof(uint32_t);
+        strncpy(v.str, (char *)head, slen);
+        head += slen;
+        size += sizeof(uint32_t) + slen;
       }
-      valcount = 0;
       break;
     case 'v': // ivec
       v.v = (struct ivec *)va_arg(va, void *);
@@ -213,7 +285,6 @@ size_t pack_unpack(pbuf_t *head, char mode, char *fmt, va_list va) {
         v.v++;
         valcount--;
       } while (valcount > 0);
-      valcount = 0;
       break;
     case 'p': // physbody
       v.pb = (struct physbody *)va_arg(va, void *);
@@ -228,7 +299,6 @@ size_t pack_unpack(pbuf_t *head, char mode, char *fmt, va_list va) {
         v.pb++;
         valcount--;
       } while (valcount > 0);
-      valcount = 0;
       break;
     case 'P': // player
       v.p = (struct crok_player *)va_arg(va, void *);
@@ -243,7 +313,6 @@ size_t pack_unpack(pbuf_t *head, char mode, char *fmt, va_list va) {
         v.p++;
         valcount--;
       } while (valcount > 0);
-      valcount = 0;
       break;
     case 'D': // disc
       v.d = (struct crok_disc *)va_arg(va, void *);
@@ -258,7 +327,6 @@ size_t pack_unpack(pbuf_t *head, char mode, char *fmt, va_list va) {
         v.d++;
         valcount--;
       } while (valcount > 0);
-      valcount = 0;
       break;
     case 'S': // state
       v.st = (struct crok_state *)va_arg(va, void *);
@@ -273,14 +341,15 @@ size_t pack_unpack(pbuf_t *head, char mode, char *fmt, va_list va) {
         v.st++;
         valcount--;
       } while (valcount > 0);
-      valcount = 0;
       break;
     default:
       if (isdigit(*fmt)) {
         valcount = 10 * valcount + (*fmt - '0');
+        continue;
       }
       break;
     }
+    valcount = 0;
   }
   return size;
 }

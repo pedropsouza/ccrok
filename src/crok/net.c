@@ -105,13 +105,13 @@ crok_net_rx(struct crok_net_context *nc) {
   socklen_t discarded = sizeof(struct sockaddr_in);
   struct sockaddr_in origin = {0};
   ssize_t rbytes = recvfrom(
-    nc->sockfd, nc->serbuf, CROK_PACKET_DATA_SIZE, 0,
+    nc->sockfd, nc->serbuf, sizeof(nc->serbuf), 0,
     (struct sockaddr *)&origin, &discarded);
   if (rbytes < 0) {
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
       nc->rx.kind = CROK_NET_END; goto end;
     } else {
-      perror("net error");
+      perror(__func__);
       nc->rx.kind = CROK_NET_INVALID; goto end;
     }
   }
@@ -122,9 +122,9 @@ crok_net_rx(struct crok_net_context *nc) {
 
 void
 crok_net_print_packet(FILE *stream, struct crok_net_packet *pckt) {
-  fprintf(stream, "tick %lu sum %u id %hhu kind %hhu\n",
+  fprintf(stream, "tick %lu sum %u id %hhu kind %hhu length %hu\n",
     pckt->ticknum, pckt->statesum,
-    pckt->conn_uid, (char)pckt->kind);
+    pckt->conn_uid, (char)pckt->kind, pckt->data_len);
 }
 
 void

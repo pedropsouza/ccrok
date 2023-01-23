@@ -22,7 +22,7 @@
 
 #define CROK_TPS 100
 #define CROK_FPS 100
-#define CROK_PACKET_DATA_SIZE 2048
+#define CROK_PACKET_MAX_DATA_SIZE 8192
 
 // For expanding macros inside string literals
 #define MACROSTR2(X) #X

@@ -18,7 +18,7 @@ struct crok_net_context {
   struct crok_net_packet tx;
   struct crok_net_packet rx;
 
-  pbuf_t serbuf[sizeof(struct crok_net_packet)];
+  alignas(8) pbuf_t serbuf[sizeof(struct crok_net_packet)];
 
   size_t circular_head;
   struct crok_net_pcktrecord buf[CROK_NETPACKET_MAX];

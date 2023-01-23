@@ -17,7 +17,7 @@
 #define CROK_PORT 33850
 
 struct crok_tick_data { uint64_t tnum; uint32_t tsum; };
-struct crok_netinput_data { struct crok_net_context *nc; struct crok_tick_data *td; int stream_seq; };
+struct crok_netinput_data { struct crok_net_context *nc; struct crok_tick_data *td; };
 //struct crok_net_packet crok_local_input(void *data);
 //struct crok_net_packet crok_network_input(void *data);
 
@@ -28,8 +28,7 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns);
 uint32_t crok_simulate(struct crok_state *cs);
 void crok_render(struct scheduler *s, double a);
 
-enum crok_gamestage crok_process_client(struct crok_data *d);
-enum crok_gamestage crok_process_server(struct crok_data *d);
+enum crok_gamestage crok_process(struct crok_data *d);
 
 /* Utility functions, return <0 on error */
 ssize_t crok_spawn_player(struct crok_state *cs, struct crok_player p);

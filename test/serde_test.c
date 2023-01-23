@@ -38,7 +38,7 @@ void player_serde() {
   struct crok_player p, pdeser;
   memset(&p, 0, sizeof(struct crok_player));
   memset(&pdeser, 0, sizeof(struct crok_player));
-  pbuf_t pser[sizeof(struct crok_player)];
+  alignas(8) pbuf_t pser[sizeof(struct crok_player)];
   size_t pserlen;
 
   p = crok_player_init(CROK_U_TEAM1 | CROK_U_P1, "Napoleon");
@@ -77,7 +77,7 @@ bool state_equal(struct crok_state *a, struct crok_state *b)
 }
 
 void state_serde() {
-  struct crok_state cs, deser;
+  struct crok_state cs = {0}, deser = {0};
   cs = crok_state_init();
   size_t len;
   crok_spawn_player(&cs, crok_player_init(CROK_U_TEAM1 | CROK_U_P1, "Dan"));
@@ -89,16 +89,17 @@ void state_serde() {
   crok_spawn_disc(&cs, &cs.players[cs.active_player]);
   crok_spawn_disc(&cs, &cs.players[cs.active_player]);
 
-  pbuf_t ser[sizeof(struct crok_state) * 2];
-  len = crok_state_pack(ser, &cs);
-  crok_state_unpack(ser, &deser);
+  alignas(8) pbuf_t ser_a[sizeof(struct crok_state)];
+  len = crok_state_pack(ser_a, &cs);
+  TEST_ASSERT(len <= sizeof(struct crok_state));
+  crok_state_unpack(ser_a, &deser);
   TEST_ASSERT(state_equal(&cs, &deser));
 }
 
 void ivec_serde() {
   struct ivec v,uv;
 
-  pbuf_t ser[sizeof(struct ivec)];
+  alignas(8) pbuf_t ser[sizeof(struct ivec)];
   size_t len;
 
   for (int x = -100; x <= 100; x++) {
@@ -113,7 +114,7 @@ void ivec_serde() {
 void netpacket_serde() {
   struct ivec v,uv;
 
-  pbuf_t ser[sizeof(struct crok_net_packet)];
+  alignas(8) pbuf_t ser[sizeof(struct crok_net_packet)];
   size_t len;
   struct crok_net_packet pckt = {
     .ticknum = 0xdeadbeef,
@@ -124,15 +125,41 @@ void netpacket_serde() {
 
   struct crok_net_packet deser;
 
-  for (int x = -100; x <= 100; x++) {
-    for (int y = -100; y <= 100; y++) {
-      ivec_pack(pckt.data, &v);
+  for (int x = -10; x <= 10; x++) {
+    for (int y = -10; y <= 10; y++) {
+      pckt.data_len = ivec_pack(pckt.data, &v);
       len = netpacket_pack(ser, &pckt);
       netpacket_unpack(ser, &deser);
+      TEST_ASSERT(pckt.data_len == deser.data_len);
       ivec_unpack(deser.data, &uv);
       TEST_ASSERT(v.x == uv.x && v.y == uv.y);
     }
   }
+
+  printf("netpacked true size = %lu, naive size = %lu\n", len,
+        calcsize("QICC") + 4 + calcsize("v"));
+}
+
+void alignment() {
+  size_t ss = calcsize("24s");
+  size_t vs = calcsize("v");
+  size_t ps = calcsize("p");
+  size_t Ps = calcsize("P");
+  size_t Ds = calcsize("D");
+  TEST_ASSERT_MESSAGE(ss == 26, "strings");
+  TEST_ASSERT_MESSAGE(vs == 16, "ivecs");
+  TEST_ASSERT_MESSAGE(ps == 4*calcsize("v") + 4 + 2 + PHYSBODY_NAME_MAXLEN, "physbodies");
+  TEST_ASSERT_MESSAGE(ps % 4 == 0, "physbody alignment");
+  TEST_ASSERT_MESSAGE(Ps == calcsize("v") + 4 + 2 + 2 + CROK_PLAYER_NAME_MAXLEN, "players");
+  TEST_ASSERT_MESSAGE(Ps % 4 == 0, "player alignment");
+  TEST_ASSERT_MESSAGE(Ds == calcsize("p") + 4, "discs");
+  TEST_ASSERT_MESSAGE(Ds % 4 == 0, "disc alignment");
+  size_t a = calcsize("S");
+  size_t b = 4*calcsize("P") + CROK_DISCS_TOTAL*calcsize("D") + 4 + 4 + 2 + 1 + 1;
+  printf("%lu == %lu", a, b);
+  TEST_ASSERT_MESSAGE(a == b, "game state");
+  TEST_ASSERT_MESSAGE(a % 4 == 0, "game state alignment");
+  printf("ss = %lu, vs = %lu, ps = %lu, Ps = %lu, Ds = %lu, Ss = %lu\n", ss, vs, ps, Ps, Ds, a);
 }
 
 int main(void) {
@@ -141,5 +168,6 @@ int main(void) {
   RUN_TEST(state_serde);
   RUN_TEST(ivec_serde);
   RUN_TEST(netpacket_serde);
+  RUN_TEST(alignment);
   return UNITY_END();
 }

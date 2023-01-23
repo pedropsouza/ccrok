@@ -19,14 +19,14 @@ struct crok_setup_data {
 struct crok_render_data {
   SDL_Window *win;
   SDL_Renderer *rdr;
-  struct crok_render_board *rboard;
+  struct crok_render_board board;
   int w, h, servermode;
   double a;
 };
 
 struct crok_data {
   struct crok_state crok;
-  struct crok_render_board rboard;
+  struct crok_board board;
   struct crok_render_data renderdata;
   struct crok_net_context net;
   size_t my_player_id;
@@ -35,6 +35,8 @@ struct crok_data {
   int width, height, servermode;
 };
 
+struct crok_data crok_game_init(struct crok_setup_data sdata);
+void crok_game_finish(struct crok_data *d);
 struct ivec crok_screen_to_board(struct crok_render_data *rd, struct fvec v);
 struct fvec crok_board_to_screen(struct crok_render_data *rd, struct ivec v);
 

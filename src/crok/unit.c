@@ -24,5 +24,7 @@ void crok_player_print(struct crok_player *p) {
   printf("Player %s, flags = %d, pos = (%ld, %ld), score = %d\n", p->name,
          p->flags, p->pos.x, p->pos.y, p->score);
 }
-// TODO, FIXME, IMPLEMENT
-void crok_disc_print(struct crok_player *d) { printf("Disc lol\n"); }
+
+void crok_disc_print(struct crok_disc *d) {
+  printf("Disc flags = %d, pos = (%ld, %ld)\n", d->flags, d->pb.pos.x, d->pb.pos.y);
+}

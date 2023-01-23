@@ -27,9 +27,9 @@ struct crok_state {
   uint32_t round;
   uint32_t overall_score;
   enum crok_gamestage gamestage;
-  struct crok_board board;
 };
 
 struct crok_state crok_state_init();
+void crok_state_print(struct crok_state *cs);
 
 #endif // CROK_STATE_HG__
