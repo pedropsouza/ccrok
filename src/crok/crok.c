@@ -239,6 +239,7 @@ enum crok_gamestage crok_process(struct crok_data *d) {
     case CROK_NET_POS: {
       struct ivec recvd_pos;
       ivec_unpack(pckt->data, &recvd_pos);
+      ivec_print(recvd_pos, "pos");
       st->players[pckt->conn_uid].pos = recvd_pos;
 
       if (d->servermode) {

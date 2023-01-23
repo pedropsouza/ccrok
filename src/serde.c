@@ -261,13 +261,13 @@ size_t pack_unpack(pbuf_t *head, char mode, size_t align, char *fmt, va_list va)
         slen = valcount;
         *((uint32_t *)head) = htons((uint32_t)valcount);
         head += sizeof(uint32_t);
-        strncpy((char *)head, v.str, slen);
+        memcpy(head, v.str, slen);
         head += slen;
         size += sizeof(uint32_t) + valcount;
       } else {
         slen = ntohs(*(uint32_t *)head);
         head += sizeof(uint32_t);
-        strncpy(v.str, (char *)head, slen);
+        memcpy(v.str, head, slen);
         head += slen;
         size += sizeof(uint32_t) + slen;
       }
