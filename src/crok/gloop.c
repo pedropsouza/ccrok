@@ -38,7 +38,11 @@ enum crok_gamestage crok_player_tick(struct crok_player *p,
 
 void crok_player_render(struct crok_player *p[2], struct crok_render_data *rd) {
   struct fvec spos = crok_board_to_screen(rd, p[0]->pos);
-  SDL_SetRenderDrawColor(rd->rdr, 255, 255, 255, 255);
+  if (p[0]->flags & CROK_U_TEAM1) {
+    SDL_SetRenderDrawColor(rd->rdr, 0x22, 0x77, 0xf7, 0xff);
+  } else {
+    SDL_SetRenderDrawColor(rd->rdr, 0xf7, 0xb7, 0x22, 0xff);
+  }
   SDL_RenderDrawCircle(rd->rdr, spos.x, spos.y, rd->w / 200);
 }
 
@@ -65,4 +69,16 @@ void crok_disc_render(struct crok_disc *d[2], struct crok_render_data *rd) {
   dest.y = spos.y - (s - 1.0) / 2.0;
 
   SDL_RenderCopy(rd->rdr, rd->board.disc_tex, NULL, &dest);
+}
+
+void
+crok_update_nameplates(struct crok_data *d) {
+  for (int i = 0; i < 4; i++) {
+    struct crok_player *p = d->crok.players + i;
+    if (crok_unit_valid(p)) {
+      struct crok_ui_text *nplate = d->renderdata.ui.nameplates + i;
+      crok_ui_free_text(nplate);
+      *nplate = crok_ui_new_text(d->renderdata.rdr, &d->renderdata.ui, p->name);
+    }
+  }
 }

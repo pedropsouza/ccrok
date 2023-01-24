@@ -12,9 +12,11 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/build/cmake/")
 # Uses finders in build/cmake to search for OS pre-installed package libraries
 find_package(SDL2 REQUIRED)
 find_package(SDL2_image REQUIRED)
+find_package(SDL2_ttf REQUIRED)
 
 include_directories(${SDL2_INCLUDE_DIR}
-                    ${SDL2_IMAGE_INCLUDE_DIR})
+                    ${SDL2_IMAGE_INCLUDE_DIR}
+                    ${SDL2_TTF_INCLUDE_DIRS})
 
 # libcrc
 include_directories("${PROJECT_SOURCE_DIR}/libcrc/include/")

@@ -20,6 +20,7 @@ add_library(crok SHARED
 
 target_link_libraries(crok
   crc
+  ${SDL2_TTF_LIBRARIES}
 )
 
 add_library(sched SHARED

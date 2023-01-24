@@ -1,3 +1,5 @@
 [submodule "libcrc"]
  	path = libcrc
 	url = ssh://git@masba.net/srv/git/libcrc.git
+[submodule "libcrc/"]
+	branch = PIC

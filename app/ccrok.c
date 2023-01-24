@@ -11,14 +11,14 @@ void headless_noop(struct scheduler *s, double a) {}
 
 int main(int argc, char *argv[]) {
   struct crok_setup_data setdat = {
-      .width = 800, .height = 450, .servermode = 0, .saddr = {0}};
+      .width = 800, .height = 450, .servermode = 0, .saddr = {0}, .name = ""};
   // default address
   inet_pton(AF_INET, "127.0.0.1", &setdat.saddr.sin_addr);
   setdat.saddr.sin_family = AF_INET;
   setdat.saddr.sin_port = htons(CROK_PORT);
 
   int r;
-  while ((r = getopt(argc, argv, "sa:d:")) != -1) {
+  while ((r = getopt(argc, argv, "sa:d:u:")) != -1) {
     switch (r) {
     case 's':
       setdat.servermode = 1;
@@ -32,6 +32,9 @@ int main(int argc, char *argv[]) {
       if (sscanf(optarg, "%dx%d", &setdat.width, &setdat.height) != 2) {
         goto invalid_arg;
       }
+      break;
+    case 'u':
+      strncpy(setdat.name, optarg, CROK_PLAYER_NAME_MAXLEN);
       break;
     case '?':
       goto invalid_arg;
@@ -55,9 +58,9 @@ int main(int argc, char *argv[]) {
 
 invalid_arg:
   fprintf(stderr,
-          "Bad arguments, usage:\n\t$ %s [-s] [-a <address>]"
-          "[-d <WIDTH>x<HEIGHT>]\ne.g.\t$ %s -d "
-          "1720x968\n",
+          "Bad arguments, usage:\n\t$ %s [-s] [-a <address>] "
+          "[-d <WIDTH>x<HEIGHT>] [-u <username>]\ne.g.\t$ %s -d "
+          "1720x968 -u bob\n",
           argv[0], argv[0]);
   return EXIT_FAILURE;
 }
