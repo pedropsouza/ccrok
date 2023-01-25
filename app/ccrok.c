@@ -28,6 +28,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Invalid address \"%s\"\n", optarg);
         goto invalid_arg;
       }
+      break;
     case 'd':
       if (sscanf(optarg, "%dx%d", &setdat.width, &setdat.height) != 2) {
         goto invalid_arg;
