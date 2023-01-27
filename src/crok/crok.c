@@ -125,7 +125,7 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
       if (d->servermode) {
         char flags = 0;
         int uid = -1;
-        if (st->gamestage != CROK_LOBBY) {
+        if (st->stage.kind != CROK_LOBBY) {
           goto conn_tx;
         }
         switch (st->total_players) {
@@ -170,7 +170,7 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
         
       if (d->servermode) {
         if (!st->total_players) {
-          st->gamestage = CROK_LEAVE;
+          st->stage.kind = CROK_LEAVE;
           printf("leaving...\n");
           goto end;
         }
@@ -181,6 +181,9 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
       }
       break;
     case CROK_NET_READY:
+      if (st->stage.kind == CROK_LOBBY) {
+        st->stage.data.players_ready |= 1 << pckt->conn_uid;
+      }
       break;
     case CROK_NET_POS: {
       struct ivec recvd_pos;
@@ -236,7 +239,7 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
   while (SDL_PollEvent(&input) > 0) {
     switch (input.type) {
     case SDL_QUIT:
-      st->gamestage = CROK_LEAVE;
+      st->stage.kind = CROK_LEAVE;
       printf("leaving...\n");
       nc->tx.kind = CROK_NET_QUIT;
       crok_net_tx_to_server(nc);
@@ -270,13 +273,13 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
   if (st->total_players > 0) {
     struct crok_player *p = &st->players[st->active_player];
     if (!crok_unit_valid(p)) {
-      st->gamestage = CROK_ERROR;
+      st->stage.kind = CROK_ERROR;
       return (struct sched_trans){.s = SCHED_ERR,
                                   .why = "invalid active player"};
     }
   }
   end:
-  switch (d->crok.gamestage) {
+  switch (st->stage.kind) {
     case CROK_LOBBY: break;
     case CROK_SIDESEL: break;
     case CROK_ROUNDSTART: break;

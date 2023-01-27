@@ -5,7 +5,8 @@
 #include "crok/unit.h"
 #include <stdint.h>
 
-enum crok_gamestage {
+
+enum crok_gstage_kind {
   CROK_LOBBY = 0,
   CROK_SIDESEL,
   CROK_ROUNDSTART,
@@ -19,6 +20,15 @@ enum crok_gamestage {
   CROK_ERROR
 };
 
+struct crok_gstage {
+  enum crok_gstage_kind kind;
+  union {
+    uint8_t players_ready;
+    uint8_t active_player;
+    
+  } data;
+};
+
 struct crok_state {
   int8_t active_player, total_players;
   // either 2, or 4 as 2 sides
@@ -26,7 +36,7 @@ struct crok_state {
   struct crok_disc discs[CROK_DISCS_TOTAL];
   uint32_t round;
   uint32_t overall_score;
-  enum crok_gamestage gamestage;
+  struct crok_gstage stage;
 };
 
 struct crok_state crok_state_init();

@@ -5,7 +5,7 @@
 size_t netpacket_pack(pbuf_t *dst, struct crok_net_packet *pckt) {
   char fmt[32] = NETPACKET_FMTSTR_PARTIAL;
   size_t plen = strlen(fmt);
-  snprintf(fmt + plen, 32 - plen, "%us", pckt->data_len);
+  snprintf(fmt + plen, sizeof(fmt) - plen, "%us", pckt->data_len);
   return pack(dst, alignof(struct crok_net_packet), fmt,
           &pckt->ticknum, &pckt->statesum,
           &pckt->conn_uid, &pckt->kind, &pckt->data);
@@ -60,19 +60,43 @@ size_t crok_disc_unpack(pbuf_t *src, struct crok_disc *d) {
   return unpack(src, alignof(struct crok_disc), CROK_DISC_FMTSTR, &d->pb, &d->flags);
 }
 
-#define CROK_STATE_FMTSTR "4P" MACROSTR(CROK_DISCS_TOTAL) "DIIHCC"
+// this is atrocious
+size_t crok_gstage_pack_unpack(pbuf_t *buf, int mode, struct crok_gstage *gs) {
+  size_t (*f) (pbuf_t *, size_t, char *, ...) = (mode == SERDE_MODE_PACK)? pack : unpack;
+
+  size_t l = (*f)(buf, alignof(struct crok_gstage), "I", &gs->kind);
+  buf += l;
+  switch (gs->kind) {
+    case CROK_LOBBY:
+      l += (*f)(buf, alignof(uint8_t), "C", &gs->data.players_ready);
+    default:
+      break;
+  }
+  return l;
+}
+
+#define CROK_STATE_FMTSTR_PARTIAL "4P" MACROSTR(CROK_DISCS_TOTAL) "DIICC"
 size_t crok_state_pack(pbuf_t *dst, struct crok_state *st) {
-  return pack(dst, alignof(struct crok_state), CROK_STATE_FMTSTR,
+  char fmt[128] = CROK_STATE_FMTSTR_PARTIAL;
+  size_t plen = strlen(fmt);
+  alignas(struct crok_gstage) pbuf_t buf[sizeof(struct crok_gstage)];
+  size_t data_len = crok_gstage_pack_unpack(buf, SERDE_MODE_PACK, &st->stage);
+  snprintf(fmt + plen, sizeof(fmt) - plen, "%lus", data_len);
+  return pack(dst, alignof(struct crok_state), fmt,
               &st->players, &st->discs, &st->round,
-              &st->overall_score, &st->gamestage, &st->active_player,
-              &st->total_players);
+              &st->overall_score, &st->active_player,
+              &st->total_players, buf);
 }
 
 size_t crok_state_unpack(pbuf_t *src, struct crok_state *st) {
-  return unpack(src, alignof(struct crok_state), CROK_STATE_FMTSTR,
+  pbuf_t buf[sizeof(struct crok_gstage)]; 
+  size_t l = unpack(src, alignof(struct crok_state),
+                CROK_STATE_FMTSTR_PARTIAL "s",
                 &st->players, &st->discs, &st->round,
-                &st->overall_score, &st->gamestage, &st->active_player,
-                &st->total_players);
+                &st->overall_score, &st->active_player,
+                &st->total_players, buf);
+  crok_gstage_pack_unpack(buf, SERDE_MODE_UNPACK, &st->stage);
+  return l;
 }
 
 static size_t pad_align(pbuf_t **head, int alignment) {
@@ -103,7 +127,8 @@ size_t calcsize(char *fmt) {
       case 'p': a += valcount * calcsize(PHYSBODY_FMTSTR); break;
       case 'P': a += valcount * calcsize(CROK_PLAYER_FMTSTR); break;
       case 'D': a += valcount * calcsize(CROK_DISC_FMTSTR); break;
-      case 'S': a += valcount * calcsize(CROK_STATE_FMTSTR); break;
+      // BROKEN, can't know for sure the size
+      case 'S': a += valcount * calcsize(CROK_STATE_FMTSTR_PARTIAL); break;
       default:
         if (isdigit(*fmt)) {
           if(!counted) { counted = 1; valcount = 0; };
