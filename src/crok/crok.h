@@ -25,7 +25,7 @@ struct sched_trans crok_setup(struct scheduler *s);
 struct sched_trans crok_cleanup(struct scheduler *s);
 struct sched_trans crok_fixed(struct scheduler *s, long step_ns);
 
-uint32_t crok_simulate(struct crok_state *cs);
+void crok_simulate(struct crok_state *cs);
 void crok_render(struct scheduler *s, double a);
 
 enum crok_gamestage crok_process(struct crok_data *d);

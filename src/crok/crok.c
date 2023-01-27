@@ -298,7 +298,7 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
   return (struct sched_trans){.s = SCHED_CONTINUE, .why = "fixed call"};
 }
 
-uint32_t crok_simulate(struct crok_state *cs) {
+void crok_simulate(struct crok_state *cs) {
   struct crok_player *tp = &cs->players[cs->active_player];
   struct crok_disc *td = &cs->discs[0];
   struct ivec target = tp->pos;
