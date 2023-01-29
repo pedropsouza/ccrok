@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdalign.h>
 
+size_t crok_gstage_serfun(char kind, pbuf_t *head, char mode, void* io);
 size_t netpacket_pack(pbuf_t *dst, struct crok_net_packet *pckt);
 size_t netpacket_unpack(pbuf_t *src, struct crok_net_packet *pckt);
 
@@ -33,6 +34,24 @@ size_t crok_disc_pack(pbuf_t *dst, struct crok_disc *d);
 size_t crok_disc_unpack(pbuf_t *src, struct crok_disc *d);
 
 size_t calcsize(char *fmt);
+
+union ser_t {
+    struct crok_state *st;
+    struct crok_player *p;
+    struct crok_disc *d;
+    struct physbody *pb;
+    struct ivec *v;
+    uint64_t *u64;
+    uint32_t *u32;
+    uint16_t *u16;
+    uint8_t *u8;
+    uint32_t *len;
+    char *str;
+    void *tagged_struct;
+  };
+
+typedef size_t (*tagged_struct_serfun)
+(union ser_t kind, pbuf_t *head, char mode, void* io);
 
 #define SERDE_MODE_PACK 0
 #define SERDE_MODE_UNPACK 1
