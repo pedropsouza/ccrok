@@ -25,15 +25,17 @@ enum crok_net_packet_kind {
 
   // Game actions
   CROK_NET_POS,
-  CROK_NET_LAY_DISC,
-  CROK_NET_AIM_DISC,
-  CROK_NET_RECALL_DISC,
-  CROK_NET_SHOOT_DISC,
+  CROK_NET_CLICK,
+  CROK_NET_DRAG,
+  CROK_NET_CANCEL,
 
   // Server responses
   CROK_NET_STATEDUMP,
   CROK_NET_ACK,
   CROK_NET_DESYNC,
+
+  // Sideselect optimization
+  CROK_NET_PLAYER_FLAGS,
 
   CROK_NET_END = 0xff,
 };

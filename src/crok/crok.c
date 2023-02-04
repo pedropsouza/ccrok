@@ -108,11 +108,32 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
     size_t pckt_idx = (old_head + i + 1) % CROK_NETPACKET_MAX;
     struct crok_net_pcktrecord *r = nc->buf + pckt_idx;
     struct crok_net_packet *pckt = &r->pckt;
+    const char* reject_reason;
 
     if(0 && pckt->kind != CROK_NET_POS) {
       crok_net_print_pcktrecord(stdout, r);
     }
+
+    // sanitization
+    if (pckt->conn_uid >= 4) {
+      reject_reason = "connection unique id out of bounds for packet:";
+      goto reject_packet;
+    }
+    if (pckt->kind >= CROK_NET_END) {
+      reject_reason = "packet kind out of bounds for packet:";
+      goto reject_packet;
+    }
+    if (pckt->kind > CROK_PACKET_MAX_DATA_SIZE) {
+      reject_reason = "packet too large:";
+      goto reject_packet;
+    }
+    
     crok_stage_gameloops[d->crok.stage.kind](d, r);
+
+    continue;
+    reject_packet:
+      fputs(reject_reason, stderr);
+      crok_net_print_pcktrecord(stderr, r);
   }
   
   if (d->servermode) goto end;
@@ -140,15 +161,32 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
     case SDL_MOUSEBUTTONUP:
       break;
     case SDL_MOUSEBUTTONDOWN:
-      if (st->stage.kind == CROK_GS_ROUND) {
-        if (st->stage.data.active_player != d->my_player_id) {
-          nc->tx.kind = CROK_NET_LAY_DISC;
+      nc->tx.kind = CROK_NET_CLICK;
+      nc->tx.ticknum = d->ticknum;
+      nc->tx.statesum = d->statesum;
+      nc->tx.conn_uid = d->my_player_id;
+      nc->tx.data_len = 0;
+      crok_net_tx_to_server(nc);
+      break;
+    case SDL_KEYDOWN:
+      switch (input.key.keysym.sym) {
+        case SDLK_RETURN:
+        case SDLK_RETURN2:
+        case SDLK_KP_ENTER:
+          nc->tx.kind = CROK_NET_READY;
           nc->tx.conn_uid = d->my_player_id;
+          nc->tx.ticknum = d->ticknum;
+          nc->tx.statesum = d->statesum;
           nc->tx.data_len = 0;
           crok_net_tx_to_server(nc);
-        }
+          break;
+        case SDLK_BACKSPACE:
+          nc->tx.kind = CROK_NET_CANCEL;
+          nc->tx.conn_uid = d->my_player_id;
+          nc->tx.ticknum = d->ticknum;
+          nc->tx.statesum = d->statesum;
+          nc->tx.data_len = 0;
       }
-      break;
     default:
       break;
     }

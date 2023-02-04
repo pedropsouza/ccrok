@@ -120,6 +120,9 @@ universal(struct crok_data *d, struct crok_net_pcktrecord *pcktr) {
       }
       break;
     }
+    case CROK_NET_PLAYER_FLAGS:
+      unpack(pckt->data, 1, "C", &d->crok.players[pckt->conn_uid].flags);
+      break;
     case CROK_NET_STATEDUMP:
       if (!d->servermode) {
         crok_state_unpack(pckt->data, &d->crok);
@@ -143,12 +146,6 @@ lobby(struct crok_data *d, struct crok_net_pcktrecord *pcktr) {
       if (d->servermode) {
         char flags = 0;
         int uid = -1;
-        switch (d->crok.total_players) {
-            case 0: flags = CROK_U_TEAM1 | CROK_U_P1; break;
-            case 1: flags = CROK_U_TEAM2 | CROK_U_P1; break;
-            case 2: flags = CROK_U_TEAM1 | CROK_U_P2; break;
-            case 3: flags = CROK_U_TEAM2 | CROK_U_P2; break;
-        };
         struct crok_player newp = crok_player_init(flags, "");
         unpack(pckt->data, 4, "s", newp.name);
         if (strnlen((char *)newp.name, CROK_PLAYER_NAME_MAXLEN) == 0) {
@@ -160,7 +157,7 @@ lobby(struct crok_data *d, struct crok_net_pcktrecord *pcktr) {
         d->net.tx.kind = CROK_NET_ACK;
         d->net.tx.conn_uid = (uid < 0)? 0xff : uid;
 
-        conn_tx: crok_net_tx_to_addr(&d->net, &pcktr->origin);
+        crok_net_tx_to_addr(&d->net, &pcktr->origin);
 
         if (uid < 0) break; // already full
         d->crok.total_players++;
@@ -173,14 +170,14 @@ lobby(struct crok_data *d, struct crok_net_pcktrecord *pcktr) {
         d->net.tx.statesum = d->statesum;
         crok_net_tx_to_game(&d->net);
 
-        printf("Client %s logged in with uid %hhu\n", d->crok.players[uid].name, (char)uid);
+        printf("Player \"%s\" uid %hhu logged in.\n", d->crok.players[uid].name, (char)uid);
         crok_state_print(&d->crok);
       }
       break;
     case CROK_NET_QUIT:
       d->crok.players[pckt->conn_uid].flags ^= CROK_U_VALID;
       d->crok.total_players--;
-      printf("Player %s uid %hhu left the game.\n", d->crok.players[pckt->conn_uid].name, pckt->conn_uid);
+      printf("Player \"%s\" uid %hhu left.\n", d->crok.players[pckt->conn_uid].name, pckt->conn_uid);
         
       if (d->servermode) {
         if (!d->crok.total_players) {
@@ -196,6 +193,17 @@ lobby(struct crok_data *d, struct crok_net_pcktrecord *pcktr) {
       break;
     case CROK_NET_READY:
       d->crok.stage.data.players_ready |= 1 << pckt->conn_uid;
+      if (d->crok.stage.data.players_ready == 0b1111) {
+        d->crok.stage.kind = CROK_GS_SIDESEL;
+        d->crok.stage.data.players_ready = 0;
+      }
+
+      d->net.tx.kind = CROK_NET_STATEDUMP;
+      d->net.tx.conn_uid = 0;
+      d->net.tx.data_len = crok_state_pack(d->net.tx.data, &d->crok);
+      d->net.tx.ticknum = d->ticknum;
+      d->net.tx.statesum = d->statesum;
+      crok_net_tx_to_game(&d->net);
       break;
     
     default:
@@ -204,9 +212,63 @@ lobby(struct crok_data *d, struct crok_net_pcktrecord *pcktr) {
   }
 }
 
+// algo used to let players select their team
+static uint8_t side2team(uint64_t x) {
+  return (x < UINT64_MAX/2) ? CROK_U_TEAM1 : CROK_U_TEAM2;
+}
+
 static void
 sidesel(struct crok_data *d, struct crok_net_pcktrecord *pcktr) {
-  universal(d, pcktr);
+  struct crok_net_packet *pckt = &pcktr->pckt;
+  if (!d->servermode) goto end;
+  if (pckt->kind == CROK_NET_POS || pckt->kind == CROK_NET_CLICK) {
+    struct crok_player *p = d->crok.players + pckt->conn_uid;
+    if ((1 << pckt->conn_uid) & d->crok.stage.data.players_ready) goto end;
+    if (!crok_unit_valid(p)) {
+      fprintf(stderr, "invalid player tried to select a team:");
+      crok_player_print(p);
+      return;
+    }
+    struct ivec pos; ivec_unpack(pckt->data, &pos);
+    char flag = side2team(pos.x);
+    char is_second = 0;
+    for (int i = 0; i < 4; i++) {
+      struct crok_player *p = d->crok.players + i;
+      if (crok_unit_valid(p) && (p->flags & flag)) {
+        is_second = 1;
+        break;
+      }
+    }
+    flag |= is_second ? CROK_U_P2 : CROK_U_P1;
+
+    p->flags = flag | CROK_U_VALID;
+
+    d->net.tx.kind = CROK_NET_PLAYER_FLAGS;
+    d->net.tx.conn_uid = pckt->conn_uid;
+    d->net.tx.data_len = pack(d->net.tx.data, 1, "C", &p->flags);
+    d->net.tx.ticknum = d->ticknum;
+    d->net.tx.statesum = d->statesum;
+    crok_net_tx_to_game(&d->net);
+
+    if (pckt->kind == CROK_NET_CLICK) {
+      d->crok.stage.data.players_ready |= 1 << pckt->conn_uid;
+      if (d->crok.stage.data.players_ready == 0b1111) {
+        d->crok.stage.kind = CROK_GS_ROUND;
+        d->crok.stage.data.active_player = 0;
+      }
+      
+      d->net.tx.kind = CROK_NET_STATEDUMP;
+      d->net.tx.conn_uid = 0;
+      d->net.tx.data_len = crok_state_pack(d->net.tx.data, &d->crok);
+      d->net.tx.ticknum = d->ticknum;
+      d->net.tx.statesum = d->statesum;
+      crok_net_tx_to_game(&d->net);
+    }
+  }
+  if (pckt->kind == CROK_NET_CANCEL) {
+    d->crok.stage.data.players_ready &= ~(1 << pckt->conn_uid);
+  }
+  end: universal(d, pcktr);
 }
 static void
 gameround(struct crok_data *d, struct crok_net_pcktrecord *pcktr) {

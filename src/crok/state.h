@@ -19,7 +19,7 @@ extern const char* crok_gstage_kind_name[CROK_GS_END];
 struct crok_gstage {
   enum crok_gstage_kind kind;
   union {
-    // lobby
+    // lobby & sidesel
     uint8_t players_ready;
     
     // round

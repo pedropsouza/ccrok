@@ -6,6 +6,7 @@ size_t crok_gstage_serfun(pbuf_t *head, char mode, void* io) {
   size_t align = alignof(struct crok_gstage);
   switch (iot->kind) {
     case CROK_GS_LOBBY:
+    case CROK_GS_SIDESEL:
       return (*f)(head, align, "C", &iot->data.players_ready);
     case CROK_GS_ROUND:
       return (*f)(head, align, "C", &iot->data.active_player);
