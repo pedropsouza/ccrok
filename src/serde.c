@@ -1,43 +1,20 @@
 #include "serde.h"
 
-/*
-  [CROK_NET_INVALID] = "",
-  [CROK_NET_IGNORE] = "",
-  
-  [CROK_NET_CONNECT] = MACROSTR(CROK_PLAYER_NAME_MAXLEN) "s",
-  [CROK_NET_READY] = "",
-  [CROK_NET_QUIT] = "",
-  
-  [CROK_NET_POS] = "v",
-  [CROK_NET_LAY_DISC] = "vI",
-  [CROK_NET_AIM_DISC] = "vI",
-  [CROK_NET_RECALL_DISC] = "I",
-  [CROK_NET_SHOOT_DISC] = "vI",
-  
-  [CROK_NET_STATEDUMP] = "S",
-  [CROK_NET_ACK] = "",
-  [CROK_NET_DESYNC] = "",
-*/
-
-size_t crok_gstage_serfun(char kind, pbuf_t *head, char mode, void* io) {
+size_t crok_gstage_serfun(pbuf_t *head, char mode, void* io) {
   struct crok_gstage *iot = io;
   size_t (*f) (pbuf_t *, size_t, char *, ...) = (mode == SERDE_MODE_PACK)? pack : unpack;
   size_t align = alignof(struct crok_gstage);
-  switch (kind) {
-    case CROK_LOBBY:
-      return (*f)(head, align, "C", iot->data.players_ready);
-    case CROK_AIM:
-    case CROK_SHOT:
-    case CROK_VALID:
-    case CROK_FOUL:
-    case CROK_LEAVE:
-      return (*f)(head, align, "C", iot->data.active_player);
+  switch (iot->kind) {
+    case CROK_GS_LOBBY:
+      return (*f)(head, align, "C", &iot->data.players_ready);
+    case CROK_GS_ROUND:
+      return (*f)(head, align, "C", &iot->data.active_player);
     default:
       return 0;
   }
 }
 
-#define NETPACKET_FMTSTR_PARTIAL "QIC[C]"
+#define NETPACKET_FMTSTR_PARTIAL "QICC"
 size_t netpacket_pack(pbuf_t *dst, struct crok_net_packet *pckt) {
   char fmt[32] = NETPACKET_FMTSTR_PARTIAL;
   size_t plen = strlen(fmt);
@@ -390,7 +367,7 @@ size_t pack_unpack(pbuf_t *head, char mode, size_t align, char *fmt, va_list va)
       head += len;
       size += len;
       if (serfun != NULL) {
-        len = (*serfun)(kind, head, mode, io);
+        len = (*serfun)(head, mode, io);
         head += len;
         size += len;
       }

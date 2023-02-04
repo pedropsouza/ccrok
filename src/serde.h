@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <stdalign.h>
 
-size_t crok_gstage_serfun(char kind, pbuf_t *head, char mode, void* io);
+size_t crok_gstage_serfun(pbuf_t *head, char mode, void* io);
 size_t netpacket_pack(pbuf_t *dst, struct crok_net_packet *pckt);
 size_t netpacket_unpack(pbuf_t *src, struct crok_net_packet *pckt);
 
@@ -50,8 +50,7 @@ union ser_t {
     void *tagged_struct;
   };
 
-typedef size_t (*tagged_struct_serfun)
-(union ser_t kind, pbuf_t *head, char mode, void* io);
+typedef size_t (*tagged_struct_serfun)(pbuf_t *head, char mode, void* io);
 
 #define SERDE_MODE_PACK 0
 #define SERDE_MODE_UNPACK 1

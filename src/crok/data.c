@@ -8,7 +8,10 @@ crok_game_init(struct crok_setup_data sdata) {
     .height = sdata.height,
     .servermode = sdata.servermode,
     .crok = crok_state_init(),
-    .board = crok_board_calc()
+    .board = crok_board_calc(),
+    .ticknum = 0,
+    .statesum = 0,
+    .my_player_id = 0,
   };
 
   if (!d.servermode) {

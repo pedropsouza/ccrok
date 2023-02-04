@@ -48,7 +48,10 @@ struct crok_data {
   struct crok_render_data renderdata;
   struct crok_net_context net;
   size_t my_player_id;
+
+  // latest values for both
   uint64_t ticknum;
+  uint32_t statesum;
 
   int width, height, servermode;
 };

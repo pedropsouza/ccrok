@@ -59,41 +59,24 @@ void player_serde() {
   TEST_ASSERT(player_equal(&p, &pdeser));
 }
 
-bool state_equal(struct crok_state *a, struct crok_state *b)
-{
-  RIF(a->active_player != b->active_player);
-  RIF(a->stage.kind != b->stage.kind);
-  RIF(a->overall_score != b->overall_score);
-  RIF(a->round != b->round);
-  for (int i = 0; i < 4; i++) {
-    struct crok_player *l = &a->players[i], *r = &b->players[i];
-    RIF(!player_equal(l,r));
-  }
-  for (int i = 0; i < CROK_DISCS_TOTAL; i++) {
-    struct crok_disc *l = &a->discs[i], *r = &b->discs[i];
-    RIF(!disc_equal(l,r));
-  }
-  return true;
-}
-
 void state_serde() {
   struct crok_state cs = {0}, deser = {0};
   cs = crok_state_init();
+  cs.stage.kind = CROK_GS_ROUND;
   size_t len;
-  crok_spawn_player(&cs, crok_player_init(CROK_U_TEAM1 | CROK_U_P1, "Dan"));
-  cs.active_player = crok_spawn_player(
+  ssize_t uid1 = crok_spawn_player(&cs, crok_player_init(CROK_U_TEAM1 | CROK_U_P1, "Dan"));
+  ssize_t uid2 = cs.stage.data.active_player = crok_spawn_player(
       &cs, crok_player_init(CROK_U_TEAM2 | CROK_U_P1, "Malf"));
 
-  cs.stage.kind = CROK_ROUNDSTART;
-  crok_spawn_disc(&cs, &cs.players[cs.active_player]);
-  crok_spawn_disc(&cs, &cs.players[cs.active_player]);
-  crok_spawn_disc(&cs, &cs.players[cs.active_player]);
+  crok_spawn_disc(&cs, &cs.players[uid1]);
+  crok_spawn_disc(&cs, &cs.players[uid1]);
+  crok_spawn_disc(&cs, &cs.players[uid2]);
 
   alignas(8) pbuf_t ser_a[sizeof(struct crok_state)];
   len = crok_state_pack(ser_a, &cs);
   TEST_ASSERT(len <= sizeof(struct crok_state));
   crok_state_unpack(ser_a, &deser);
-  TEST_ASSERT(state_equal(&cs, &deser));
+  TEST_ASSERT_EQUAL_MEMORY_ARRAY(&cs, &deser, sizeof(struct crok_state), 1);
 }
 
 void ivec_serde() {
@@ -140,27 +123,62 @@ void netpacket_serde() {
         calcsize("QICC") + 4 + calcsize("v"));
 }
 
-void alignment() {
-  size_t ss = calcsize("24s");
-  size_t vs = calcsize("v");
-  size_t ps = calcsize("p");
-  size_t Ps = calcsize("P");
-  size_t Ds = calcsize("D");
-  TEST_ASSERT_MESSAGE(ss == 26, "strings");
-  TEST_ASSERT_MESSAGE(vs == 16, "ivecs");
-  TEST_ASSERT_MESSAGE(ps == 4*calcsize("v") + 4 + 2 + PHYSBODY_NAME_MAXLEN, "physbodies");
-  TEST_ASSERT_MESSAGE(ps % 4 == 0, "physbody alignment");
-  TEST_ASSERT_MESSAGE(Ps == calcsize("v") + 4 + 2 + 2 + CROK_PLAYER_NAME_MAXLEN, "players");
-  TEST_ASSERT_MESSAGE(Ps % 4 == 0, "player alignment");
-  TEST_ASSERT_MESSAGE(Ds == calcsize("p") + 4, "discs");
-  TEST_ASSERT_MESSAGE(Ds % 4 == 0, "disc alignment");
-  size_t a = calcsize("S");
-  size_t b = 4*calcsize("P") + CROK_DISCS_TOTAL*calcsize("D") + 4 + 4 + 2 + 1 + 1;
-  printf("%lu == %lu", a, b);
-  // doesn't make sense anymore
-  //TEST_ASSERT_MESSAGE(a == b, "game state");
-  //TEST_ASSERT_MESSAGE(a % 4 == 0, "game state alignment");
-  printf("ss = %lu, vs = %lu, ps = %lu, Ps = %lu, Ds = %lu, Ss = %lu\n", ss, vs, ps, Ps, Ds, a);
+enum t_kind { KIND_CHAR, KIND_I16, KIND_U32, KIND_FPDP, KIND_END };
+char *t_fmtstrs[KIND_END] = {
+  [KIND_CHAR] = "C", [KIND_I16] = "H", [KIND_U32] = "I", [KIND_FPDP] = "Q"
+};
+struct t {
+  enum t_kind kind;
+  union {
+    char c;
+    uint16_t i16;
+    uint32_t u32;
+    double fpdp;
+  } data;
+};
+
+size_t tagged_struct_formatter(pbuf_t *head, char mode, void* io) {
+  size_t s = 0;
+  size_t (*f)(pbuf_t *, size_t, char *, ...) = (mode == SERDE_MODE_PACK)? pack : unpack;
+  struct t *iot = (struct t*)io;
+  s += (*f)(head, alignof(struct t), t_fmtstrs[iot->kind], &iot->data);
+  return s;
+}
+
+void tagged_struct_serde() {
+  struct t a, b;
+  size_t size[2];
+
+  alignas(alignof(struct t))
+  pbuf_t serbuf[sizeof(struct t)*2];
+
+  a = (struct t){0}; b = (struct t){0};
+  a = (struct t){.kind = KIND_CHAR, .data.c = -3 }; 
+  size[0] = pack(serbuf, alignof(struct t), "[C]", &tagged_struct_formatter, &a);
+  size[1] = unpack(serbuf, alignof(struct t), "[C]", &tagged_struct_formatter, &b);
+  TEST_ASSERT_EQUAL_MESSAGE(size[0], size[1], "tagged struct size"); 
+  TEST_ASSERT_EQUAL_MEMORY_ARRAY(&a, &b, sizeof(struct t), 1);
+
+  a = (struct t){0}; b = (struct t){0};
+  a = (struct t){.kind = KIND_FPDP, .data.fpdp = 0.3826 }; 
+  size[0] = pack(serbuf, alignof(struct t), "[C]", &tagged_struct_formatter, &a);
+  size[1] = unpack(serbuf, alignof(struct t), "[C]", &tagged_struct_formatter, &b);
+  TEST_ASSERT_EQUAL_MESSAGE(size[0], size[1], "tagged struct size"); 
+  TEST_ASSERT_EQUAL_MEMORY_ARRAY(&a, &b, sizeof(struct t), 1);
+
+  a = (struct t){0}; b = (struct t){0};
+  a = (struct t){.kind = KIND_I16, .data.i16 = -7162 }; 
+  size[0] = pack(serbuf, alignof(struct t), "[C]", &tagged_struct_formatter, &a);
+  size[1] = unpack(serbuf, alignof(struct t), "[C]", &tagged_struct_formatter, &b);
+  TEST_ASSERT_EQUAL_MESSAGE(size[0], size[1], "tagged struct size"); 
+  TEST_ASSERT_EQUAL_MEMORY_ARRAY(&a, &b, sizeof(struct t), 1);
+
+  a = (struct t){0}; b = (struct t){0};
+  a = (struct t){.kind = KIND_U32, .data.u32 = (unsigned int)0xff32 << 16 };
+  size[0] = pack(serbuf, alignof(struct t), "[C]", &tagged_struct_formatter, &a);
+  size[1] = unpack(serbuf, alignof(struct t), "[C]", &tagged_struct_formatter, &b);
+  TEST_ASSERT_EQUAL_MESSAGE(size[0], size[1], "tagged struct size"); 
+  TEST_ASSERT_EQUAL_MEMORY_ARRAY(&a, &b, sizeof(struct t), 1);
 }
 
 int main(void) {
@@ -169,6 +187,6 @@ int main(void) {
   RUN_TEST(state_serde);
   RUN_TEST(ivec_serde);
   RUN_TEST(netpacket_serde);
-  RUN_TEST(alignment);
+  RUN_TEST(tagged_struct_serde);
   return UNITY_END();
 }

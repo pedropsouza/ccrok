@@ -7,30 +7,31 @@
 
 
 enum crok_gstage_kind {
-  CROK_LOBBY = 0,
-  CROK_SIDESEL,
-  CROK_ROUNDSTART,
-  CROK_AIM,
-  CROK_SHOT,
-  CROK_VALID,
-  CROK_FOUL,
-  CROK_TALLY,
-  CROK_ROUNDEND,
-  CROK_LEAVE,
-  CROK_ERROR
+  CROK_GS_LOBBY = 0,
+  CROK_GS_SIDESEL,
+  CROK_GS_ROUND,
+  CROK_GS_LEAVE,
+  CROK_GS_ERROR,
+  CROK_GS_END,
 };
+extern const char* crok_gstage_kind_name[CROK_GS_END];
 
 struct crok_gstage {
   enum crok_gstage_kind kind;
   union {
+    // lobby
     uint8_t players_ready;
-    uint8_t active_player;
     
+    // round
+    uint8_t active_player;
+
+    // error (local only, not networked)
+    const char *why;
   } data;
 };
 
 struct crok_state {
-  int8_t active_player, total_players;
+  int8_t total_players;
   // either 2, or 4 as 2 sides
   struct crok_player players[4];
   struct crok_disc discs[CROK_DISCS_TOTAL];
