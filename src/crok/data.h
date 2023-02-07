@@ -19,6 +19,7 @@ struct crok_setup_data {
 };
 
 struct crok_ui_text {
+  int valid;
   SDL_Texture *tex;
   SDL_Rect dst;
 };
@@ -31,6 +32,8 @@ struct crok_ui_data {
   struct crok_ui_text score;
   struct crok_ui_text round;
   struct crok_ui_text gamestage;
+
+  struct crok_ui_text debug;
 };
 
 struct crok_render_data {
@@ -63,6 +66,7 @@ struct fvec crok_board_to_screen(struct crok_render_data *rd, struct ivec v);
 
 struct crok_ui_text crok_ui_new_text(SDL_Renderer *rdr, struct crok_ui_data *ui, char *text);
 void crok_ui_free_text(struct crok_ui_text *t);
+void crok_ui_render_text(SDL_Renderer *rdr, struct crok_ui_text *t);
 
 void crok_ui_render(struct crok_data *d);
 

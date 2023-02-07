@@ -213,14 +213,26 @@ lobby(struct crok_data *d, struct crok_net_pcktrecord *pcktr) {
 }
 
 // algo used to let players select their team
-static uint8_t side2team(uint64_t x) {
-  return (x < UINT64_MAX/2) ? CROK_U_TEAM1 : CROK_U_TEAM2;
+static uint8_t side2team(int64_t x) {
+  return (x < 0) ? CROK_U_TEAM1 : CROK_U_TEAM2;
 }
 
 static void
 sidesel(struct crok_data *d, struct crok_net_pcktrecord *pcktr) {
   struct crok_net_packet *pckt = &pcktr->pckt;
-  if (!d->servermode) goto end;
+  if (!d->servermode) {
+    struct crok_ui_text *dtxt = &d->renderdata.ui.debug;
+    crok_ui_free_text(dtxt);
+    char buf[1024] = {0};
+
+    struct ivec pos = d->crok.players[d->my_player_id].pos;
+    struct fvec spos = crok_board_to_screen(&d->renderdata, pos);
+    snprintf(buf, 1024, "b(%li , %li) s(%lf , %lf)", pos.x,pos.y, spos.x, spos.y);
+    *dtxt = crok_ui_new_text(d->renderdata.rdr, &d->renderdata.ui, buf);
+    dtxt->dst.x = 10;
+    dtxt->dst.y = d->renderdata.h - 10 - dtxt->dst.h;
+    goto end;
+  }
   if (pckt->kind == CROK_NET_POS || pckt->kind == CROK_NET_CLICK) {
     struct crok_player *p = d->crok.players + pckt->conn_uid;
     if ((1 << pckt->conn_uid) & d->crok.stage.data.players_ready) goto end;

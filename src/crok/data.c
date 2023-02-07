@@ -87,20 +87,22 @@ crok_game_finish(struct crok_data *d) {
 
 struct ivec
 crok_screen_to_board(struct crok_render_data *rd, struct fvec v) {
-  double ox = ((double)v.x - rd->board.dest.x) / rd->board.diam;
-  double oy = ((double)v.y - rd->board.dest.y) / rd->board.diam;
-  double fx = ox * CROK_BOARD_DIAM;
-  double fy = oy * CROK_BOARD_DIAM;
-  return (struct ivec){.x = fx, .y = fy};
+  double radius = rd->board.radius;
+  double ix = ((double)v.x - (rd->board.dest.x + radius)) / rd->board.diam;
+  double iy = ((double)v.y - (rd->board.dest.y + radius)) / rd->board.diam;
+  double bx = ix * CROK_BOARD_DIAM;
+  double by = iy * CROK_BOARD_DIAM;
+  return (struct ivec){.x = bx, .y = by};
 }
 
 struct fvec
 crok_board_to_screen(struct crok_render_data *rd, struct ivec v) {
-  double fx = (double)v.x / CROK_BOARD_DIAM;
-  double fy = (double)v.y / CROK_BOARD_DIAM;
-  double ox = (fx * rd->board.diam) + rd->board.dest.x;
-  double oy = (fy * rd->board.diam) + rd->board.dest.y;
-  return (struct fvec){.x = ox, .y = oy};
+  double radius = rd->board.radius;
+  double ix = (double)v.x / CROK_BOARD_DIAM;
+  double iy = (double)v.y / CROK_BOARD_DIAM;
+  double sx = (ix * rd->board.diam) + rd->board.dest.x + radius;
+  double sy = (iy * rd->board.diam) + rd->board.dest.y + radius;
+  return (struct fvec){.x = sx, .y = sy};
 }
 
 struct crok_ui_text
@@ -108,14 +110,23 @@ crok_ui_new_text(SDL_Renderer *rdr, struct crok_ui_data *ui, char *text) {
   SDL_Surface *s = TTF_RenderUTF8_Solid(ui->font, text, ui->clr);
   assert(s != NULL);
   SDL_Texture *t = SDL_CreateTextureFromSurface(rdr, s);
-  struct crok_ui_text uit = {.tex = t, .dst.w = s->w, .dst.h = s->h};
+  struct crok_ui_text uit = {.valid = 1, .tex = t, .dst.w = s->w, .dst.h = s->h};
   SDL_FreeSurface(s);
   return uit;
 }
 
 void
 crok_ui_free_text(struct crok_ui_text *t) {
+  if (!t->valid) return;
   SDL_DestroyTexture(t->tex);
+  t->valid = 0;
+}
+
+void
+crok_ui_render_text(SDL_Renderer *rdr, struct crok_ui_text *t) {
+  if (t->valid) {
+    SDL_RenderCopy(rdr, t->tex, NULL, &t->dst);
+  }
 }
 
 void
@@ -123,9 +134,10 @@ crok_ui_render(struct crok_data *d) {
   struct crok_render_data *rd = &d->renderdata;
   struct crok_ui_data *ui = &rd->ui;
 
-  SDL_RenderCopy(rd->rdr, ui->round.tex, NULL, &ui->round.dst);
-  SDL_RenderCopy(rd->rdr, ui->gamestage.tex, NULL, &ui->gamestage.dst);
-  SDL_RenderCopy(rd->rdr, ui->score.tex, NULL, &ui->score.dst);
+  crok_ui_render_text(rd->rdr, &ui->round);
+  crok_ui_render_text(rd->rdr, &ui->gamestage);
+  crok_ui_render_text(rd->rdr, &ui->score);
+  crok_ui_render_text(rd->rdr, &ui->debug);
 
   for (int i = 0; i < 4; i++) {
     struct crok_player *p = d->crok.players + i;
@@ -134,7 +146,7 @@ crok_ui_render(struct crok_data *d) {
       struct fvec spos = crok_board_to_screen(rd, p->pos);
       namep->dst.x = spos.x - namep->dst.w/2.0;
       namep->dst.y = spos.y + namep->dst.h/2.0;
-      SDL_RenderCopy(rd->rdr, namep->tex, NULL, &namep->dst);
+      crok_ui_render_text(rd->rdr, namep);
     }
   }
 }
