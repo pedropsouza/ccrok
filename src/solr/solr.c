@@ -538,7 +538,7 @@ handle_pckt(solr *s, netpacket *p) {
     if (m.kind == MOVE_PUSH) {
       push_card_stack(dst, src);
       if (src->id >= STACK_PLAYER_BEGIN) {
-        player *pl = s->st.players + src->id;
+        player *pl = s->st.players + (src->id - STACK_PLAYER_BEGIN);
         card_stack *cf = stack_from_id(s, pl->held.camefrom);
         printf("camefrom %d\n", pl->held.camefrom);
         assert (cf->id == pl->held.camefrom);
@@ -796,7 +796,6 @@ card_stack_render(solr_rdr *rdr, card_stack *s, ivec pos) {
     card_render(rdr, &s->s[s->top - 1], pos);
   } else {
     for (size_t i = 0; i < s->top; i++) {
-      printf("rendering %d %zu\n", s->id, i);
       card_render(rdr, &s->s[i], pos);
       pos.y += (s->dims.y - card_dims.y)/(s->top - 1 * (s->top > 1));
     }
