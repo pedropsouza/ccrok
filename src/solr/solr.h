@@ -10,6 +10,7 @@
 #include "ivec.h"
 #include "memutil.h"
 #include "sched.h"
+
 #include "serde.h"
 
 #define SOLR_PORT 51743
@@ -63,27 +64,46 @@ typedef enum {
 } rank;
 
 typedef struct {
-  suit s;
-  rank r;
-  bool faceup;
+  uint8_t s;
+  uint8_t r;
+  uint8_t faceup;
   uint8_t clr;
-  ivec dims;
 } card;
+size_t card_serde(pbuf_t *buf, char mode, void *vc);
+extern ivec card_dims;
 
 typedef struct {
   card s[13*4];
-  size_t top;
-  bool splayed;
-  bool pile;
+  uint8_t top;
+  uint8_t splayed;
+  uint8_t pile;
   ivec dims;
+  uint8_t id;
 } card_stack;
+size_t card_stack_serde(pbuf_t *buf, char mode, void *s);
 void push_card_stack(card_stack *dst, card_stack *src);
-void pop_card_stack(card_stack *src, card_stack *dst, size_t n);
+void take_card_stack(card_stack *src, card_stack *dst, size_t n);
 
 typedef struct {
   card_stack stack;
-  int camefrom;
+  uint8_t camefrom;
 } held_stack;
+
+enum {
+  MOVE_PUSH = 0,
+  MOVE_TAKE = 1,
+};
+typedef struct {
+  uint8_t kind;
+  struct {
+    uint8_t src;
+    uint8_t dst;
+  } stacks;
+  // only matters when taking
+  uint8_t num_cards;
+} move;
+//int move_valid(solr *s, move *m) {
+size_t move_serde(pbuf_t *buf, char mode, void *m);
 
 enum {
   STACK_STOCK = 0,
@@ -92,24 +112,29 @@ enum {
   STACK_SUITS_BEGIN = 8,
   STACK_SUITS_END = 12,
   STACK_WASTE = 13,
-  STACK_MAX = 14,
+  STACK_BOARD_END = 14,
+  STACK_PLAYER_BEGIN = 15,
+  STACK_MAX = STACK_PLAYER_BEGIN + SOLR_MAX_PLAYERS,
 };
 typedef struct {
-  card_stack stacks[STACK_MAX];
+  card_stack stacks[STACK_BOARD_END];
 } board;
+size_t board_serde(pbuf_t *buf, char mode, void *b);
 
 typedef struct {
-  bool valid;
+  uint8_t valid;
   ivec pos;
   char username[SOLR_NAME_LEN];
   held_stack held;
 } player;
+size_t player_serde(pbuf_t *buf, char mode, void *p);
 
 typedef struct {
   board board;
   player players[SOLR_MAX_PLAYERS];
   long tick;
 } gamestate;
+size_t gamestate_serde(pbuf_t *buf, char mode, void *st);
 
 enum {
   PKCT_INVALID = 0,
@@ -117,8 +142,8 @@ enum {
   PCKT_JOIN = 10,
   PCKT_LEAVE = 11,
   PCKT_POS = 2,
-  PCKT_PUSH = 4,
-  PCKT_POP = 5,
+  PCKT_MOVE = 4,
+  PCKT_CANCEL = 5,
   PCKT_STDUMP = 3,
   PCKT_END = 16,
 };
