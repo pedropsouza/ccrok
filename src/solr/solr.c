@@ -72,10 +72,16 @@ static SDL_Texture *
 tex_from_file(SDL_Renderer *rdr, const char* filename) {
   FILE *f = fopen(filename, "r");
   int w,h,chnum;
-  stbi_uc *pix = stbi_load_from_file(f, &w, &h, &chnum, 3);
+  stbi_uc *pix = stbi_load_from_file(f, &w, &h, &chnum, 4);
+  for (int i = 0; i < w*h; i++) {
+    stbi_uc *head = pix + i * 4;
+    stbi_uc *r = head, *g = head + 1, *b = head + 2, *a = head + 3;
+    if (*g == 128 && *b == 128) { *a = 0; }
+  }
   printf("%s, %dx%d, chn %d\n", filename, w, h, chnum);
-  SDL_Surface *surf = SDL_CreateRGBSurfaceFrom(pix, w, h, 24, 3*w, 0x0000ff, 0x00ff00, 0xff0000, 0);
+  SDL_Surface *surf = SDL_CreateRGBSurfaceFrom(pix, w, h, 32, 4*w, 0x0000ff, 0x00ff00, 0xff0000, 0xff000000);
   SDL_Texture *tex = SDL_CreateTextureFromSurface(rdr, surf);
+  SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
   SDL_FreeSurface(surf);
   stbi_image_free(pix);
   fclose(f);
