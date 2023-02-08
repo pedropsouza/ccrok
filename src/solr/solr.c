@@ -3,6 +3,10 @@
 #include "stb_image.h"
 
 
+SDL_Rect posdims2rect(ivec pos, ivec dims) {
+  return (SDL_Rect){pos.x, pos.y, dims.x, dims.y};
+}
+
 static SDL_Rect stack_areas[STACK_MAX] = {
     [0]  = {.x = 12,            .y = 12,       .w = 88, .h = 124},
     [1]  = {.x = 1 * (12 + 88), .y = 140 + 12, .w = 88, .h = 124},
@@ -21,46 +25,32 @@ static SDL_Rect stack_areas[STACK_MAX] = {
 };
 
 static void
-update_stack_bounds(card_stack *s) {
-  if (!s->top) {
-    return;
-  }
+update_stack_dims(card_stack *s) {
+  s->dims.x = 88;
+  s->dims.y = 124;
   if (s->splayed) {
-    s->bbox.h += 12*s->top;
+    s->dims.y += 12*s->top;
   } else {
-    s->bbox.h += (16*s->pile);
-  }
-}
-
-static void
-layout_card_stack(card_stack *s, SDL_Rect *rect) {
-  s->bbox = *rect;
-
-  SDL_Rect oo = *rect;
-  for (size_t i = 0; i < s->top; i++) {
-    card *c = &s->s[i];
-    c->bbox.x = oo.x; c->bbox.y = oo.y;
-    if (s->splayed) {
-      oo.y += (oo.h/s->top);
-    }
+    s->dims.y += (16*s->pile*(s->top > 0));
   }
 }
 
 void
 push_card_stack(card_stack *dst, card_stack *src) {
   assert(dst->top + src->top <= 13*4);
-  for (ssize_t i = src->top; i >= 0; i--) {
-    dst->s[dst->top] = src->s[src->top];
-    src->top--;
+  assert(src->top > 0);
+  for (ssize_t i = src->top - 1; i >= 0; i--) {
+    dst->s[dst->top] = src->s[i];
     dst->top++;
   }
-  update_stack_bounds(dst);
-  update_stack_bounds(src);
+  src->top = 0;
+  update_stack_dims(dst);
+  update_stack_dims(src);
 }
 void
 pop_card_stack(card_stack *src, card_stack *dst, size_t n) {
   assert((ssize_t)src->top - n >= 0);
-  assert((ssize_t)dst->top + n <= 13*4);
+  assert(dst->top + n <= 13*4);
 
   for (ssize_t i = 0; i < n; i++) {
     card c = src->s[src->top - 1];
@@ -69,25 +59,13 @@ pop_card_stack(card_stack *src, card_stack *dst, size_t n) {
     src->top--;
     dst->top++;
   }
-  update_stack_bounds(dst);
-  update_stack_bounds(src);
+  update_stack_dims(dst);
+  update_stack_dims(src);
 }
 static void
 expose_top_card_stack(card_stack *s) {
   if (!s->top) return;
   s->s[s->top - 1].faceup = 1;
-}
-
-static void
-move_card_stack(card_stack *s, ivec pos) {
-  ivec diff = ivec_sub(pos, (ivec){s->bbox.x, s->bbox.y});
-  s->bbox.x = pos.x;
-  s->bbox.y = pos.y;
-  for (size_t i = 0; i < s->top; i++) {
-    ivec sum = ivec_add(diff, (ivec){s->s[i].bbox.x, s->s[i].bbox.y});
-    s->s[i].bbox.x = sum.x;
-    s->s[i].bbox.y = sum.y;
-  }
 }
 
 static SDL_Texture *
@@ -105,10 +83,10 @@ tex_from_file(SDL_Renderer *rdr, const char* filename) {
 }
 
 static ssize_t bbox_check(solr *s, ivec pos) {
-  for (size_t i = 0; i < 14; i++) {
-    card_stack *cs = s->st.board.stacks + i;
+  for (size_t i = 0; i < STACK_MAX; i++) {
+    SDL_Rect *r = stack_areas + i;
     SDL_Point p = {.x=pos.x, .y=pos.y};
-    if (SDL_PointInRect(&p, &cs->bbox) == SDL_TRUE) {
+    if (SDL_PointInRect(&p, r) == SDL_TRUE) {
       return i;
     }
   }
@@ -163,17 +141,6 @@ solr_setup(scheduler *s) {
   solr *game = (solr *)s->persistent_data;
 
 
-  for (int suit = SUIT_BEG; suit < SUIT_MAX; suit++) {
-    int clr = suit <= 2;
-    for (int rank = RANK_BEG; rank < RANK_MAX; rank++) {
-      card_stack *stack = &game->st.board.stacks[0];
-      stack->s[stack->top] = (card){.s = suit, .r = rank, .faceup = 0, .clr = clr};
-      stack->s[stack->top].bbox = stack_areas[0];
-      stack->top++;
-    }
-  }
-  update_stack_bounds(&game->st.board.stacks[0]);
-
   game->sdata = *sdata;
 
   game->net.sock_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -187,6 +154,7 @@ solr_setup(scheduler *s) {
 
   struct sockaddr_in *saddr = &game->sdata.server_a;
   size_t addrl = sizeof (*saddr);
+
   if (game->sdata.server) {
     saddr->sin_addr.s_addr = INADDR_ANY;
 
@@ -234,16 +202,29 @@ solr_setup(scheduler *s) {
 
     printf("loading graphics...\n");
     graphics_init(game);
-
-    
-    for (size_t i = 0; i < STACK_MAX; i++) {
-      layout_card_stack(game->st.board.stacks + i, &stack_areas[i]);
-    }
-    for (size_t i = STACK_TABLEAU_BEGIN; i <= STACK_TABLEAU_END; i++) {
-      game->st.board.stacks[i].splayed = 1;
-    }
   }
 
+  for (size_t i = 0; i < STACK_MAX; i++) {
+    ivec dims = {stack_areas[i].w, stack_areas[i].h};
+    game->st.board.stacks[i].dims = dims;
+  }
+  for (size_t i = STACK_TABLEAU_BEGIN; i <= STACK_TABLEAU_END; i++) {
+    game->st.board.stacks[i].splayed = 1;
+  }
+  for (size_t i = 0; i < SOLR_MAX_PLAYERS; i++) {
+    update_stack_dims(&game->st.players[i].held.stack);
+  }
+
+  for (int suit = SUIT_BEG; suit < SUIT_MAX; suit++) {
+    int clr = suit <= 2;
+    for (int rank = RANK_BEG; rank < RANK_MAX; rank++) {
+      card_stack *stack = &game->st.board.stacks[0];
+      stack->s[stack->top] = (card){.s = suit, .r = rank, .faceup = 0, .clr = clr};
+      stack->top++;
+    }
+  }
+  update_stack_dims(&game->st.board.stacks[0]);
+   
   return (sch_trans){.s = SCHED_CONTINUE, .why = "setup finished"};
 neterr:
   return (sch_trans){.s = SCHED_ERR, .why = "network setup error"};
@@ -376,7 +357,6 @@ handle_pckt(solr *s, netpacket *p) {
     // here so if the player is not found, and -1 wraps around
     if (uid > SOLR_MAX_PLAYERS) break;
     s->st.players[uid].pos = pos;
-    move_card_stack(&s->st.players[uid].held.stack, pos);
     
     if (s->sdata.server) {
       s->net.tx.kind = p->kind;
@@ -486,9 +466,9 @@ solr_fixed(scheduler *s, long step_ns) {
 }
 
 void
-card_render(solr_rdr *rdr, card *c) {
+card_render(solr_rdr *rdr, card *c, ivec pos) {
   SDL_Rect rect;
-  SDL_Rect dstrect = c->bbox;
+  SDL_Rect dst = posdims2rect(pos, (ivec){88, 124});
   SDL_Texture *atlas;
 
   if (!c->faceup) {
@@ -502,28 +482,29 @@ card_render(solr_rdr *rdr, card *c) {
     rect.y = ((c->r - 1) / 5) * 124;
     rect.w = 88; rect.h = 124;
   }
-  SDL_RenderCopy(rdr->rdr, atlas, &rect, &dstrect);
+  SDL_RenderCopy(rdr->rdr, atlas, &rect, &dst);
 }
 
 void
-card_stack_render(solr_rdr *rdr, card_stack *s) {
-  SDL_Rect dstrect = s->bbox;
-
-  if (!s->top) {
+card_stack_render(solr_rdr *rdr, card_stack *s, ivec pos) {
+  SDL_Rect dst = posdims2rect(pos, (ivec){88, 124});
+  if (s->top == 0) {
     SDL_Rect rect = {.x = 0, .y = 0, .w = 88, .h = 124};
-    SDL_RenderCopy(rdr->rdr, rdr->slot, &rect, &dstrect);
+    SDL_RenderCopy(rdr->rdr, rdr->slot, &rect, &dst);
     return;
   }
   if (s->pile) {
     SDL_Rect rect = {.x = 88*2, .y = 0, .w = 88, .h = 140};
-    SDL_RenderCopy(rdr->rdr, rdr->piles, &rect, &dstrect);
+    dst.h = rect.h;
+    SDL_RenderCopy(rdr->rdr, rdr->piles, &rect, &dst);
   }
 
   if (!s->splayed) {
-    card_render(rdr, &s->s[s->top - 1]);
+    card_render(rdr, &s->s[s->top - 1], pos);
   } else {
     for (size_t i = 0; i < s->top; i++) {
-      card_render(rdr, &s->s[i]);
+      card_render(rdr, &s->s[i], pos);
+      pos.y += s->dims.y/s->top;
     }
   }
 }
@@ -538,12 +519,12 @@ solr_render(scheduler *s, double a) {
   SDL_RenderClear(r->rdr);
 
   for (size_t i = 0; i < STACK_MAX; i++) {
-    card_stack_render(r, game->st.board.stacks + i);
+    card_stack_render(r, game->st.board.stacks + i, (ivec){stack_areas[i].x, stack_areas[i].y});
   }
 
   for (size_t i = 0; i < SOLR_MAX_PLAYERS; i++) {
     player *p = game->st.players + i;
-    if (p->valid) card_stack_render(r, &p->held.stack);
+    if (p->valid) card_stack_render(r, &p->held.stack, p->pos);
   }
 
   // triggers the double buffers for multiple rendering

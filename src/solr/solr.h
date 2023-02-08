@@ -67,7 +67,7 @@ typedef struct {
   rank r;
   bool faceup;
   uint8_t clr;
-  SDL_Rect bbox;
+  ivec dims;
 } card;
 
 typedef struct {
@@ -75,7 +75,7 @@ typedef struct {
   size_t top;
   bool splayed;
   bool pile;
-  SDL_Rect bbox;
+  ivec dims;
 } card_stack;
 void push_card_stack(card_stack *dst, card_stack *src);
 void pop_card_stack(card_stack *src, card_stack *dst, size_t n);
