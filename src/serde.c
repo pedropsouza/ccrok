@@ -1,5 +1,6 @@
 #include "serde.h"
 
+/*
 size_t crok_gstage_serfun(pbuf_t *head, char mode, void* io) {
   struct crok_gstage *iot = io;
   size_t (*f) (pbuf_t *, size_t, char *, ...) = (mode == SERDE_MODE_PACK)? pack : unpack;
@@ -13,21 +14,6 @@ size_t crok_gstage_serfun(pbuf_t *head, char mode, void* io) {
     default:
       return 0;
   }
-}
-
-#define NETPACKET_FMTSTR_PARTIAL "QICC"
-size_t netpacket_pack(pbuf_t *dst, struct crok_net_packet *pckt) {
-  char fmt[32] = NETPACKET_FMTSTR_PARTIAL;
-  size_t plen = strlen(fmt);
-  snprintf(fmt + plen, sizeof(fmt) - plen, "%us", pckt->data_len);
-  return pack(dst, alignof(struct crok_net_packet), fmt,
-          &pckt->ticknum, &pckt->statesum,
-          &pckt->conn_uid, &pckt->kind, &pckt->data);
-}
-size_t netpacket_unpack(pbuf_t *src, struct crok_net_packet *pckt) {
-  return unpack(src, alignof(struct crok_net_packet),
-          NETPACKET_FMTSTR_PARTIAL "s?", &pckt->ticknum, &pckt->statesum,
-          &pckt->conn_uid, &pckt->kind, &pckt->data, &pckt->data_len);
 }
 
 #define IVEC_FMTSTR "QQ"
@@ -91,6 +77,8 @@ size_t crok_state_unpack(pbuf_t *src, struct crok_state *st) {
   return l;
 }
 
+*/
+
 static size_t pad_align(pbuf_t **head, int alignment) {
   size_t padl = 0;
   while((uintptr_t)*head % alignment != 0) {
@@ -103,6 +91,7 @@ static size_t pad_align(pbuf_t **head, int alignment) {
   return padl;
 }
 
+/*
 // calculates the naive size, without padding
 size_t calcsize(char *fmt) {
   size_t a = 0;
@@ -134,6 +123,7 @@ size_t calcsize(char *fmt) {
   }
   return a;
 }
+*/
 
 // C - byte
 // H - u16
@@ -279,6 +269,7 @@ size_t pack_unpack(pbuf_t *head, char mode, size_t align, char *fmt, va_list va)
         size += sizeof(uint32_t) + slen;
       }
       break;
+    /*
     case 'v': // ivec
       v.v = (struct ivec *)va_arg(va, void *);
       do {
@@ -349,6 +340,7 @@ size_t pack_unpack(pbuf_t *head, char mode, size_t align, char *fmt, va_list va)
         valcount--;
       } while (valcount > 0);
       break;
+      */
     case '[': { // begin tagged struct (doesn't respect multipliers!)
       // get the formatter function
       tagged_struct_serfun serfun =

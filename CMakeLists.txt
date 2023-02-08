@@ -4,7 +4,7 @@ project(ccrok)
 include(CTest)
 include(FetchContent)
 set(FETCHCONTENT_QUIET 0)
-set(CMAKE_C_FLAGS "-g -fsanitize=undefined -fsanitize-undefined-trap-on-error -fno-omit-frame-pointer -O0")
+set(CMAKE_C_FLAGS "-g -fsanitize=undefined -fsanitize-undefined-trap-on-error -fno-omit-frame-pointer -O0 -DDEBUG")
 
 # Cmake module directory
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/build/cmake/")

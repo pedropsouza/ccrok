@@ -5,6 +5,16 @@ add_library(vec SHARED
   ivec.c
   fvec.c
 )
+add_library(serde SHARED
+  serde.c
+)
+add_library(net SHARED
+  net.c
+)
+add_library(sched SHARED
+  sched.c
+)
+
 add_library(crok SHARED
   crok/crok.c
   crok/net.c
@@ -17,14 +27,14 @@ add_library(crok SHARED
   draw.c
   serde.c
 )
+add_library(solr SHARED
+  solr/solr.c
+  draw.c
+)
 
 target_link_libraries(crok
   crc
   ${SDL2_TTF_LIBRARIES}
-)
-
-add_library(sched SHARED
-  sched.c
 )
 
 ###################################################################

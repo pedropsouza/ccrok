@@ -1,19 +1,21 @@
 #ifndef SERDE_HG__
 #define SERDE_HG__
 
-#include "crok/config.h"
-#include "crok/globaltypes.h"
-#include "crok/state.h"
-#include "crok/unit.h"
+//#include "crok/config.h"
+//#include "crok/globaltypes.h"
+//#include "crok/state.h"
+//#include "crok/unit.h"
 #include <assert.h>
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdalign.h>
+#include <stdint.h>
+#include <string.h>
+#include <arpa/inet.h>
 
+/*
 size_t crok_gstage_serfun(pbuf_t *head, char mode, void* io);
-size_t netpacket_pack(pbuf_t *dst, struct crok_net_packet *pckt);
-size_t netpacket_unpack(pbuf_t *src, struct crok_net_packet *pckt);
 
 size_t ivec_pack(pbuf_t *dst, struct ivec *v);
 size_t ivec_unpack(pbuf_t *src, struct ivec *v);
@@ -34,6 +36,9 @@ size_t crok_disc_pack(pbuf_t *dst, struct crok_disc *d);
 size_t crok_disc_unpack(pbuf_t *src, struct crok_disc *d);
 
 size_t calcsize(char *fmt);
+*/
+
+typedef unsigned char pbuf_t;
 
 union ser_t {
     struct crok_state *st;
