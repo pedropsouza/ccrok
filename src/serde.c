@@ -50,6 +50,7 @@ size_t pack_unpack(pbuf_t *head, char mode, size_t align, char *fmt, ...) {
   return len;
 }
 
+serde_fun serializer_table[256] = { NULL };
 size_t pack_unpack_v(pbuf_t *head, char mode, size_t align, char *fmt, va_list va) {
   union ser_t v;
 
@@ -188,7 +189,6 @@ size_t pack_unpack_v(pbuf_t *head, char mode, size_t align, char *fmt, va_list v
         valcount = 10 * valcount + (*fmt - '0');
         continue;
       }
-#ifndef SERDE_NOTABLE
       serde_fun f = serializer_table[*fmt];
       if (f != NULL) {
         void *io = (void*)va_arg(va, void*);
@@ -200,7 +200,6 @@ size_t pack_unpack_v(pbuf_t *head, char mode, size_t align, char *fmt, va_list v
           valcount--;
         } while (valcount > 0);
       }
-#endif
       break;
     }
     valcount = 0;

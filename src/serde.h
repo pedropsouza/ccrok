@@ -28,9 +28,7 @@ union ser_t {
   };
 
 typedef size_t (*serde_fun)(pbuf_t *head, char mode, void* io);
-#ifndef SERDE_NOTABLE
 extern serde_fun serializer_table[256];
-#endif
 
 #define SERDE_MODE_PACK 0
 #define SERDE_MODE_UNPACK 1

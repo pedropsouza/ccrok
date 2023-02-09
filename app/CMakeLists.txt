@@ -43,6 +43,7 @@ add_dependencies(
 #  ccrok
 #  ${SDL2_LIBRARY}
 #  ${SDL2_IMAGE_LIBRARIES}
+#  ${SDL2_TTF_LIBRARIES}
 #)
 
 target_link_libraries(

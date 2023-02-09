@@ -1,21 +1,21 @@
-add_library(memutil SHARED
+add_library(memutil STATIC
   memutil.c
 )
-add_library(vec SHARED
+add_library(vec STATIC
   ivec.c
   fvec.c
 )
-add_library(serde SHARED
+add_library(serde STATIC
   serde.c
 )
-add_library(net SHARED
+add_library(net STATIC
   net.c
 )
-add_library(sched SHARED
+add_library(sched STATIC
   sched.c
 )
 
-add_library(crok SHARED
+add_library(crok STATIC
   crok/crok.c
   crok/net.c
   crok/data.c
@@ -27,14 +27,18 @@ add_library(crok SHARED
   draw.c
   serde.c
 )
-add_library(solr SHARED
+add_library(solr STATIC
   solr/solr.c
   draw.c
 )
-
-target_link_libraries(crok
-  crc
-  ${SDL2_TTF_LIBRARIES}
+target_link_libraries(
+  solr
+  memutil
+  vec
+  serde
+  net
+  sched
+  m
 )
 
 ###################################################################

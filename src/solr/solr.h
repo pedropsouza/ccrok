@@ -110,14 +110,15 @@ enum {
   STACK_TABLEAU_BEGIN = 1,
   STACK_TABLEAU_END = 7,
   STACK_SUITS_BEGIN = 8,
-  STACK_SUITS_END = 12,
-  STACK_WASTE = 13,
-  STACK_BOARD_END = 14,
-  STACK_PLAYER_BEGIN = 15,
+  STACK_SUITS_END = 11,
+  STACK_WASTE = 12,
+  STACK_BOARD_END = 12,
+  STACK_BOARD_MAX = 13,
+  STACK_PLAYER_BEGIN = 13,
   STACK_MAX = STACK_PLAYER_BEGIN + SOLR_MAX_PLAYERS,
 };
 typedef struct {
-  card_stack stacks[STACK_BOARD_END];
+  card_stack stacks[STACK_BOARD_MAX];
 } board;
 size_t board_serde(pbuf_t *buf, char mode, void *b);
 

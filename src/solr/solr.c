@@ -2,14 +2,16 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-serde_fun serializer_table[256] = { NULL,
-  ['b'] = board_serde,
-  ['c'] = card_serde,
-  ['f'] = card_stack_serde,
-  ['m'] = move_serde,
-  ['p'] = player_serde,
-  ['G'] = gamestate_serde,
-};
+static void
+serde_init() {
+  serde_fun *t = serializer_table;
+  t['b'] = board_serde;
+  t['c'] = card_serde;
+  t['f'] = card_stack_serde;
+  t['m'] = move_serde;
+  t['p'] = player_serde;
+  t['G'] = gamestate_serde;
+}
 
 size_t
 card_serde(pbuf_t *buf, char mode, void *vc) {
@@ -62,7 +64,7 @@ posdims2rect(ivec pos, ivec dims) {
   return (SDL_Rect){pos.x, pos.y, dims.x, dims.y};
 }
 
-static ivec stack_areas[STACK_BOARD_END] = {
+static ivec stack_areas[STACK_BOARD_MAX] = {
     [0]  = {.x = 12,                 .y = 12,     },
     [1]  = {.x = 12 + 1 * (12 + 88), .y = 140 + 12},
     [2]  = {.x = 12 + 2 * (12 + 88), .y = 140 + 12},
@@ -75,8 +77,7 @@ static ivec stack_areas[STACK_BOARD_END] = {
     [9]  = {.x = 12 + 5 * (12 + 88), .y = 12,     },
     [10] = {.x = 12 + 6 * (12 + 88), .y = 12,     },
     [11] = {.x = 12 + 7 * (12 + 88), .y = 12,     },
-    [12] = {.x = 12 + 7 * (12 + 88), .y = 12,     },
-    [13] = {.x = 12 + 1 * (12 + 88), .y = 12,     },
+    [12] = {.x = 12 + 1 * (12 + 88), .y = 12,     },
 };
 ivec card_dims = {.x = 88, .y = 124};
 
@@ -88,6 +89,19 @@ update_stack_dims(card_stack *s) {
     s->dims.y += 20*s->top;
   } else {
     s->dims.y += (16*s->pile*(s->top > 0));
+  }
+}
+
+void
+shuffle_stack(card_stack *s) {
+  if (s->top > 1) {
+    size_t i;
+    for (i = 0; i < s->top - 1; i++) {
+      size_t j = i + rand() / (RAND_MAX / (s->top - i) + 1);
+      card t = s->s[j];
+      s->s[j] = s->s[i];
+      s->s[i] = t;
+    }
   }
 }
 
@@ -149,7 +163,7 @@ tex_from_file(SDL_Renderer *rdr, const char* filename) {
 
 static ssize_t
 stack_bbox(solr *s, ivec mpos) {
-  for (size_t i = 0; i < STACK_BOARD_END; i++) {
+  for (size_t i = 0; i < STACK_BOARD_MAX; i++) {
     SDL_Rect box = posdims2rect(stack_areas[i], s->st.board.stacks[i].dims);
     SDL_Point p = {.x = mpos.x, .y = mpos.y};
     if (SDL_PointInRect(&p, &box) == SDL_TRUE) {
@@ -161,7 +175,7 @@ stack_bbox(solr *s, ivec mpos) {
 
 static ssize_t
 card_bbox(solr *s, size_t stack_idx, ivec mpos) {
-  assert(stack_idx < STACK_BOARD_END);
+  assert(stack_idx < STACK_BOARD_MAX);
   ivec *area = stack_areas + stack_idx;
   card_stack *ss = s->st.board.stacks + stack_idx;
   if (ss->top == 0) goto not_found;
@@ -268,7 +282,8 @@ move_valid(solr *s, move *m, char **reason) {
       bool number = src->top == 1;
       bool color = top_dst->clr == bot_src->clr;
       bool rank = bot_src->r == top_dst->r + 1;
-      int r = number && color && rank;
+      bool suit = bot_src->s == top_dst->s;
+      int r = number && color && rank && suit;
       if (!r) *reason = "against the rules";
       return r;
     }
@@ -286,9 +301,24 @@ graphics_init(solr *s) {
   solr_rdr *rdat = &s->rdr;
 
   SDL_Init(SDL_INIT_VIDEO);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
   rdat->win = SDL_CreateWindow("solr", SDL_WINDOWPOS_UNDEFINED,
                                SDL_WINDOWPOS_UNDEFINED, s->sdata.window_w, s->sdata.window_h, 0);
   rdat->rdr = SDL_CreateRenderer(rdat->win, -1, SDL_RENDERER_ACCELERATED);
+  if (rdat->rdr == NULL) {
+    fprintf(stderr, "failed to create SDL renderer: %s\n", SDL_GetError());
+    return; // FIXME: add proper error handling up the callstack
+  }
+
+  SDL_RendererInfo rdr_info;
+  printf("available renderers:\n");
+  for (int i = 0; i < SDL_GetNumRenderDrivers(); i++) {
+    SDL_GetRenderDriverInfo(i, &rdr_info);
+    printf("\t%d: %s\n", i, rdr_info.name);
+  }
+  SDL_GetRendererInfo(rdat->rdr, &rdr_info);
+  printf("renderer: %s\n", rdr_info.name);
+
   SDL_SetRenderDrawBlendMode(rdat->rdr, SDL_BLENDMODE_BLEND);
   SDL_SetRenderDrawColor(rdat->rdr, 0, 0, 0, SDL_ALPHA_OPAQUE);
   SDL_RenderClear(rdat->rdr);
@@ -329,6 +359,7 @@ solr_setup(scheduler *s) {
       safe_calloc(sizeof (solr), "setup persistent_data alloc");
   solr *game = (solr *)s->persistent_data;
 
+  serde_init();
 
   game->sdata = *sdata;
 
@@ -353,47 +384,41 @@ solr_setup(scheduler *s) {
       goto neterr;
     }
   
-  for (size_t i = 0; i < STACK_BOARD_END; i++) {
-    game->st.board.stacks[i].dims = card_dims;
-  }
-  for (size_t i = STACK_TABLEAU_BEGIN; i <= STACK_TABLEAU_END; i++) {
-    game->st.board.stacks[i].splayed = 1;
-  }
-  for (size_t i = 0; i < SOLR_MAX_PLAYERS; i++) {
-    game->st.players[i].held.stack.splayed = 1;
-    update_stack_dims(&game->st.players[i].held.stack);
-  }
-
-  card_stack *stock = stack_from_id(game, STACK_STOCK);
-  for (int suit = SUIT_BEG; suit < SUIT_MAX; suit++) {
-    int clr = suit <= 2;
-    for (int rank = RANK_BEG; rank < RANK_MAX; rank++) {
-      stock->s[stock->top] = (card){.s = suit, .r = rank, .faceup = 0, .clr = clr};
-      stock->top++;
+    for (size_t i = 0; i < STACK_BOARD_MAX; i++) {
+      game->st.board.stacks[i].dims = card_dims;
     }
-  }
-
-  srand(time(NULL));
-  for (int i = 0; i < 4*13; i++) {
-    card c = stock->s[i];
-    int ridx = rand() % 4 * 13;
-    stock->s[i] = stock->s[ridx];
-    stock->s[ridx] = c;
-  }
-
-  for (int i = STACK_TABLEAU_BEGIN; i <= STACK_TABLEAU_END; i++) {
-    card_stack *col = stack_from_id(game, i);
-    for (int j = 0; j < i; j++) {
-      take_card_stack(stock, col, 1);
+    for (size_t i = STACK_TABLEAU_BEGIN; i <= STACK_TABLEAU_END; i++) {
+      game->st.board.stacks[i].splayed = 1;
     }
-    expose_top_card_stack(col);
-    update_stack_dims(col);
-  }
+    for (size_t i = 0; i < SOLR_MAX_PLAYERS; i++) {
+      game->st.players[i].held.stack.splayed = 1;
+    }
 
-  for (size_t i = 0; i < STACK_MAX; i++) {
-    card_stack *s = stack_from_id(game, i);
-    s->id = i;
-  }
+    card_stack *stock = stack_from_id(game, STACK_STOCK);
+    for (int suit = SUIT_BEG; suit < SUIT_MAX; suit++) {
+      int clr = suit <= 2;
+      for (int rank = RANK_BEG; rank < RANK_MAX; rank++) {
+        stock->s[stock->top] = (card){.s = suit, .r = rank, .faceup = 0, .clr = clr};
+        stock->top++;
+      }
+    }
+
+    srand(time(NULL));
+    shuffle_stack(stock);
+    
+    for (int i = STACK_TABLEAU_BEGIN; i <= STACK_TABLEAU_END; i++) {
+      card_stack *col = stack_from_id(game, i);
+      for (int j = 0; j < i; j++) {
+        take_card_stack(stock, col, 1);
+      }
+      expose_top_card_stack(col);
+      update_stack_dims(col);
+    }
+
+    for (size_t i = 0; i < STACK_MAX; i++) {
+      card_stack *s = stack_from_id(game, i);
+      s->id = i;
+    }
     printf("server running on port %d...\n", SOLR_PORT);
   } else { // client
 
@@ -482,6 +507,7 @@ broadcast(solr *s) {
 
 static void
 handle_pckt(solr *s, netpacket *p) {
+  int8_t uid;
   if(p->kind != PCKT_POS) printf("got a packet kinded %d\n", p->kind);
   switch (p->kind) {
     case PCKT_JOIN: {
@@ -515,7 +541,7 @@ handle_pckt(solr *s, netpacket *p) {
     }
   case PCKT_LEAVE: {
     if (!s->sdata.server) return;
-    unsigned char uid = true_uid(s);
+    uid = true_uid(s);
     if (uid < 0) return;
     s->srv.socks[uid] = (struct sockaddr_in){0};
     s->st.players[uid].valid = 0;
@@ -535,6 +561,8 @@ handle_pckt(solr *s, netpacket *p) {
     card_stack *src = stack_from_id(s, m.stacks.src);
     card_stack *dst = stack_from_id(s, m.stacks.dst);
 
+    // TODO: maybe restrict moves coming from players
+    // as to not touch other players held stacks?
     if (m.kind == MOVE_PUSH) {
       push_card_stack(dst, src);
       if (src->id >= STACK_PLAYER_BEGIN) {
@@ -579,9 +607,10 @@ handle_pckt(solr *s, netpacket *p) {
     break;
   }
   case PCKT_CANCEL: {
-    unsigned char uid;
-    unpack(p->data, 1, "C", &uid);
+    // needed for client action-matching
+    unpack(p->data, 1, "C", (uint8_t*)&uid);
     if (s->sdata.server) uid = true_uid(s);
+    if (uid < 0) break;
     player *pl = s->st.players + uid;
     if (pl->valid && pl->held.stack.top > 0) {
       push_card_stack(stack_from_id(s, pl->held.camefrom), &pl->held.stack);
@@ -594,17 +623,15 @@ handle_pckt(solr *s, netpacket *p) {
     break;
   }
   case PCKT_POS: {
-    unsigned char uid;
     ivec pos;
-    unpack(s->net.rx.data, 8, "QQC", &pos.x, &pos.y, &uid);
+    unpack(s->net.rx.data, 8, "QQC", &pos.x, &pos.y, (uint8_t*)&uid);
     if (s->sdata.server) uid = true_uid(s);
-    // here so if the player is not found, and -1 wraps around
-    if (uid > SOLR_MAX_PLAYERS) break;
+    if (uid < 0) break;
     s->st.players[uid].pos = pos;
     
     if (s->sdata.server) {
       s->net.tx.kind = p->kind;
-      s->net.tx.data_len = pack(s->net.tx.data, 8, "QQC", &pos.x, &pos.y, &uid);
+      s->net.tx.data_len = pack(s->net.tx.data, 8, "QQC", &pos.x, &pos.y, (uint8_t*)&uid);
       broadcast(s);
     }
     break;
@@ -759,15 +786,15 @@ solr_fixed(scheduler *s, long step_ns) {
 }
 
 void
-card_render(solr_rdr *rdr, card *c, ivec pos) {
+card_render(solr_rdr *rdr, card* c, ivec pos) {
   SDL_Rect rect;
   SDL_Rect dst = posdims2rect(pos, card_dims);
   SDL_Texture **atlas;
 
   if (!c->faceup) {
     atlas = &rdr->backs;
-    rect.x = 0; rect.w = 88;
-    rect.h = 0; rect.h = 124;
+    rect.x = 0; rect.y = 0;
+    rect.w = 88; rect.h = 124;
   }
   else {
     atlas = &rdr->suits[c->s];
@@ -775,7 +802,10 @@ card_render(solr_rdr *rdr, card *c, ivec pos) {
     rect.y = ((c->r - 1) / 5) * 124;
     rect.w = 88; rect.h = 124;
   }
-  SDL_RenderCopy(rdr->rdr, *atlas, &rect, &dst);
+  if (SDL_RenderCopy(rdr->rdr, *atlas, &rect, &dst) < 0) {
+    fprintf(stderr, "%s: %s", __func__, SDL_GetError());
+    SDL_ClearError();
+  }
 }
 
 void
@@ -783,13 +813,20 @@ card_stack_render(solr_rdr *rdr, card_stack *s, ivec pos) {
   SDL_Rect dst = posdims2rect(pos, (ivec){88, 124});
   if (s->top == 0) {
     SDL_Rect rect = {.x = 0, .y = 0, .w = 88, .h = 124};
-    SDL_RenderCopy(rdr->rdr, rdr->slot, &rect, &dst);
+    
+    if (SDL_RenderCopy(rdr->rdr, rdr->slot, &rect, &dst) < 0) {
+      fprintf(stderr, "%s: %s", __func__, SDL_GetError());
+      SDL_ClearError();
+    }
     return;
   }
   if (s->pile) {
     SDL_Rect rect = {.x = 88*2, .y = 0, .w = 88, .h = 140};
     dst.h = rect.h;
-    SDL_RenderCopy(rdr->rdr, rdr->piles, &rect, &dst);
+    if (SDL_RenderCopy(rdr->rdr, rdr->piles, &rect, &dst) < 0) {
+      fprintf(stderr, "%s: %s", __func__, SDL_GetError());
+      SDL_ClearError();
+    }
   }
 
   if (!s->splayed) {
@@ -808,10 +845,10 @@ solr_render(scheduler *s, double a) {
   solr_rdr *r = &game->rdr;
   
 
-  SDL_SetRenderDrawColor(r->rdr, 0, 0, 0, SDL_ALPHA_OPAQUE);
+  SDL_SetRenderDrawColor(r->rdr, 0x3c, 0x3c, 0x3c, SDL_ALPHA_OPAQUE);
   SDL_RenderClear(r->rdr);
 
-  for (size_t i = 0; i < STACK_BOARD_END; i++) {
+  for (size_t i = 0; i < STACK_BOARD_MAX; i++) {
     card_stack_render(r, game->st.board.stacks + i, (ivec){stack_areas[i].x, stack_areas[i].y});
   }
 
