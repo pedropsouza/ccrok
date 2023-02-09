@@ -19,8 +19,8 @@ include_directories(${SDL2_INCLUDE_DIR}
                     ${SDL2_TTF_INCLUDE_DIRS})
 
 # libcrc
-include_directories("${PROJECT_SOURCE_DIR}/libcrc/include/")
-set(CRC_LIBRARY "${PROJECT_SOURCE_DIR}/libcrc/lib/libcrc.a")
+#include_directories("${PROJECT_SOURCE_DIR}/libcrc/include/")
+#set(CRC_LIBRARY "${PROJECT_SOURCE_DIR}/libcrc/lib/libcrc.a")
 
 add_library(crc STATIC IMPORTED GLOBAL)
 set_property(TARGET crc PROPERTY IMPORTED_LOCATION "${CRC_LIBRARY}")

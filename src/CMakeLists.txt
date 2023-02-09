@@ -15,18 +15,18 @@ add_library(sched STATIC
   sched.c
 )
 
-add_library(crok STATIC
-  crok/crok.c
-  crok/net.c
-  crok/data.c
-  crok/state.c
-  crok/board.c
-  crok/phys.c
-  crok/gloop.c
-  crok/unit.c
-  draw.c
-  serde.c
-)
+#add_library(crok STATIC
+#  crok/crok.c
+#  crok/net.c
+#  crok/data.c
+#  crok/state.c
+#  crok/board.c
+#  crok/phys.c
+#  crok/gloop.c
+#  crok/unit.c
+#  draw.c
+#  serde.c
+#)
 add_library(solr STATIC
   solr/solr.c
   draw.c
