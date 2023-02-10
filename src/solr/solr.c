@@ -280,7 +280,7 @@ move_valid(solr *s, move *m, char **reason) {
   }
   else if (m->kind == MOVE_PUSH) {
     int empty_dst = dst->top == 0;
-    card *top_dst;
+    card *top_dst = NULL;
     if (!empty_dst) top_dst = &dst->s[dst->top - 1];
     card *bot_src = &src->s[0];
     if (src->top == 0) {
@@ -407,7 +407,9 @@ setup_board_stacks(solr *game) {
   }
 
   card_stack *stock = stack_from_id(game, STACK_STOCK);
+  card_stack *waste = stack_from_id(game, STACK_WASTE);
   stock->pile = 1;
+  waste->pile = 1;
   for (int suit = SUIT_BEG; suit < SUIT_MAX; suit++) {
     int clr = suit <= 2;
     for (int rank = RANK_BEG; rank < RANK_MAX; rank++) {
@@ -934,7 +936,8 @@ card_stack_render(solr_rdr *rdr, card_stack *s, ivec pos) {
     SDL_Rect rect = {.x = 0, .y = 0, .w = 88, .h = 124};
     //for (ssize_t i = s->top - 1; i >= 0; i--) {
     for (ssize_t i = i; i < s->top; i++) {
-      if (SDL_RenderCopy(rdr->rdr, rdr->backs, &rect, &dst) < 0) {
+      if (i == s->top - 1) { card_render(rdr, &s->s[i], (ivec){dst.x,dst.y}); }
+      else if (SDL_RenderCopy(rdr->rdr, rdr->backs, &rect, &dst) < 0) {
         fprintf(stderr, "%s: %s", __func__, SDL_GetError());
         SDL_ClearError();
       }
