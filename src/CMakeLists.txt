@@ -14,6 +14,9 @@ add_library(net STATIC
 add_library(sched STATIC
   sched.c
 )
+add_library(phys STATIC
+  phys.c
+)
 
 #add_library(crok STATIC
 #  crok/crok.c
@@ -38,6 +41,7 @@ target_link_libraries(
   serde
   net
   sched
+  phys
   m
 )
 

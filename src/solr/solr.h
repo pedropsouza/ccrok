@@ -12,6 +12,7 @@
 #include "sched.h"
 #include "draw.h"
 #include "serde.h"
+#include "phys.h"
 
 #define SOLR_PORT 51743
 #define SOLR_NAME_LEN 64
@@ -27,6 +28,7 @@ typedef struct scheduler scheduler;
 typedef struct sched_trans sch_trans;
 typedef struct fvec fvec;
 typedef struct ivec ivec;
+typedef struct physbody physbody;
 
 typedef struct {
   struct sockaddr_in server_a;
@@ -71,6 +73,12 @@ typedef struct {
 } card;
 size_t card_serde(pbuf_t *buf, char mode, void *vc);
 extern ivec card_dims;
+
+typedef struct {
+  physbody pb;
+  card c;
+  uint8_t valid;
+} physical_card;
 
 typedef struct {
   card s[13*4];
@@ -130,10 +138,19 @@ typedef struct {
 } player;
 size_t player_serde(pbuf_t *buf, char mode, void *p);
 
+enum {
+  STAGE_INVALID = 0,
+  STAGE_PLAYING = 1,
+  STAGE_WON = 2,
+  STAGE_LOST = 3,
+};
+
 typedef struct {
   board board;
   player players[SOLR_MAX_PLAYERS];
   long tick;
+  uint8_t stage;
+  physical_card flung_card; // client-side only
 } gamestate;
 size_t gamestate_serde(pbuf_t *buf, char mode, void *st);
 

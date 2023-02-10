@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
   setdat.server_a.sin_port = htons(SOLR_PORT);
 
   int r;
-  while ((r = getopt(argc, argv, "sa:d:u:")) != -1) {
+  while ((r = getopt(argc, argv, "sa:d:u:p:")) != -1) {
     switch (r) {
     case 's':
       setdat.server = 1;
@@ -35,6 +35,10 @@ int main(int argc, char *argv[]) {
       break;
     case 'u':
       strncpy(setdat.username, optarg, SOLR_NAME_LEN);
+      break;
+    case 'p':
+      if (sscanf(optarg, "%hu", &setdat.server_a.sin_port) != 1) goto invalid_arg;
+      setdat.server_a.sin_port = htons(setdat.server_a.sin_port);
       break;
     case '?':
       goto invalid_arg;
