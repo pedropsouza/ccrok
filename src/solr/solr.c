@@ -786,6 +786,12 @@ solr_fixed(scheduler *s, long step_ns) {
 }
 
 void
+player_render(solr_rdr *rdr, player *p) {
+  SDL_SetRenderDrawColor(rdr->rdr, 0xff, 0x20, 0x20, 0xb0);
+  SDL_RenderFillCircle(rdr->rdr, p->pos.x, p->pos.y, 3);
+}
+
+void
 card_render(solr_rdr *rdr, card* c, ivec pos) {
   SDL_Rect rect;
   SDL_Rect dst = posdims2rect(pos, card_dims);
@@ -854,7 +860,13 @@ solr_render(scheduler *s, double a) {
 
   for (size_t i = 0; i < SOLR_MAX_PLAYERS; i++) {
     player *p = game->st.players + i;
-    if (p->valid && p->held.stack.top > 0) card_stack_render(r, &p->held.stack, p->pos);
+    if (p->valid) {
+      if (p->held.stack.top > 0){
+        ivec offset = ivec_sub(p->pos, ivec_div(card_dims, (ivec){2,2}));
+        card_stack_render(r, &p->held.stack, offset);
+      }
+      player_render(r, p);
+    }
   }
 
   // triggers the double buffers for multiple rendering

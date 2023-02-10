@@ -10,7 +10,7 @@
 #include "ivec.h"
 #include "memutil.h"
 #include "sched.h"
-
+#include "draw.h"
 #include "serde.h"
 
 #define SOLR_PORT 51743
