@@ -4,8 +4,8 @@
 #)
 
 add_executable(
-  solre
-  solr.c
+  tchesse
+  tchess.c
 )
 
 #target_link_libraries(
@@ -20,13 +20,13 @@ add_executable(
 #)
 
 target_link_libraries(
-  solre
+  tchesse
   memutil
   vec
   sched
   serde
   net
-  solr
+  tchess
 )
 
 #add_dependencies(
@@ -35,7 +35,7 @@ target_link_libraries(
 #)
 
 add_dependencies(
-  solre
+  tchesse
   resources
 )
 
@@ -47,7 +47,7 @@ add_dependencies(
 #)
 
 target_link_libraries(
-  solre
+  tchesse
   ${SDL2_LIBRARY}
   ${SDL2_IMAGE_LIBRARIES}
 )

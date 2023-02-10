@@ -29,7 +29,7 @@ set(sched_edgecase_test_deps
   sched)
 
 set(solr_serde_test_deps
-  solr
+  tchess
   memutil
   vec
   sched

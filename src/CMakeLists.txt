@@ -30,12 +30,12 @@ add_library(phys STATIC
 #  draw.c
 #  serde.c
 #)
-add_library(solr STATIC
-  solr/solr.c
+add_library(tchess STATIC
+  tchess/tchess.c
   draw.c
 )
 target_link_libraries(
-  solr
+  tchess
   memutil
   vec
   serde
