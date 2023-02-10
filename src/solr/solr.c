@@ -23,6 +23,7 @@ card_serde(pbuf_t *buf, char mode, void *vc) {
 size_t
 card_stack_serde(pbuf_t *buf, char mode, void *vs) {
   card_stack *s = vs;
+  // TODO: VARIABLE LEN
   if (mode == SERDE_MODE_SIZEHINT) return sizeof(card_stack);
   return pack_unpack(buf, mode, 8, "QQ52cCCCC", &s->dims.x, &s->dims.y,
     &s->s, &s->top, &s->splayed, &s->pile, &s->id);
@@ -65,19 +66,19 @@ posdims2rect(ivec pos, ivec dims) {
 }
 
 static ivec stack_areas[STACK_BOARD_MAX] = {
-    [0]  = {.x = 12,                 .y = 12,     },
-    [1]  = {.x = 12 + 1 * (12 + 88), .y = 140 + 12},
-    [2]  = {.x = 12 + 2 * (12 + 88), .y = 140 + 12},
-    [3]  = {.x = 12 + 3 * (12 + 88), .y = 140 + 12},
-    [4]  = {.x = 12 + 4 * (12 + 88), .y = 140 + 12},
-    [5]  = {.x = 12 + 5 * (12 + 88), .y = 140 + 12},
-    [6]  = {.x = 12 + 6 * (12 + 88), .y = 140 + 12},
-    [7]  = {.x = 12 + 7 * (12 + 88), .y = 140 + 12},
-    [8]  = {.x = 12 + 4 * (12 + 88), .y = 12,     },
-    [9]  = {.x = 12 + 5 * (12 + 88), .y = 12,     },
-    [10] = {.x = 12 + 6 * (12 + 88), .y = 12,     },
-    [11] = {.x = 12 + 7 * (12 + 88), .y = 12,     },
-    [12] = {.x = 12 + 1 * (12 + 88), .y = 12,     },
+    [0]  = {.x = 12,                 .y = 64,     },
+    [1]  = {.x = 12 + 1 * (12 + 88), .y = 140 + 64},
+    [2]  = {.x = 12 + 2 * (12 + 88), .y = 140 + 64},
+    [3]  = {.x = 12 + 3 * (12 + 88), .y = 140 + 64},
+    [4]  = {.x = 12 + 4 * (12 + 88), .y = 140 + 64},
+    [5]  = {.x = 12 + 5 * (12 + 88), .y = 140 + 64},
+    [6]  = {.x = 12 + 6 * (12 + 88), .y = 140 + 64},
+    [7]  = {.x = 12 + 7 * (12 + 88), .y = 140 + 64},
+    [8]  = {.x = 12 + 4 * (12 + 88), .y = 64,     },
+    [9]  = {.x = 12 + 5 * (12 + 88), .y = 64,     },
+    [10] = {.x = 12 + 6 * (12 + 88), .y = 64,     },
+    [11] = {.x = 12 + 7 * (12 + 88), .y = 64,     },
+    [12] = {.x = 12 + 1 * (12 + 88), .y = 64,     },
 };
 ivec card_dims = {.x = 88, .y = 124};
 
@@ -395,6 +396,7 @@ solr_setup(scheduler *s) {
     }
 
     card_stack *stock = stack_from_id(game, STACK_STOCK);
+    stock->pile = 1;
     for (int suit = SUIT_BEG; suit < SUIT_MAX; suit++) {
       int clr = suit <= 2;
       for (int rank = RANK_BEG; rank < RANK_MAX; rank++) {
@@ -827,15 +829,18 @@ card_stack_render(solr_rdr *rdr, card_stack *s, ivec pos) {
     return;
   }
   if (s->pile) {
-    SDL_Rect rect = {.x = 88*2, .y = 0, .w = 88, .h = 140};
-    dst.h = rect.h;
-    if (SDL_RenderCopy(rdr->rdr, rdr->piles, &rect, &dst) < 0) {
-      fprintf(stderr, "%s: %s", __func__, SDL_GetError());
-      SDL_ClearError();
+    SDL_Rect rect = {.x = 0, .y = 0, .w = 88, .h = 124};
+    //for (ssize_t i = s->top - 1; i >= 0; i--) {
+    for (ssize_t i = i; i < s->top; i++) {
+      if (SDL_RenderCopy(rdr->rdr, rdr->backs, &rect, &dst) < 0) {
+        fprintf(stderr, "%s: %s", __func__, SDL_GetError());
+        SDL_ClearError();
+      }
+      dst.y -= 2;
     }
   }
 
-  if (!s->splayed) {
+  else if (!s->splayed) {
     card_render(rdr, &s->s[s->top - 1], pos);
   } else {
     for (size_t i = 0; i < s->top; i++) {
