@@ -260,15 +260,16 @@ move_valid(solr *s, move *m, char **reason) {
 #define IS_SUITS(x) (x >= STACK_SUITS_BEGIN && x <= STACK_SUITS_END)
 
   if (m->kind == MOVE_TAKE) {
+    if (IS_STOCK(src->id)) return 1;
     if (dst->top > 0) {
       *reason = "taking with nonempty dst";
       return 0;
     }
-    if (((ssize_t)src->top) - m->num_cards < 0) {
+    if (((ssize_t)src->top) - (ssize_t)m->num_cards < 0) {
       *reason = "not enough cards to take";
       return 0;
     }
-    if (IS_STOCK(src->id) || IS_SUITS(src->id) || IS_WASTE(src->id))
+    if (IS_SUITS(src->id) || IS_WASTE(src->id))
       return 1;
     if (IS_TABLEAU(src->id)) {
       ssize_t idx = src->top - m->num_cards;
@@ -821,7 +822,6 @@ solr_fixed(scheduler *s, long step_ns) {
           - card_bbox(game, stack_idx, mouse_pos);
       printf("bbox %zd %u @ %ld,%ld\n", stack_idx, n, mouse_pos.x, mouse_pos.y);
 
-      if (stack_idx < 0) break;
       move m = {
         .kind = myp->held.stack.top > 0 ? MOVE_PUSH : MOVE_TAKE,
         .num_cards = n,
@@ -836,50 +836,29 @@ solr_fixed(scheduler *s, long step_ns) {
       netmgr_send(&game->net);
       break;
     }
-    /*
-
-      static ssize_t
-      card_bbosolr *s* size_t stack_idx,s, ivemc pos) {
-
-  SDL_Rect *area = stack_areas + stack_idx;
-      card_stack *ss = s->st.board.stacks + stack_idx;
-      ivec cpos = {.x = area->x, .y = area->y};
-    cpos.y += (ss->dims.y - card_dims.y);
-        for (size_t ssss->top - 1; i >= ()->splayed ? 00: ss->top - 1 )=op--i++) {
-      cpos.y -= (ss->dims.y - card_dims.y) / ss->top;
-        SDL_Rect box = posdims2rect(cpos, card_dims);
-      SDL_Point p = {.x = mpos.x, .y = mpos.y};
-      if (SDL_PointInRect(&p, &box) == SDL_TRUE) {
-        return i;
-      }
-      }
-      return -1;
-      }
-    case SDL_MOUSEBUTTONDOWN:
-      nc->tx.kind = CROK_NET_CLICK;
-      nc->tx.data_len = 0;
-      crok_net_tx_to_server(nc);
-      break;
-    case SDL_KEYDOWN:
+    
+    case SDL_KEYUP:
       switch (input.key.keysym.sym) {
         case SDLK_RETURN:
         case SDLK_RETURN2:
         case SDLK_KP_ENTER:
-          nc->tx.kind = CROK_NET_READY;
-          nc->tx.conn_uid = d->my_player_id;
-          nc->tx.ticknum = d->ticknum;
-          nc->tx.statesum = d->statesum;
-          nc->tx.data_len = 0;
-          crok_net_tx_to_server(nc);
           break;
-        case SDLK_BACKSPACE:
-          nc->tx.kind = CROK_NET_CANCEL;
-          nc->tx.conn_uid = d->my_player_id;
-          nc->tx.ticknum = d->ticknum;
-          nc->tx.statesum = d->statesum;
-          nc->tx.data_len = 0;
+        case SDLK_SPACE: {
+          move m = {
+            .kind = MOVE_TAKE,
+            .stacks.src = STACK_STOCK,
+            .stacks.dst = STACK_WASTE,
+            .num_cards = 1,
+          };
+
+          game->net.tx = (netpacket){0};
+          game->net.tx.kind = PCKT_MOVE;
+          game->net.tx.data_len = pack(game->net.tx.data, 1, "m", &m);
+          game->net.peer = game->sdata.server_a;
+          netmgr_send(&game->net);
+        }
       }
-    */
+      break;
     default:
       break;
     }
