@@ -1,28 +1,43 @@
-setup:
-	cmake -DCMAKE_BUILD_TYPE=Debug -B build/debug
-	cmake -DCMAKE_BUILD_TYPE=Release -B build/release
-.PHONY: setup
+
+MKDIR   := mkdir
+RMDIR   := rm -r
+RM      := rm
+CC      := gcc
+BIN     := ./bin
+SRCDIRS := ./src ./app ./src/solr
+SRCS    := $(foreach fd, $(SRCDIRS), $(wildcard $(fd)/*.c))
+OBJS    := $(patsubst %.c,%.o,$(SRCS))
+DEPS    := $(patsubst %.o,%.d,$(OBJS))
+SOLR    := $(BIN)/solre
+#CCROK   := $(BIN)/ccrok
+#TCHESS := $(BIN)/tchess
+EXES    := $(SOLR)
+CFLAGS  := $(addprefix -I,$(SRCDIRS)) $(shell sdl2-config --cflags) $(XTRAFLAGS)
+LDLIBS  := -lm $(shell sdl2-config --libs)
+
+COMMON  := $(addprefix ./src/, draw.o ivec.o memutil.o net.o phys.o sched.o serde.o)
+
+all: $(EXES)
+.PHONY: all
+
+include makefile.defs
+include $(DEPS)
+
+$(SOLR): $(COMMON) ./app/solr.o ./src/solr/solr.o | $(BIN)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
+
+$(BIN):
+	$(MKDIR) $@
 
 debug:
-	make --no-print-directory -C build/debug
+	$(MAKE) XTRAFLAGS:="-g -fsanitize=undefined -fsanitize-undefined-trap-on-error -fno-omit-frame-pointer -O0 -DDEBUG -Wuninitialized"
 .PHONY: debug
 
 release:
-	make --no-print-directory -C build/release
+	$(MAKE) XTRAFLAGS:="-O3"
 .PHONY: release
 
-test:
-	make --no-print-directory -C build/debug
-	make --no-print-directory -C build/debug test ARGS='--output-on-failure'
-.PHONY: test
-
 clean:
-	make --no-print-directory -C build/debug clean
-	make --no-print-directory -C build/release clean
+	-$(RM) $(OBJS)
+	-$(RM) $(EXES)
 .PHONY: clean
-
-coverage:
-	cmake -DCMAKE_BUILD_TYPE=Coverage -B build/coverage
-	make --no-print-directory -C build/coverage -j
-	make --no-print-directory -C build/coverage coverage
-.PHONY: coverage
