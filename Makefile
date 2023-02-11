@@ -1,28 +1,35 @@
-setup:
-	cmake -DCMAKE_BUILD_TYPE=Debug -B build/debug
-	cmake -DCMAKE_BUILD_TYPE=Release -B build/release
-.PHONY: setup
 
-debug:
-	make --no-print-directory -C build/debug
-.PHONY: debug
+MKDIR   := mkdir
+RMDIR   := rm -r
+RM      := rm
+CC      := gcc
+BIN     := ./bin
+SRCDIRS := ./src ./app ./src/solr
+SRCS    := $(foreach fd, $(SRCDIRS), $(wildcard $(fd)/*.c))
+OBJS    := $(patsubst %.c,%.o,$(SRCS))
+DEPS    := $(patsubst %.o,%.d,$(OBJS))
+SOLR    := $(BIN)/solre
+#CCROK   := $(BIN)/ccrok
+#TCHESS := $(BIN)/tchess
+EXES    := $(SOLR)
+CFLAGS  := $(addprefix -I,$(SRCDIRS)) $(shell sdl2-config --cflags) $(XTRAFLAGS)
+LDLIBS  := -lm $(shell sdl2-config --libs)
 
-release:
-	make --no-print-directory -C build/release
-.PHONY: release
+COMMON  := $(addprefix ./src/, draw.o ivec.o memutil.o net.o phys.o sched.o serde.o)
 
-test:
-	make --no-print-directory -C build/debug
-	make --no-print-directory -C build/debug test ARGS='--output-on-failure'
-.PHONY: test
+all: $(EXES)
+.PHONY: all
+
+include makefile.defs
+include $(DEPS)
+
+$(SOLR): $(COMMON) ./app/solr.o ./src/solr/solr.o | $(BIN)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
+
+$(BIN):
+	$(MKDIR) $@
 
 clean:
-	make --no-print-directory -C build/debug clean
-	make --no-print-directory -C build/release clean
+	-$(RM) $(OBJS)
+	-$(RM) $(OBJS)
 .PHONY: clean
-
-coverage:
-	cmake -DCMAKE_BUILD_TYPE=Coverage -B build/coverage
-	make --no-print-directory -C build/coverage -j
-	make --no-print-directory -C build/coverage coverage
-.PHONY: coverage
