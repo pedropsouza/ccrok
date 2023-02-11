@@ -10,14 +10,14 @@ void headless_noop(struct scheduler *s, double a) {}
 int main(int argc, char *argv[]) {
   setup_data setdat = {
       .window_w = 850, .window_h = 800, .server = 0, .server_a = {0},
-      .username = "anon", .frametime_ns = 1e9/30 };
+      .username = "anon", .frametime_ns = 1e9/30, .rdr_backend = -1 };
   // default address
   inet_pton(AF_INET, "127.0.0.1", &setdat.server_a.sin_addr);
   setdat.server_a.sin_family = AF_INET;
   setdat.server_a.sin_port = htons(SOLR_PORT);
 
   int r;
-  while ((r = getopt(argc, argv, "sa:d:u:p:")) != -1) {
+  while ((r = getopt(argc, argv, "sa:d:u:p:b:")) != -1) {
     switch (r) {
     case 's':
       setdat.server = 1;
@@ -39,6 +39,10 @@ int main(int argc, char *argv[]) {
     case 'p':
       if (sscanf(optarg, "%hu", &setdat.server_a.sin_port) != 1) goto invalid_arg;
       setdat.server_a.sin_port = htons(setdat.server_a.sin_port);
+      break;
+    case 'b':
+      if (sscanf(optarg, "%d", &setdat.rdr_backend) != 1) goto invalid_arg;
+      setdat.rdr_backend = setdat.rdr_backend < 0 ? -1 : setdat.rdr_backend;
       break;
     case '?':
       goto invalid_arg;

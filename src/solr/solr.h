@@ -35,6 +35,7 @@ typedef struct {
   size_t window_w, window_h;
   char username[SOLR_NAME_LEN];
   long frametime_ns;
+  int rdr_backend;
   bool server;
 } setup_data;
 

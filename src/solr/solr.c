@@ -347,7 +347,7 @@ graphics_init(solr *s) {
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
   rdat->win = SDL_CreateWindow("solr", SDL_WINDOWPOS_UNDEFINED,
                                SDL_WINDOWPOS_UNDEFINED, s->sdata.window_w, s->sdata.window_h, 0);
-  rdat->rdr = SDL_CreateRenderer(rdat->win, -1, SDL_RENDERER_ACCELERATED);
+  rdat->rdr = SDL_CreateRenderer(rdat->win, s->sdata.rdr_backend, SDL_RENDERER_ACCELERATED);
   if (rdat->rdr == NULL) {
     fprintf(stderr, "failed to create SDL renderer: %s\n", SDL_GetError());
     return; // FIXME: add proper error handling up the callstack
