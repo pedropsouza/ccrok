@@ -1,16 +1,10 @@
 #ifndef SOLR_HG__
 #define SOLR_HG__
 
-#include <unistd.h>
-#include <fcntl.h>
-#include <stdbool.h>
 //#include "../../libcrc/include/checksum.h"
-#include "SDL2/SDL.h"
-#include "SDL2/SDL_image.h"
 #include "ivec.h"
 #include "memutil.h"
 #include "sched.h"
-#include "draw.h"
 #include "serde.h"
 #include "phys.h"
 
@@ -37,6 +31,8 @@ typedef struct {
   long frametime_ns;
   int rdr_backend;
   bool server;
+  int infd;
+  int outfd;
 } setup_data;
 
 typedef enum {
@@ -86,7 +82,6 @@ typedef struct {
   uint8_t top;
   uint8_t splayed;
   uint8_t pile;
-  ivec dims;
   uint8_t id;
 } card_stack;
 size_t card_stack_serde(pbuf_t *buf, char mode, void *s);
@@ -177,27 +172,17 @@ typedef struct {
 } client;
 
 typedef struct {
-  SDL_Window *win;
-  SDL_Renderer *rdr;
-  
-  SDL_Texture *piles;
-  SDL_Texture *backs;
-  SDL_Texture *slot;
-  SDL_Texture *suits[SUIT_MAX];
-} solr_rdr;
-
-typedef struct {
   gamestate st;
   netmgr net;
   server srv;
   client client;
   setup_data sdata;
-  solr_rdr rdr;
+  int st_output;
 } solr;
 
 sch_trans solr_setup  (scheduler *s);
 sch_trans solr_cleanup(scheduler *s);
 sch_trans solr_fixed  (scheduler *s, long step_ns);
-void      solr_render (scheduler *s, double a);
+void      solr_output (scheduler *s, double a);
 
 #endif // SOLR_HG__

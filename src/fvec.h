@@ -1,9 +1,6 @@
 #ifndef FVEC_HG__
 #define FVEC_HG__
 
-#include <math.h>
-#include <stdio.h>
-
 struct fvec {
   float x, y;
 };

@@ -80,7 +80,7 @@ size_t pack_unpack_v(pbuf_t *head, char mode, size_t align, char *fmt, va_list v
       } while (valcount > 0);
       break;
     case 'H': // u16
-      size += pad_align(&head, alignof(uint16_t));
+      size += pad_align(&head, _Alignof(uint16_t));
       v.u16 = (uint16_t *)va_arg(va, void *);
       do {
         if (mode == SERDE_MODE_SIZEHINT) {;}
@@ -96,7 +96,7 @@ size_t pack_unpack_v(pbuf_t *head, char mode, size_t align, char *fmt, va_list v
       } while (valcount > 0);
       break;
     case 'I': // u32
-      size += pad_align(&head, alignof(uint32_t));
+      size += pad_align(&head, _Alignof(uint32_t));
       v.u32 = (uint32_t *)va_arg(va, void *);
       do {
         if (mode == SERDE_MODE_SIZEHINT) {;}
@@ -112,7 +112,7 @@ size_t pack_unpack_v(pbuf_t *head, char mode, size_t align, char *fmt, va_list v
       } while (valcount > 0);
       break;
     case 'Q': // u64
-      size += pad_align(&head, alignof(uint64_t));
+      size += pad_align(&head, _Alignof(uint64_t));
       v.u64 = (uint64_t *)va_arg(va, void *);
       do {
         if (mode == SERDE_MODE_SIZEHINT) {;}
@@ -143,7 +143,7 @@ size_t pack_unpack_v(pbuf_t *head, char mode, size_t align, char *fmt, va_list v
       break;
     case 's': // string
       // WARN: won't accept a count on the format, already used for length
-      size += pad_align(&head, alignof(uint32_t));
+      size += pad_align(&head, _Alignof(uint32_t));
       v.str = va_arg(va, char *);
       slen = valcount;
       if (mode == SERDE_MODE_SIZEHINT) {;}
@@ -169,13 +169,13 @@ size_t pack_unpack_v(pbuf_t *head, char mode, size_t align, char *fmt, va_list v
       fmt++; // and the ] too
 
       if (serfun != NULL) {
-        void *io = (void*)va_arg(va, void*);
+        unsigned char *io = (char*)va_arg(va, unsigned char*);
         do {
           union ser_t kind = (union ser_t)io;
-          len = pack_unpack(head, mode, alignof(union ser_t), buf, kind);
+          len = pack_unpack(head, mode, _Alignof(union ser_t), buf, kind);
           head += len;
           size += len;
-          len = serfun(head, mode, io);
+          len = serfun(head, mode, (void*)io);
           head += len;
           size += len;
           io += serfun(NULL, SERDE_MODE_SIZEHINT, NULL);
@@ -191,9 +191,9 @@ size_t pack_unpack_v(pbuf_t *head, char mode, size_t align, char *fmt, va_list v
       }
       serde_fun f = serializer_table[*fmt];
       if (f != NULL) {
-        void *io = (void*)va_arg(va, void*);
+        unsigned char *io = (unsigned char*)va_arg(va, unsigned char*);
         do {
-          len = f(head, mode, io);
+          len = f(head, mode, (void*)io);
           head += len;
           size += len;
           io += f(NULL, SERDE_MODE_SIZEHINT, NULL);

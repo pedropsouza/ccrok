@@ -1,23 +1,20 @@
-#include "SDL2/SDL.h"
-#include "SDL2/SDL_image.h"
 #include "solr/solr.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
 
 void headless_noop(struct scheduler *s, double a) {}
 
 int main(int argc, char *argv[]) {
   setup_data setdat = {
       .window_w = 850, .window_h = 800, .server = 0, .server_a = {0},
-      .username = "anon", .frametime_ns = 1e9/30, .rdr_backend = -1 };
+      .username = "anon", .frametime_ns = 1e9/30, .rdr_backend = -1,
+      .infd = fileno(stdin), .outfd = fileno(stdout)
+  };
   // default address
   inet_pton(AF_INET, "127.0.0.1", &setdat.server_a.sin_addr);
   setdat.server_a.sin_family = AF_INET;
   setdat.server_a.sin_port = htons(SOLR_PORT);
 
   int r;
-  while ((r = getopt(argc, argv, "sa:d:u:p:b:")) != -1) {
+  while ((r = getopt(argc, argv, "sa:d:u:p:b:i:o:")) != -1) {
     switch (r) {
     case 's':
       setdat.server = 1;
@@ -44,6 +41,23 @@ int main(int argc, char *argv[]) {
       if (sscanf(optarg, "%d", &setdat.rdr_backend) != 1) goto invalid_arg;
       setdat.rdr_backend = setdat.rdr_backend < 0 ? -1 : setdat.rdr_backend;
       break;
+    case 'i':
+      if ((setdat.infd = open(optarg, O_CREAT | O_RDONLY)) == -1) {
+        perror("couldn't open input file");
+        return EXIT_FAILURE;
+      }
+      break;
+    case 'o':
+      if ((setdat.outfd = creat(optarg, 0)) == -1) {
+        perror("couldn't open output file");
+        return EXIT_FAILURE;
+      }
+      if (chmod(optarg, S_IREAD | S_IWRITE) == -1) {
+        perror("couldn't set output file perms");
+        return EXIT_FAILURE;
+      }
+      printf("!!! output file is %d\n", setdat.outfd);
+      break;
     case '?':
       goto invalid_arg;
       break;
@@ -53,7 +67,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  render_fun renf = (setdat.server) ? headless_noop : solr_render;
+  render_fun renf = (setdat.server) ? headless_noop : solr_output;
 
   struct scheduler s =
       sched_init(solr_setup, solr_cleanup, solr_fixed, renf, setdat.frametime_ns,

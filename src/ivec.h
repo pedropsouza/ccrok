@@ -1,19 +1,13 @@
 #ifndef IVEC_HG__
 #define IVEC_HG__
 
-#include <arpa/inet.h>
-#include <math.h>
-#include <stdint.h>
-#include <stdio.h>
-
-#define IVEC_SERLEN (sizeof(int64_t) * 2)
 struct ivec {
   int64_t x;
   int64_t y;
 };
 
 uint64_t ivec_mag2(struct ivec v);
-uint64_t ivec_mag(struct ivec v);
+//uint64_t ivec_mag(struct ivec v);
 struct ivec ivec_zero();
 struct ivec ivec_max();
 

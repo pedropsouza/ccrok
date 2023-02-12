@@ -1,1 +1,2 @@
 if the scheduler throws an error during setup, the draw function shouldn't be called
+if the cosmo folder is not populated, fetch the latest amalgamation

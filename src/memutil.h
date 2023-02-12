@@ -1,11 +1,6 @@
 #ifndef MEMUTIL_HG__
 #define MEMUTIL_HG__
 
-#include <errno.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-
 struct sarr {
   size_t len;
   size_t elem_s;

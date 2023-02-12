@@ -14,12 +14,6 @@
 // the next exec
 //
 // Follows justified programming for ease of debugging
-#include <SDL.h>
-#include <assert.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
 
 #define SCHED_TRANS_HISTORY_SIZE 32
 #define SCHED_TRANS_QUEUE_SIZE 16

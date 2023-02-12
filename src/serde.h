@@ -1,15 +1,6 @@
 #ifndef SERDE_HG__
 #define SERDE_HG__
 
-#include <assert.h>
-#include <ctype.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdalign.h>
-#include <stdint.h>
-#include <string.h>
-#include <arpa/inet.h>
-
 typedef unsigned char pbuf_t;
 
 union ser_t {

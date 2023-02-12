@@ -10,6 +10,9 @@ bin/*
 *.obj
 *.elf
 
+# Cosmopolitan
+cosmo
+
 # Linker output
 *.ilk
 *.map

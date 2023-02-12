@@ -12,13 +12,31 @@ SOLR    := $(BIN)/solre
 #CCROK   := $(BIN)/ccrok
 #TCHESS := $(BIN)/tchess
 EXES    := $(SOLR)
-CFLAGS  := $(addprefix -I,$(SRCDIRS)) $(shell sdl2-config --cflags) $(XTRAFLAGS)
-LDLIBS  := -lm $(shell sdl2-config --libs)
+CFLAGS  := $(addprefix -I,$(SRCDIRS)) $(XTRAFLAGS)
+LDLIBS  := 
+COSMOFLAGS := -g -Os -static -fno-pie -no-pie -nostdlib -nostdinc -gdwarf-4 \
+  -fno-omit-frame-pointer -pg -mnop-mcount -mno-tls-direct-seg-refs \
+  -Wl,--gc-sections -fuse-ld=bfd -Wl,--gc-sections -Wl,-T,cosmo/ape.lds \
+  -include cosmo/cosmopolitan.h 
 
-COMMON  := $(addprefix ./src/, draw.o ivec.o memutil.o net.o phys.o sched.o serde.o)
+ifeq ($(m),cosmo)
+CFLAGS := $(CFLAGS) $(COSMOFLAGS)
+EXES := $(addsuffix .com.dbg,$(EXES))
+endif
+ifeq ($(m),release)
+CFLAGS := $(CFLAGS) "-03"
+endif
+ifeq ($(m),debug)
+CFLAGS := $(CFLAGS) "-g -fsanitize=undefined -fsanitize-undefined-trap-on-error \
+  -fno-omit-frame-pointer -O0 -DDEBUG -Wuninitialized"
+endif
 
+COMMON  := $(addprefix ./src/, ivec.o memutil.o net.o phys.o sched.o serde.o)
+
+.PHONY: all printcflags clean
 all: $(EXES)
-.PHONY: all
+printcflags:
+	@echo $(CFLAGS)
 
 include makefile.defs
 include $(DEPS)
@@ -29,15 +47,10 @@ $(SOLR): $(COMMON) ./app/solr.o ./src/solr/solr.o | $(BIN)
 $(BIN):
 	$(MKDIR) $@
 
-debug:
-	$(MAKE) XTRAFLAGS:="-g -fsanitize=undefined -fsanitize-undefined-trap-on-error -fno-omit-frame-pointer -O0 -DDEBUG -Wuninitialized"
-.PHONY: debug
-
-release:
-	$(MAKE) XTRAFLAGS:="-O3"
-.PHONY: release
-
 clean:
 	-$(RM) $(OBJS)
 	-$(RM) $(EXES)
-.PHONY: clean
+
+$(SOLR).com.dbg: $(COMMON) ./app/solr.o ./src/solr/solr.o | $(BIN)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS) \
+	cosmo/crt.o cosmo/ape-no-modify-self.o cosmo/cosmopolitan.a

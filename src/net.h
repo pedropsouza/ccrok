@@ -1,9 +1,6 @@
 #ifndef NET_HG__
 #define NET_HG__
 
-#include <unistd.h>
-#include <errno.h>
-#include <arpa/inet.h>
 #include "serde.h"
 
 #ifndef NETPACKET_MAX_PAYLOAD
@@ -27,7 +24,7 @@ size_t netpacket_unpack(pbuf_t *src, netpacket *pckt);
 
 typedef struct {
   int sock_fd;
-  alignas(8) pbuf_t serde_buf[sizeof(netpacket)];
+  _Alignas(8) pbuf_t serde_buf[sizeof(netpacket)];
   netpacket tx;
   netpacket rx;
   struct sockaddr_in peer;

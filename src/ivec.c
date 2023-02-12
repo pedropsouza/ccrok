@@ -2,7 +2,7 @@
 
 uint64_t ivec_mag2(struct ivec v) { return v.x * v.x + v.y * v.y; }
 // FIXME: int sqrt needed
-uint64_t ivec_mag(struct ivec v) { return sqrt(ivec_mag2(v)); }
+//uint64_t ivec_mag(struct ivec v) { return sqrt(ivec_mag2(v)); }
 struct ivec ivec_zero() {
   return (struct ivec){.x = 0, .y = 0};
 }

@@ -2,8 +2,6 @@
 #define PHYS_HG__
 
 #include "ivec.h"
-#include <stdio.h>
-#include <string.h>
 
 struct physbody {
   struct ivec pos;

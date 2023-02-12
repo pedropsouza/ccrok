@@ -5,11 +5,11 @@ netpacket_pack(pbuf_t *dst, netpacket *pckt) {
   char fmt[32] = NETPACKET_FMTSTR_PARTIAL;
   size_t plen = strlen(fmt);
   snprintf(fmt + plen, sizeof(fmt) - plen, "%zus", pckt->data_len);
-  return pack(dst, alignof(netpacket), fmt, &pckt->kind, &pckt->data);
+  return pack(dst, _Alignof(netpacket), fmt, &pckt->kind, &pckt->data);
 }
 size_t
 netpacket_unpack(pbuf_t *src, netpacket *pckt) {
-  return unpack(src, alignof(netpacket),
+  return unpack(src, _Alignof(netpacket),
           NETPACKET_FMTSTR_PARTIAL "s?", &pckt->kind, &pckt->data, &pckt->data_len);
 }
 
