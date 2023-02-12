@@ -173,7 +173,7 @@ static int flung_behaviour(solr *s) {
   if (!pc->valid) return -1;
   int64_t x = pc->pb.pos.x;
   int64_t y = pc->pb.pos.y;
-  if(x < -card_dims.x || x > s->sdata.window_w
+  if (x < -card_dims.x || x > (int64_t)s->sdata.window_w
     || (y == s->sdata.window_h - card_dims.y && pc->pb.vel.y < 2)
   ) {
     s->st.flung_card.valid = 0;
@@ -475,7 +475,6 @@ is_solved(solr *s) {
     card_stack *cs = s->st.board.stacks + i;
     c_suits += cs->top;
   }
-  printf("%zu in suits\n", c_suits);
   return c_suits >= 52;
 }
 
@@ -604,7 +603,6 @@ broadcast(solr *s) {
 static void
 handle_pckt(solr *s, netpacket *p) {
   int8_t uid;
-  if(p->kind != PCKT_POS) printf("got a packet kinded %d\n", p->kind);
   switch (p->kind) {
     case PCKT_JOIN: {
       if (!s->sdata.server) return;
@@ -648,7 +646,6 @@ handle_pckt(solr *s, netpacket *p) {
     move m;
     char *rej_reason;
     unpack(p->data, 1, "m", &m);
-    printf("move %d %d %d %d\n", m.kind, m.stacks.src, m.stacks.dst, m.num_cards);
     if (!move_valid(s, &m, &rej_reason)) {
       printf("invalid move: %s\n", rej_reason);
       break;
@@ -681,14 +678,12 @@ handle_pckt(solr *s, netpacket *p) {
           expose_top_card_stack(src);
           take_card_stack(src, s->st.board.stacks + STACK_WASTE, 1);
           if (m.stacks.dst >= STACK_PLAYER_BEGIN) {
-            printf("set camefrom %d\n", src->id);
             s->st.players[m.stacks.dst - STACK_PLAYER_BEGIN].held.camefrom = src->id;
           }
         }
       } else {
         take_card_stack(src, dst, m.num_cards);
         if (m.stacks.dst >= STACK_PLAYER_BEGIN) {
-          printf("set camefrom %d\n", src->id);
           s->st.players[m.stacks.dst - STACK_PLAYER_BEGIN].held.camefrom = src->id;
         }
       }
@@ -739,7 +734,6 @@ handle_pckt(solr *s, netpacket *p) {
   case PCKT_STDUMP: {
     if (s->st.stage == STAGE_WON) return;
     gamestate nst = {0};
-    printf("received statedump\n");
     unpack(p->data, 8, "G", &nst);
     s->st = nst;
     break;
@@ -820,7 +814,6 @@ solr_fixed(scheduler *s, long step_ns) {
       if (stack_idx < 0) break;
       unsigned char n = game->st.board.stacks[stack_idx].top
           - card_bbox(game, stack_idx, mouse_pos);
-      printf("bbox %zd %u @ %ld,%ld\n", stack_idx, n, mouse_pos.x, mouse_pos.y);
 
       move m = {
         .kind = myp->held.stack.top > 0 ? MOVE_PUSH : MOVE_TAKE,
@@ -913,8 +906,7 @@ card_stack_render(solr_rdr *rdr, card_stack *s, ivec pos) {
   }
   if (s->pile) {
     SDL_Rect rect = {.x = 0, .y = 0, .w = 88, .h = 124};
-    //for (ssize_t i = s->top - 1; i >= 0; i--) {
-    for (ssize_t i = i; i < s->top; i++) {
+    for (ssize_t i = 0; i < s->top; i++) {
       if (i == s->top - 1) { card_render(rdr, &s->s[i], (ivec){dst.x,dst.y}); }
       else if (SDL_RenderCopy(rdr->rdr, rdr->backs, &rect, &dst) < 0) {
         fprintf(stderr, "%s: %s", __func__, SDL_GetError());
