@@ -2,13 +2,16 @@
 MKDIR   := mkdir
 RMDIR   := rm -r
 RM      := rm
+ZIP     := zip
 CC      := gcc
 BIN     := ./bin
 SRCDIRS := ./src ./app ./src/solr
 SRCS    := $(foreach fd, $(SRCDIRS), $(wildcard $(fd)/*.c))
 OBJS    := $(patsubst %.c,%.o,$(SRCS))
 DEPS    := $(patsubst %.o,%.d,$(OBJS))
+REDBEAN := $(BIN)/redbean.com
 SOLR    := $(BIN)/solre
+SOLRWEB := $(wildcard ./src/solr/web/*) $(SOLR)
 #CCROK   := $(BIN)/ccrok
 #TCHESS := $(BIN)/tchess
 EXES    := $(SOLR)
@@ -33,8 +36,9 @@ endif
 
 COMMON  := $(addprefix ./src/, ivec.o memutil.o net.o phys.o sched.o serde.o)
 
-.PHONY: all printcflags clean
+.PHONY: all printcflags pack clean
 all: $(EXES)
+pack: $(REDBEAN)
 printcflags:
 	@echo $(CFLAGS)
 
@@ -54,3 +58,6 @@ clean:
 $(SOLR).com.dbg: $(COMMON) ./app/solr.o ./src/solr/solr.o | $(BIN)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS) \
 	cosmo/crt.o cosmo/ape-no-modify-self.o cosmo/cosmopolitan.a
+
+$(REDBEAN): $(SOLRWEB)
+	$(ZIP) -j $(REDBEAN) $^
