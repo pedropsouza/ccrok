@@ -474,8 +474,11 @@ handle_pckt(solr *s, netpacket *p) {
         
       s->srv.socks[vacant] = s->net.peer;
         
-      if (p->data_len > 4 && p->data_len < SOLR_NAME_LEN + 4) {
+      if (p->data_len > 4 && p->data_len <= SOLR_NAME_LEN + 4) {
         unpack(p->data, 4, "s", &s->st.players[vacant].username);
+        printf("user \"%s\"\n", &s->st.players[vacant].username);
+      } else {
+        printf("user with no name, packet len %zu\n", p->data_len);
       }
 
       s->net.tx.kind = PCKT_ACK;
@@ -725,18 +728,18 @@ solr_fixed(scheduler *s, long step_ns) {
 
 static void
 ivec_out(int fd, ivec v) {
-  dprintf(fd, "{ x: %ld, y: %ld }", v.x, v.y);
+  dprintf(fd, "{ \"x\": %ld, \"y\": %ld }", v.x, v.y);
 }
 
 void
 card_output(int fd, card* c) {
-  dprintf(fd, "{ up: %d, r: %d, s: %d }",
+  dprintf(fd, "{ \"up\": %d, \"r\": %d, \"s\": %d }",
     c->faceup, c->faceup ? c->r : -1, c->faceup ? c->s : -1);
 }
 
 void
 card_stack_output(int fd, card_stack *s) {
-  dprintf(fd, "{ id: %d, pile: %d, cards: [\n", s->id, s->pile);
+  dprintf(fd, "{ \"id\": %d, \"pile\": %d, \"cards\": [\n", s->id, s->pile);
   
   if (s->top > 0 && !s->splayed) {
     dprintf(fd, "\t\t");
@@ -754,9 +757,9 @@ card_stack_output(int fd, card_stack *s) {
 
 void
 player_output(int fd, player *p) {
-  dprintf (fd, "{ username: %s, pos: ", p->username);
+  dprintf (fd, "{ \"username\": \"%s\", \"pos\": ", p->username);
   ivec_out(fd, p->pos);
-  dprintf (fd, ", held: ");
+  dprintf (fd, ", \"held\": ");
   card_stack_output(fd, &p->held.stack);
   dprintf (fd, " }");
 }
@@ -768,19 +771,22 @@ solr_output(scheduler *s, double a) {
   if (!game->st_output) return;
 
   ftruncate(fd, 0);
-  dprintf(fd, "{ tick: %ld, stage: %d, stacks: [\n", game->st.tick, game->st.stage);
+  lseek(fd, SEEK_SET, 0);
+  dprintf(fd, "{ \"tick\": %ld, \"stage\": %d, \"stacks\": [\n", game->st.tick, game->st.stage);
   for (size_t i = 0; i < STACK_BOARD_MAX; i++) {
     dprintf(fd, "\t");
     card_stack_output(fd, game->st.board.stacks + i);
     dprintf(fd, i + 1 == STACK_BOARD_MAX ? "\n" : ",\n");
   }
-  dprintf(fd, "], players: [\n");
+  dprintf(fd, "], \"players\": [\n");
   for (size_t i = 0; i < SOLR_MAX_PLAYERS; i++) {
     player *p = game->st.players + i;
     if (p->valid) {
       dprintf(fd, "\t");
       player_output(fd, p);
-      dprintf(fd, i + 1 == SOLR_MAX_PLAYERS ? "\n" : ",\n");
+      // since we may not print all the slots, the terminating
+      // ',' is more complicated
+      dprintf(fd, i + 1 == SOLR_MAX_PLAYERS ? "\n" : !(p + 1)->valid ? "\n" : ",\n");
     }
   }
   dprintf(fd, "] }\n");
