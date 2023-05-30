@@ -409,7 +409,9 @@ setup_board_stacks(solr *game) {
 
   card_stack *stock = stack_from_id(game, STACK_STOCK);
   card_stack *waste = stack_from_id(game, STACK_WASTE);
+  stock->top = 0;
   stock->pile = 1;
+  waste->top = 0;
   waste->pile = 1;
   for (int suit = SUIT_BEG; suit < SUIT_MAX; suit++) {
     int clr = suit <= 2;
@@ -423,10 +425,15 @@ setup_board_stacks(solr *game) {
   
   for (int i = STACK_TABLEAU_BEGIN; i <= STACK_TABLEAU_END; i++) {
     card_stack *col = stack_from_id(game, i);
+    col->top = 0;
     for (int j = 0; j < i; j++) {
       take_card_stack(stock, col, 1);
     }
     expose_top_card_stack(col);
+  }
+
+  for (int i = STACK_SUITS_BEGIN; i <= STACK_SUITS_END; i++) {
+    game->st.board.stacks[i].top = 0;
   }
 
   for (size_t i = 0; i < STACK_MAX; i++) {
@@ -738,6 +745,17 @@ handle_pckt(solr *s, netpacket *p) {
     s->st = nst;
     break;
   }
+  case PCKT_RESTARTREQ: {
+    if (s->sdata.server) {
+      s->st.stage = STAGE_PLAYING;
+      setup_board_stacks(s);
+      s->net.tx.kind = PCKT_STDUMP;
+      s->net.tx.data_len = pack(s->net.tx.data, 8, "G", &s->st);
+      broadcast(s);
+      printf("got restart\n");
+    }
+    break;
+  }
   default: break;
   }
 }
@@ -772,23 +790,24 @@ solr_fixed(scheduler *s, long step_ns) {
     broadcast(game);
   }
   
+  if (game->sdata.server) goto end;
+  
   if (game->st.stage == STAGE_WON) {
     if (flung_behaviour(game) == -1) {
       fling_suits(game);
     }
   }
   
-  if (game->sdata.server) goto end;
-  
   static ivec mouse_pos = {0};
   SDL_Event input;
   while (SDL_PollEvent(&input) > 0) {
+    game->net.tx = (netpacket){0};
+    game->net.peer = game->sdata.server_a;
+
     switch (input.type) {
     case SDL_QUIT:
       printf("leaving...\n");
-      game->net.tx = (netpacket){0};
       game->net.tx.kind = PCKT_LEAVE;
-      game->net.peer = game->sdata.server_a;
       netmgr_send(&game->net);
       goto leave;
     case SDL_MOUSEMOTION: {
@@ -803,10 +822,8 @@ solr_fixed(scheduler *s, long step_ns) {
     case SDL_MOUSEBUTTONUP: {
       player *myp = game->st.players + game->client.uid;
       if (input.button.button == SDL_BUTTON_RIGHT) {
-        game->net.tx = (netpacket){0};
         game->net.tx.kind = PCKT_CANCEL;
         game->net.tx.data_len = pack(game->net.tx.data, 1, "C", &game->client.uid);
-        game->net.peer = game->sdata.server_a;
         netmgr_send(&game->net);
         break;
       }
@@ -822,10 +839,8 @@ solr_fixed(scheduler *s, long step_ns) {
       m.stacks.src = m.kind == MOVE_PUSH ? STACK_PLAYER_BEGIN + game->client.uid : stack_idx;
       m.stacks.dst = m.kind == MOVE_TAKE ? STACK_PLAYER_BEGIN + game->client.uid : stack_idx;
       
-      game->net.tx = (netpacket){0};
       game->net.tx.kind = PCKT_MOVE;
       game->net.tx.data_len = pack(game->net.tx.data, 1, "m", &m);
-      game->net.peer = game->sdata.server_a;
       netmgr_send(&game->net);
       break;
     }
@@ -844,11 +859,15 @@ solr_fixed(scheduler *s, long step_ns) {
             .num_cards = 1,
           };
 
-          game->net.tx = (netpacket){0};
           game->net.tx.kind = PCKT_MOVE;
           game->net.tx.data_len = pack(game->net.tx.data, 1, "m", &m);
-          game->net.peer = game->sdata.server_a;
           netmgr_send(&game->net);
+        }
+        case SDLK_r: {
+            game->net.tx.kind = PCKT_RESTARTREQ;
+            game->net.tx.data_len = 0;
+            netmgr_send(&game->net);
+          break;
         }
       }
       break;
@@ -963,4 +982,5 @@ solr_render(scheduler *s, double a) {
 // TODO: game state serde
 // TODO: stack randomization
 // TODO: disconnect on win (or do something better)
+// TODO: figure out why after a win restarts don't work
 

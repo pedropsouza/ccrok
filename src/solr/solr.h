@@ -164,6 +164,7 @@ enum {
   PCKT_MOVE = 4,
   PCKT_CANCEL = 5,
   PCKT_STDUMP = 3,
+  PCKT_RESTARTREQ = 6,
   PCKT_END = 16,
 };
 
