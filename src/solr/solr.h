@@ -16,6 +16,8 @@
 
 #define SOLR_PORT 51743
 #define SOLR_NAME_LEN 64
+#define SOLR_REAL_PLAYERS 7
+#define SOLR_AUTO_PLAYER 7
 #define SOLR_MAX_PLAYERS 8
 #define NETPACKET_MAX_PAYLOAD 8192
 #include "net.h"
@@ -88,10 +90,16 @@ typedef struct {
   uint8_t pile;
   ivec dims;
   uint8_t id;
+  uint8_t lock_info;
 } card_stack;
 size_t card_stack_serde(pbuf_t *buf, char mode, void *s);
 void push_card_stack(card_stack *dst, card_stack *src);
 void take_card_stack(card_stack *src, card_stack *dst, size_t n);
+int is_locked_stack(card_stack *stack);
+int who_locked_stack(card_stack *stack);
+void lock_stack(card_stack *stack, uint8_t who);
+void unlock_stack(card_stack *stack);
+
 
 typedef struct {
   card_stack stack;
@@ -144,6 +152,7 @@ enum {
   STAGE_PLAYING = 1,
   STAGE_WON = 2,
   STAGE_LOST = 3,
+  STAGE_FFW = 4,
 };
 
 typedef struct {
@@ -156,7 +165,7 @@ typedef struct {
 size_t gamestate_serde(pbuf_t *buf, char mode, void *st);
 
 enum {
-  PKCT_INVALID = 0,
+  PCKT_INVALID = 0,
   PCKT_ACK = 1,
   PCKT_JOIN = 10,
   PCKT_LEAVE = 11,
@@ -165,6 +174,7 @@ enum {
   PCKT_CANCEL = 5,
   PCKT_STDUMP = 3,
   PCKT_RESTARTREQ = 6,
+  PCKT_FFWREQ = 7,
   PCKT_END = 16,
 };
 
@@ -184,6 +194,7 @@ typedef struct {
   SDL_Texture *piles;
   SDL_Texture *backs;
   SDL_Texture *slot;
+  SDL_Texture *locked_icon;
   SDL_Texture *suits[SUIT_MAX];
 } solr_rdr;
 
@@ -196,9 +207,23 @@ typedef struct {
   solr_rdr rdr;
 } solr;
 
+int move_valid(solr *s, move *m, char **reason);
+typedef struct {card_stack *src,*dst;} card_stack_pair;
+
 sch_trans solr_setup  (scheduler *s);
 sch_trans solr_cleanup(scheduler *s);
 sch_trans solr_fixed  (scheduler *s, long step_ns);
 void      solr_render (scheduler *s, double a);
+
+// misc. utils
+
+card_stack* stack_from_id(solr *s, uint8_t id);
+void update_stack_dims(card_stack *s);
+void shuffle_stack(card_stack *s);
+void expose_top_card_stack(card_stack *s);
+card_stack_pair next_ffw_stacks(solr *s);
+
+void graphics_init(solr *s);
+void graphics_finish(solr *s);
 
 #endif // SOLR_HG__
