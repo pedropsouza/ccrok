@@ -28,7 +28,13 @@ move_valid(solr *s, move *m, char **reason) {
 #define IS_SUITS(x) (x >= STACK_SUITS_BEGIN && x <= STACK_SUITS_END)
 
   if (m->kind == MOVE_TAKE) {
-    if (IS_STOCK(src->id)) return 1;
+    if (IS_STOCK(src->id)) {
+      if (m->num_cards > 1) {
+        *reason = "taking more than one card from stack";
+        return 0;
+      }
+      return 1;
+    }
     if (dst->top > 0) {
       *reason = "taking with nonempty dst";
       return 0;
@@ -37,8 +43,13 @@ move_valid(solr *s, move *m, char **reason) {
       *reason = "not enough cards to take";
       return 0;
     }
-    if (IS_SUITS(src->id) || IS_WASTE(src->id))
+    if (IS_SUITS(src->id) || IS_WASTE(src->id)) {
+      if (m->num_cards != 1) {
+        *reason = "taking more than one card from suits/waste pile";
+        return 0;
+      }
       return 1;
+    }
     if (IS_TABLEAU(src->id)) {
       ssize_t idx = src->top - m->num_cards;
       assert(idx < 4*13 && idx >= 0);

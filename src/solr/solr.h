@@ -75,7 +75,6 @@ typedef struct {
   uint8_t clr;
 } card;
 size_t card_serde(pbuf_t *buf, char mode, void *vc);
-extern ivec card_dims;
 
 typedef struct {
   physbody pb;
@@ -119,7 +118,6 @@ typedef struct {
   // only matters when taking
   uint8_t num_cards;
 } move;
-//int move_valid(solr *s, move *m) {
 size_t move_serde(pbuf_t *buf, char mode, void *m);
 
 enum {
@@ -225,5 +223,15 @@ card_stack_pair next_ffw_stacks(solr *s);
 
 void graphics_init(solr *s);
 void graphics_finish(solr *s);
+void graphics_resize(solr *s, ivec new_window_dims);
+
+extern const ivec stack_areas[STACK_BOARD_MAX];
+extern const ivec ref_window_dims;
+extern const ivec card_dims;
+extern ivec stack_areas_scaled[STACK_BOARD_MAX];
+extern ivec window_dims;
+extern ivec card_dims_scaled;
+
+float lerp(float a, float b, float v);
 
 #endif // SOLR_HG__

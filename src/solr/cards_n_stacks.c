@@ -18,12 +18,11 @@ card_stack_serde(pbuf_t *buf, char mode, void *vs) {
 
 void
 update_stack_dims(card_stack *s) {
-  s->dims.x = 88;
-  s->dims.y = 124;
+  s->dims = card_dims_scaled;
   if (s->splayed) {
     s->dims.y += 20*s->top;
-  } else {
-    s->dims.y += (16*s->pile*(s->top > 0));
+  } else if (s->pile) {
+    s->dims.y -= 2*s->top;
   }
 }
 
