@@ -87,7 +87,6 @@ typedef struct {
   uint8_t top;
   uint8_t splayed;
   uint8_t pile;
-  ivec dims;
   uint8_t id;
   uint8_t lock_info;
 } card_stack;
@@ -194,6 +193,10 @@ typedef struct {
   SDL_Texture *slot;
   SDL_Texture *locked_icon;
   SDL_Texture *suits[SUIT_MAX];
+
+  SDL_Rect stack_areas[STACK_MAX];
+  ivec win_dims;
+  ivec card_dims;
 } solr_rdr;
 
 typedef struct {
@@ -216,7 +219,7 @@ void      solr_render (scheduler *s, double a);
 // misc. utils
 
 card_stack* stack_from_id(solr *s, uint8_t id);
-void update_stack_dims(card_stack *s);
+void update_stack_dims(solr* s, card_stack *ss);
 void shuffle_stack(card_stack *s);
 void expose_top_card_stack(card_stack *s);
 card_stack_pair next_ffw_stacks(solr *s);
@@ -225,13 +228,8 @@ void graphics_init(solr *s);
 void graphics_finish(solr *s);
 void graphics_resize(solr *s, ivec new_window_dims);
 
-extern const ivec stack_areas[STACK_BOARD_MAX];
 extern const ivec ref_window_dims;
 extern const ivec card_dims;
-extern ivec stack_areas_scaled[STACK_BOARD_MAX];
-extern ivec window_dims;
-extern ivec card_dims_scaled;
-
 float lerp(float a, float b, float v);
 
 #endif // SOLR_HG__

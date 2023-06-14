@@ -1,29 +1,16 @@
 #include "SDL_video.h"
 #include "ivec.h"
 #include "solr.h"
+#include <stdio.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-const ivec stack_areas[STACK_BOARD_MAX] = {
-    [0]  = {.x = 12,                 .y = 64,     },
-    [1]  = {.x = 12 + 1 * (12 + 88), .y = 140 + 64},
-    [2]  = {.x = 12 + 2 * (12 + 88), .y = 140 + 64},
-    [3]  = {.x = 12 + 3 * (12 + 88), .y = 140 + 64},
-    [4]  = {.x = 12 + 4 * (12 + 88), .y = 140 + 64},
-    [5]  = {.x = 12 + 5 * (12 + 88), .y = 140 + 64},
-    [6]  = {.x = 12 + 6 * (12 + 88), .y = 140 + 64},
-    [7]  = {.x = 12 + 7 * (12 + 88), .y = 140 + 64},
-    [8]  = {.x = 12 + 4 * (12 + 88), .y = 64,     },
-    [9]  = {.x = 12 + 5 * (12 + 88), .y = 64,     },
-    [10] = {.x = 12 + 6 * (12 + 88), .y = 64,     },
-    [11] = {.x = 12 + 7 * (12 + 88), .y = 64,     },
-    [12] = {.x = 12 + 1 * (12 + 88), .y = 64,     },
+ivec ref_stack_areas[STACK_BOARD_MAX] = {
 };
+
 const ivec ref_window_dims = {.x = 850, .y = 478};
-const ivec card_dims = {.x = 88, .y = 124};
-ivec card_dims_scaled;
-ivec stack_areas_scaled[STACK_BOARD_MAX];
-ivec window_dims;
+//const ivec card_dims = {.x = 88, .y = 124};
+const ivec card_dims = {.x = 66, .y = 93};
 
 static SDL_Texture *
 tex_from_file(SDL_Renderer *rdr, const char* filename) {
@@ -48,6 +35,7 @@ tex_from_file(SDL_Renderer *rdr, const char* filename) {
 void
 graphics_init(solr *s) {
   solr_rdr *rdat = &s->rdr;
+  memset(&rdat->stack_areas, 0, sizeof(rdat->stack_areas));
 
   SDL_Init(SDL_INIT_VIDEO);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
@@ -87,19 +75,52 @@ graphics_init(solr *s) {
   rdat->suits[SUIT_C] = tex_from_file(rdat->rdr, "resources/cards/Clubs-88x124.png");
   rdat->suits[SUIT_S] = tex_from_file(rdat->rdr, "resources/cards/Spades-88x124.png");
 
+  int cw = card_dims.x, ch = card_dims.y;
+  ref_stack_areas[0]  = (ivec){.x = 12,                 .y = ch/4,     };
+  ref_stack_areas[1]  = (ivec){.x = 12 + 1 * (12 + cw), .y = 140 + ch/4};
+  ref_stack_areas[2]  = (ivec){.x = 12 + 2 * (12 + cw), .y = 140 + ch/4};
+  ref_stack_areas[3]  = (ivec){.x = 12 + 3 * (12 + cw), .y = 140 + ch/4};
+  ref_stack_areas[4]  = (ivec){.x = 12 + 4 * (12 + cw), .y = 140 + ch/4};
+  ref_stack_areas[5]  = (ivec){.x = 12 + 5 * (12 + cw), .y = 140 + ch/4};
+  ref_stack_areas[6]  = (ivec){.x = 12 + 6 * (12 + cw), .y = 140 + ch/4};
+  ref_stack_areas[7]  = (ivec){.x = 12 + 7 * (12 + cw), .y = 140 + ch/4};
+  ref_stack_areas[8]  = (ivec){.x = 12 + 4 * (12 + cw), .y = ch/4,     };
+  ref_stack_areas[9]  = (ivec){.x = 12 + 5 * (12 + cw), .y = ch/4,     };
+  ref_stack_areas[10] = (ivec){.x = 12 + 6 * (12 + cw), .y = ch/4,     };
+  ref_stack_areas[11] = (ivec){.x = 12 + 7 * (12 + cw), .y = ch/4,     };
+  ref_stack_areas[12] = (ivec){.x = 12 + 1 * (12 + cw), .y = ch/4,     };
+  
   graphics_resize(s, (ivec){s->sdata.window_w,s->sdata.window_h});
 }
 
 void
 graphics_resize(solr *s, ivec new_window_dims) {
-  window_dims = new_window_dims;
-  ivec nwd = window_dims;
-  for (int i = 0; i < STACK_BOARD_MAX; i++) {
-    stack_areas_scaled[i] = ivec_div(ivec_mul(stack_areas[i], new_window_dims), ref_window_dims);
-  }
-  card_dims_scaled = ivec_div(ivec_mul(card_dims, new_window_dims), ref_window_dims);
+  solr_rdr *rd = &s->rdr;
+  rd->win_dims = new_window_dims;
+  ivec nwd = rd->win_dims;
+  rd->card_dims = ivec_div(ivec_mul(card_dims, nwd), ref_window_dims);
+  printf("new card dims: %ld,%ld\n", rd->card_dims.x, rd->card_dims.y);
   for (int i = 0; i < STACK_MAX; i++) {
-    update_stack_dims(stack_from_id(s, i));
+    ivec area;
+    if (i < STACK_BOARD_MAX) {
+      area = ivec_div(ivec_mul(ref_stack_areas[i], nwd), ref_window_dims);
+    } else {
+      area = (ivec){0,0};
+    }
+    rd->stack_areas[i].x = area.x;
+    rd->stack_areas[i].y = area.y;
+    rd->stack_areas[i].w = rd->card_dims.x;
+    rd->stack_areas[i].h = rd->card_dims.y;
+    // printf("area %d -> %d,%d >< %d,%d\n",
+    //   i,
+    //   rd->stack_areas[i].x,
+    //   rd->stack_areas[i].y,
+    //   rd->stack_areas[i].w,
+    //   rd->stack_areas[i].h
+    // );
+  }
+  for (int i = 0; i < STACK_MAX; i++) {
+    update_stack_dims(s, stack_from_id(s, i));
   }
 }
 

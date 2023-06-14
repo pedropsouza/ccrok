@@ -12,17 +12,20 @@ card_stack_serde(pbuf_t *buf, char mode, void *vs) {
   card_stack *s = vs;
   // TODO: VARIABLE LEN
   if (mode == SERDE_MODE_SIZEHINT) return sizeof(card_stack);
-  return pack_unpack(buf, mode, 8, "QQ52cCCCCC", &s->dims.x, &s->dims.y,
+  return pack_unpack(buf, mode, 8, "52cCCCCC",
     &s->s, &s->top, &s->splayed, &s->pile, &s->id, &s->lock_info);
 }
 
 void
-update_stack_dims(card_stack *s) {
-  s->dims = card_dims_scaled;
-  if (s->splayed) {
-    s->dims.y += 20*s->top;
-  } else if (s->pile) {
-    s->dims.y -= 2*s->top;
+update_stack_dims(solr* s, card_stack *ss) {
+  solr_rdr *rd = &s->rdr;
+  SDL_Rect *target = rd->stack_areas + ss->id;
+  target->w = rd->card_dims.x;
+  target->h = rd->card_dims.y;
+  if (ss->splayed) {
+    target->h += (22*rd->win_dims.y/ref_window_dims.y)*ss->top;
+  } else if (ss->pile) {
+    target->h -= (2*rd->win_dims.y/ref_window_dims.y)*ss->top;
   }
 }
 
@@ -50,8 +53,6 @@ push_card_stack(card_stack *dst, card_stack *src) {
     dst->top++;
   }
   src->top = 0;
-  update_stack_dims(dst);
-  update_stack_dims(src);
 }
 void
 take_card_stack(card_stack *src, card_stack *dst, size_t n) {
@@ -66,8 +67,6 @@ take_card_stack(card_stack *src, card_stack *dst, size_t n) {
     dst->top++;
   }
   src->top -= n;
-  update_stack_dims(dst);
-  update_stack_dims(src);
 }
 void
 expose_top_card_stack(card_stack *s) {

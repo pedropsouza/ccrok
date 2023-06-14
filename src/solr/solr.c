@@ -61,7 +61,8 @@ fling_suits(solr *s) {
   fs->top--;
 
   physical_card pc = {
-    .pb.pos = stack_areas_scaled[fs->id],
+    .pb.pos.x = s->rdr.stack_areas[fs->id].x,
+    .pb.pos.y = s->rdr.stack_areas[fs->id].y,
     .pb.vel = (ivec){.x = rand() % 20 - 10, .y = 0},
     .pb.acc = ivec_zero(),
     .c = c,
@@ -72,11 +73,12 @@ fling_suits(solr *s) {
 
 static int flung_behaviour(solr *s) {
   physical_card *pc = &s->st.flung_card;
+  solr_rdr *rd = &s->rdr;
   if (!pc->valid) return -1;
   int64_t x = pc->pb.pos.x;
   int64_t y = pc->pb.pos.y;
-  if (x < -card_dims_scaled.x || x > (int64_t)window_dims.x
-    || (y == window_dims.y - card_dims_scaled.y && pc->pb.vel.y < 2)
+  if (x < -rd->card_dims.x || x > (int64_t)rd->win_dims.x
+    || (y == rd->win_dims.y - rd->card_dims.y && pc->pb.vel.y < 2)
   ) {
     s->st.flung_card.valid = 0;
     return -1;
@@ -84,9 +86,9 @@ static int flung_behaviour(solr *s) {
 
   physbody_accel(&pc->pb, (ivec){0,1});
   physbody_tick(&pc->pb);
-  if (y + card_dims_scaled.y > s->sdata.window_h) {
+  if (y + rd->card_dims.y > rd->win_dims.y) {
     physbody_accel(&pc->pb, (ivec){0, -pc->pb.vel.y - pc->pb.vel.y / 2});
-    pc->pb.pos.y = s->sdata.window_h - card_dims_scaled.y;
+    pc->pb.pos.y = rd->win_dims.y - rd->card_dims.y;
   }
   return 0;
 }
@@ -94,8 +96,16 @@ static int flung_behaviour(solr *s) {
 static ssize_t
 stack_bbox(solr *s, ivec mpos) {
   for (size_t i = 0; i < STACK_BOARD_MAX; i++) {
-    SDL_Rect box = posdims2rect(stack_areas_scaled[i], s->st.board.stacks[i].dims);
+    SDL_Rect box = s->rdr.stack_areas[i];
     SDL_Point p = {.x = mpos.x, .y = mpos.y};
+    printf("stack bbox test m %d,%d b %d,%d,%d,%d\n",
+      p.x,
+      p.y,
+      box.x,
+      box.y,
+      box.w,
+      box.h
+      );
     if (SDL_PointInRect(&p, &box) == SDL_TRUE) {
       return i;
     }
@@ -105,16 +115,27 @@ stack_bbox(solr *s, ivec mpos) {
 
 static ssize_t
 card_bbox(solr *s, size_t stack_idx, ivec mpos) {
+  solr_rdr *rd = &s->rdr;
   assert(stack_idx < STACK_BOARD_MAX);
-  ivec *area = stack_areas_scaled + stack_idx;
+  SDL_Rect *area = rd->stack_areas + stack_idx;
+  ivec pos = {area->x, area->y};
+  ivec s_dims = {area->w, area->h};
   card_stack *ss = s->st.board.stacks + stack_idx;
   if (ss->top == 0) goto not_found;
 
-  int ystep = (ss->dims.y - card_dims_scaled.y)/(ss->top - 1 * (ss->top > 1));
-  ivec cpos = {.x = area->x, .y = area->y + ystep * (ss->top - 1)};
+  int ystep = (s_dims.y - rd->card_dims.y)/(ss->top - 1 * (ss->top > 1));
+  ivec cpos = {.x = pos.x, .y = pos.y + ystep * (ss->top - 1)};
   for (ssize_t i = ss->top - 1; i >= (ss->splayed ? 0 : ss->top - 1); i--) {
-    SDL_Rect box = posdims2rect(cpos, card_dims_scaled);
+    SDL_Rect box = posdims2rect(cpos, rd->card_dims);
     SDL_Point p = {.x = mpos.x, .y = mpos.y};
+    printf("bbox test m %d,%d b %d,%d,%d,%d\n",
+      p.x,
+      p.y,
+      box.x,
+      box.y,
+      box.w,
+      box.h
+      );
     if (SDL_PointInRect(&p, &box) == SDL_TRUE) {
       return i;
     }
@@ -128,9 +149,6 @@ card_bbox(solr *s, size_t stack_idx, ivec mpos) {
 
 static void
 setup_board_stacks(solr *game) {
-  for (size_t i = 0; i < STACK_BOARD_MAX; i++) {
-    game->st.board.stacks[i].dims = card_dims_scaled;
-  }
   for (size_t i = STACK_TABLEAU_BEGIN; i <= STACK_TABLEAU_END; i++) {
     game->st.board.stacks[i].splayed = 1;
   }
@@ -169,15 +187,12 @@ setup_board_stacks(solr *game) {
 
   for (size_t i = 0; i < STACK_MAX; i++) {
     card_stack *s = stack_from_id(game, i);
-    update_stack_dims(s);
+    update_stack_dims(game, s);
     s->id = i;
   }
 }
 
 static void almost_solved_stacks(solr *game) {
-  for (size_t i = 0; i < STACK_BOARD_MAX; i++) {
-    game->st.board.stacks[i].dims = card_dims_scaled;
-  }
   for (size_t i = STACK_TABLEAU_BEGIN; i <= STACK_TABLEAU_END; i++) {
     game->st.board.stacks[i].splayed = 1;
   }
@@ -201,7 +216,7 @@ static void almost_solved_stacks(solr *game) {
   
   for (size_t i = 0; i < STACK_MAX; i++) {
     card_stack *s = stack_from_id(game, i);
-    update_stack_dims(s);
+    update_stack_dims(game, s);
     s->id = i;
   }
 }
@@ -446,6 +461,24 @@ handle_pckt(solr *s, netpacket *p) {
         }
       }
     }
+
+    printf("bef src %d,%d, dst %d,%d\n",
+        s->rdr.stack_areas[src->id].w,
+        s->rdr.stack_areas[src->id].h,
+        s->rdr.stack_areas[dst->id].w,
+        s->rdr.stack_areas[dst->id].h
+        );
+
+    update_stack_dims(s, src);
+    update_stack_dims(s, dst);
+
+    printf("bef src %d,%d, dst %d,%d\n",
+        s->rdr.stack_areas[src->id].w,
+        s->rdr.stack_areas[src->id].h,
+        s->rdr.stack_areas[dst->id].w,
+        s->rdr.stack_areas[dst->id].h
+        );
+
     
     if (is_solved(s)) {
       s->st.stage = STAGE_WON;
@@ -500,7 +533,7 @@ handle_pckt(solr *s, netpacket *p) {
     gamestate nst = {0};
     unpack(p->data, 8, "G", &nst);
     s->st = nst;
-    graphics_resize(s, window_dims);
+    graphics_resize(s, s->rdr.win_dims);
     break;
   }
   case PCKT_RESTARTREQ: {
@@ -536,6 +569,7 @@ lerp(float a, float b, float v) {
 
 static void
 ffw_animate(solr *s) {
+  solr_rdr *rd = &s->rdr;
   static card_stack_pair anim_stacks = {0};
   static float anim_lerp = 0.0f;
   if (!s->sdata.server) return;
@@ -557,14 +591,20 @@ ffw_animate(solr *s) {
       handle_pckt(s, &s->net.tx);
       anim_lerp = 0;
     } else {
-      struct ivec srcpos = stack_areas_scaled[anim_stacks.src->id];
-      struct ivec dstpos = stack_areas_scaled[anim_stacks.dst->id];
+      struct ivec srcpos = {
+        .x = rd->stack_areas[anim_stacks.src->id].x,
+        .y = rd->stack_areas[anim_stacks.src->id].y,
+      };
+      struct ivec dstpos = {
+        .x = rd->stack_areas[anim_stacks.dst->id].x,
+        .y = rd->stack_areas[anim_stacks.dst->id].y
+      };
       float ease = 1-powf(1-anim_lerp, 3);
       struct ivec pos = {
         .x = (int64_t)(lerp(srcpos.x, dstpos.x, ease)),
         .y = (int64_t)(lerp(srcpos.y, dstpos.y, ease)),
       };
-      pos = ivec_add(pos, ivec_div(card_dims_scaled, (ivec){2,2}));
+      pos = ivec_add(pos, ivec_div(rd->card_dims, (ivec){2,2}));
 
 	    s->net.tx.kind = PCKT_POS;
       char uid = SOLR_AUTO_PLAYER;
@@ -758,7 +798,7 @@ player_render(solr_rdr *rdr, player *p) {
 void
 card_render(solr_rdr *rdr, card* c, ivec pos) {
   SDL_Rect rect;
-  SDL_Rect dst = posdims2rect(pos, card_dims_scaled);
+  SDL_Rect dst = posdims2rect(pos, rdr->card_dims);
   SDL_Texture **atlas;
 
   if (!c->faceup) {
@@ -780,7 +820,7 @@ card_render(solr_rdr *rdr, card* c, ivec pos) {
 
 void
 card_stack_render(solr_rdr *rdr, card_stack *s, ivec pos) {
-  SDL_Rect dst = posdims2rect(pos, card_dims_scaled);
+  SDL_Rect dst = posdims2rect(pos, rdr->card_dims);
   if (s->top == 0) {
     SDL_Rect rect = {.x = 0, .y = 0, .w = 88, .h = 124};
     
@@ -807,7 +847,7 @@ card_stack_render(solr_rdr *rdr, card_stack *s, ivec pos) {
   } else {
     for (size_t i = 0; i < s->top; i++) {
       card_render(rdr, &s->s[i], pos);
-      pos.y += (s->dims.y - card_dims_scaled.y)/(s->top - 1 * (s->top > 1));
+      pos.y += (rdr->stack_areas[s->id].h - rdr->card_dims.y)/(s->top - 1 * (s->top > 1));
     }
   }
 
@@ -837,14 +877,14 @@ solr_render(scheduler *s, double a) {
   }
 
   for (size_t i = 0; i < STACK_BOARD_MAX; i++) {
-    card_stack_render(r, game->st.board.stacks + i, (ivec){stack_areas_scaled[i].x, stack_areas_scaled[i].y});
+    card_stack_render(r, game->st.board.stacks + i, (ivec){r->stack_areas[i].x, r->stack_areas[i].y});
   }
 
   for (size_t i = 0; i < SOLR_MAX_PLAYERS; i++) {
     player *p = game->st.players + i;
     if (p->valid) {
       if (p->held.stack.top > 0){
-        ivec offset = ivec_sub(p->pos, ivec_div(card_dims_scaled, (ivec){2,2}));
+        ivec offset = ivec_sub(p->pos, ivec_div(r->card_dims, (ivec){2,2}));
         card_stack_render(r, &p->held.stack, offset);
       }
       player_render(r, p);
