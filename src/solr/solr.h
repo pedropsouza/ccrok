@@ -98,7 +98,6 @@ int who_locked_stack(card_stack *stack);
 void lock_stack(card_stack *stack, uint8_t who);
 void unlock_stack(card_stack *stack);
 
-
 typedef struct {
   card_stack stack;
   uint8_t camefrom;
@@ -172,6 +171,7 @@ enum {
   PCKT_STDUMP = 3,
   PCKT_RESTARTREQ = 6,
   PCKT_FFWREQ = 7,
+  PCKT_FFWANIM = 8,
   PCKT_END = 16,
 };
 
@@ -216,6 +216,20 @@ sch_trans solr_cleanup(scheduler *s);
 sch_trans solr_fixed  (scheduler *s, long step_ns);
 void      solr_render (scheduler *s, double a);
 
+// autosolve
+
+typedef struct {
+  uint64_t lerpval;
+  int src,dst;
+} ffw_anim;
+size_t ffw_anim_serde(pbuf_t *buf, char mode, void *st);
+
+int is_ffw_able(solr *s);
+void ffw(solr *s);
+void ffw_animate_server(solr *s);
+void ffw_animate_client(solr *s, ffw_anim *an);
+void handle_pckt(solr *s, netpacket *p);
+
 // misc. utils
 
 card_stack* stack_from_id(solr *s, uint8_t id);
@@ -223,6 +237,7 @@ void update_stack_dims(solr* s, card_stack *ss);
 void shuffle_stack(card_stack *s);
 void expose_top_card_stack(card_stack *s);
 card_stack_pair next_ffw_stacks(solr *s);
+int yoff_card_stack(solr_rdr *rdr, card_stack *s);
 
 void graphics_init(solr *s);
 void graphics_finish(solr *s);
@@ -231,5 +246,6 @@ void graphics_resize(solr *s, ivec new_window_dims);
 extern const ivec ref_window_dims;
 extern const ivec card_dims;
 float lerp(float a, float b, float v);
+void broadcast(solr *s);
 
 #endif // SOLR_HG__

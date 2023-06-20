@@ -11,6 +11,7 @@ serde_init() {
   t['m'] = move_serde;
   t['p'] = player_serde;
   t['G'] = gamestate_serde;
+  t['a'] = ffw_anim_serde;
 }
 
 size_t
@@ -41,7 +42,7 @@ posdims2rect(ivec pos, ivec dims) {
   return (SDL_Rect){pos.x, pos.y, dims.x, dims.y};
 }
 
-static void
+void
 broadcast(solr *s) {
   for (int i = 0; i < SOLR_REAL_PLAYERS; i++) {
     if (!s->st.players[i].valid) continue;
@@ -231,32 +232,6 @@ is_solved(solr *s) {
   return c_suits >= 52;
 }
 
-static int
-is_ffw_able(solr *s) {
-  for (size_t i = 0; i < STACK_MAX; i++) {
-    card_stack *cs = stack_from_id(s, i);
-    if (cs->top == 0) { continue; }
-    for (size_t j = 0; j < cs->top; j++) {
-      if(!cs->s[j].faceup) {
-        //printf("got face down card @ %zu,%zu\n", i,j);
-        return 0;
-      }
-    }
-  }
-  return 1;
-}
-
-static void
-ffw(solr *s) {
-  assert(is_ffw_able(s));
-  s->st.stage = STAGE_FFW;
-  player *bot = s->st.players + SOLR_AUTO_PLAYER;
-  bot->valid = 1;
-  s->net.tx.kind = PCKT_STDUMP;
-  s->net.tx.data_len = pack(s->net.tx.data, 8, "G", &s->st);
-  broadcast(s);
-}
-
 sch_trans
 solr_setup(scheduler *s) {
   setup_data *sdata = (setup_data *)s->setup_data;
@@ -370,7 +345,7 @@ true_uid(solr *s) {
   return server_sockaddr2uid(&s->srv, &s->net.peer);
 }
 
-static void
+void
 handle_pckt(solr *s, netpacket *p) {
   int8_t uid;
   switch (p->kind) {
@@ -558,79 +533,22 @@ handle_pckt(solr *s, netpacket *p) {
     }
     break;
   }
-  default: break;
+  case PCKT_FFWANIM: {
+    ffw_anim an = {0};
+    unpack(p->data, 8, "a", &an);
+    ffw_animate_client(s, &an);
+    break;
+  }
+  default: {
+    printf("got unhandled packet kinded %u len %zu\n", p->kind, p->data_len);
+    break;
+  }
   }
 }
 
 float
 lerp(float a, float b, float v) {
   return (a * (1.0 - v) + (b * v));
-}
-
-static void
-ffw_animate(solr *s) {
-  solr_rdr *rd = &s->rdr;
-  static card_stack_pair anim_stacks = {0};
-  static float anim_lerp = 0.0f;
-  if (!s->sdata.server) return;
-
-  player *bot = s->st.players + SOLR_AUTO_PLAYER;
-  assert(bot->valid);
-  move m;
-  if (bot->held.stack.top) {
-    if (anim_lerp > 0.99) {
-      m = (move){
-        .kind = MOVE_PUSH,
-        .stacks.src = STACK_PLAYER_BEGIN + SOLR_AUTO_PLAYER,
-        .stacks.dst = anim_stacks.dst->id,
-        .num_cards = 1,
-      };
-
-      s->net.tx.kind = PCKT_MOVE;
-      s->net.tx.data_len = pack(s->net.tx.data, 1, "m", &m);
-      handle_pckt(s, &s->net.tx);
-      anim_lerp = 0;
-    } else {
-      struct ivec srcpos = {
-        .x = rd->stack_areas[anim_stacks.src->id].x,
-        .y = rd->stack_areas[anim_stacks.src->id].y,
-      };
-      struct ivec dstpos = {
-        .x = rd->stack_areas[anim_stacks.dst->id].x,
-        .y = rd->stack_areas[anim_stacks.dst->id].y
-      };
-      float ease = 1-powf(1-anim_lerp, 3);
-      struct ivec pos = {
-        .x = (int64_t)(lerp(srcpos.x, dstpos.x, ease)),
-        .y = (int64_t)(lerp(srcpos.y, dstpos.y, ease)),
-      };
-      pos = ivec_add(pos, ivec_div(rd->card_dims, (ivec){2,2}));
-
-	    s->net.tx.kind = PCKT_POS;
-      char uid = SOLR_AUTO_PLAYER;
-      s->net.tx.data_len = pack(s->net.tx.data, 8, "QQC", &pos.x, &pos.y, &uid);
-      handle_pckt(s, &s->net.tx);
-      anim_lerp += 0.1;
-    }
-  } else {
-    anim_stacks = next_ffw_stacks(s);
-    if (anim_stacks.src == NULL || anim_stacks.dst == NULL) {
-      printf("ffw failed, returning to play stage\n");
-      s->st.stage = STAGE_PLAYING;
-      bot->valid = 0;
-      return;
-    }
-    m = (move){
-      .kind = MOVE_TAKE,
-      .stacks.src = anim_stacks.src->id,
-      .stacks.dst = STACK_PLAYER_BEGIN + SOLR_AUTO_PLAYER,
-      .num_cards = 1,
-    };
-
-    s->net.tx.kind = PCKT_MOVE;
-    s->net.tx.data_len = pack(s->net.tx.data, 1, "m", &m);
-    handle_pckt(s, &s->net.tx);
-  }
 }
 
 sch_trans
@@ -640,7 +558,7 @@ solr_fixed(scheduler *s, long step_ns) {
   game->st.tick += 1;
 
   if (game->st.stage == STAGE_FFW) {
-    ffw_animate(game);
+    ffw_animate_server(game);
   }
 
   // just to not leave unbounded
@@ -847,7 +765,7 @@ card_stack_render(solr_rdr *rdr, card_stack *s, ivec pos) {
   } else {
     for (size_t i = 0; i < s->top; i++) {
       card_render(rdr, &s->s[i], pos);
-      pos.y += (rdr->stack_areas[s->id].h - rdr->card_dims.y)/(s->top - 1 * (s->top > 1));
+      pos.y += yoff_card_stack(rdr, s)/(s->top - 1 * (s->top > 1));
     }
   }
 
@@ -861,6 +779,10 @@ card_stack_render(solr_rdr *rdr, card_stack *s, ivec pos) {
     
     SDL_RenderCopy(rdr->rdr, rdr->locked_icon, &rect, &dst_icon);
   }
+}
+
+int yoff_card_stack(solr_rdr *rdr, card_stack *s) {
+  return (rdr->stack_areas[s->id].h - rdr->card_dims.y);
 }
 
 void
