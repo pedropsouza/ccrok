@@ -2,7 +2,7 @@
 MKDIR   := mkdir
 RMDIR   := rm -r
 RM      := rm
-CC      := gcc
+# CC      := gcc
 BIN     := ./bin
 SRCDIRS := ./src ./app ./src/solr
 SRCS    := $(foreach fd, $(SRCDIRS), $(wildcard $(fd)/*.c))
@@ -13,7 +13,7 @@ SOLR    := $(BIN)/solre
 #TCHESS := $(BIN)/tchess
 EXES    := $(SOLR)
 CFLAGS  := $(addprefix -I,$(SRCDIRS)) $(shell sdl2-config --cflags) $(XTRAFLAGS)
-LDLIBS  := -lm $(shell sdl2-config --libs)
+LDLIBS  := -lm $(shell sdl2-config --libs) -lwsock32 -lpthread
 
 COMMON  := $(addprefix ./src/, draw.o ivec.o memutil.o net.o phys.o sched.o serde.o)
 SOLR_O  := ./app/solr.o ./src/solr/solr.o ./src/solr/cards_n_stacks.o ./src/solr/graphics.o ./src/solr/move.o ./src/solr/autosolve.o

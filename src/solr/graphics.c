@@ -15,6 +15,10 @@ const ivec card_dims = {.x = 66, .y = 93};
 static SDL_Texture *
 tex_from_file(SDL_Renderer *rdr, const char* filename) {
   FILE *f = fopen(filename, "r");
+  if (f == NULL) {
+    perror("couldn't open texture file");
+    return NULL;
+  }
   int w,h,chnum;
   stbi_uc *pix = stbi_load_from_file(f, &w, &h, &chnum, 4);
   for (int i = 0; i < w*h; i++) {

@@ -3,8 +3,10 @@
 
 #include <unistd.h>
 #include <errno.h>
-#include <arpa/inet.h>
+// #include <arpa/inet.h>
+#include <winsock2.h>
 #include "serde.h"
+#define socklen_t uint32_t
 
 #ifndef NETPACKET_MAX_PAYLOAD
 #define NETPACKET_MAX_PAYLOAD 8192

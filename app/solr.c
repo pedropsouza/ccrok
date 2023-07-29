@@ -12,7 +12,7 @@ int main(int argc, char *argv[]) {
       .window_w = 850, .window_h = 800, .server = 0, .server_a = {0},
       .username = "anon", .frametime_ns = 1e9/30, .rdr_backend = -1 };
   // default address
-  inet_pton(AF_INET, "127.0.0.1", &setdat.server_a.sin_addr);
+  setdat.server_a.sin_addr.s_addr = inet_addr("127.0.0.1");
   setdat.server_a.sin_family = AF_INET;
   setdat.server_a.sin_port = htons(SOLR_PORT);
 
@@ -23,7 +23,8 @@ int main(int argc, char *argv[]) {
       setdat.server = 1;
       break;
     case 'a':
-      if (inet_pton(AF_INET, optarg, &setdat.server_a.sin_addr) == 0) {
+      setdat.server_a.sin_addr.s_addr = inet_addr(optarg);
+      if (setdat.server_a.sin_addr.s_addr == INADDR_NONE) {
         fprintf(stderr, "Invalid address \"%s\"\n", optarg);
         goto invalid_arg;
       }

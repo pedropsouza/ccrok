@@ -244,12 +244,34 @@ solr_setup(scheduler *s) {
 
   game->sdata = *sdata;
 
+  #if 1
+
+  WSADATA wsaData;
+  WORD vReq = MAKEWORD(2,2);
+  int err = WSAStartup(vReq, &wsaData);
+  if (err != 0) {
+    printf("WSAStartup failed with error: %d\n", err);
+    goto neterr;
+  }
+
+  #endif
+  
   game->net.sock_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+
+  #if 0
   if (game->net.sock_fd == -1) {
     perror("Couldn't create a network socket");
     goto neterr;
   }
   fcntl(game->net.sock_fd, F_SETFL, O_NONBLOCK);
+  #else
+  if (game->net.sock_fd == INVALID_SOCKET) {
+    printf("Couldn't create a network socket, error num: %d\n", WSAGetLastError());
+    goto neterr;
+  }
+  u_long mode = 1;
+  ioctlsocket(game->net.sock_fd, FIONBIO, &mode);
+  #endif
   game->net.spkinds.onblock = PCKT_END;
   game->net.spkinds.onerror = PCKT_INVALID;
 
@@ -261,7 +283,11 @@ solr_setup(scheduler *s) {
 
     int retc = bind(game->net.sock_fd, (struct sockaddr *)saddr, addrl);
     if (retc < 0) {
+      #if 0
       perror("Couldn't bind network socket");
+      #else
+      printf("Couldn't bind network socket, error num: %d\n", WSAGetLastError());
+      #endif
       goto neterr;
     }
   
@@ -299,9 +325,8 @@ solr_setup(scheduler *s) {
     if (game->client.uid == 0xff) { fprintf(stderr, "game full. quitting\n"); goto neterr; }
     game->st.players[game->client.uid].valid = 1;
     
-    char ip4[INET_ADDRSTRLEN];
     printf("using server %s on port %d...\n",
-           inet_ntop(AF_INET, &saddr->sin_addr, ip4, INET_ADDRSTRLEN),
+           inet_ntoa(saddr->sin_addr),
            ntohs(sdata->server_a.sin_port));
 
     printf("loading graphics...\n");

@@ -1,7 +1,8 @@
 #ifndef IVEC_HG__
 #define IVEC_HG__
 
-#include <arpa/inet.h>
+//#include <arpa/inet.h>
+#include <winsock2.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>

@@ -8,7 +8,8 @@
 #include <stdalign.h>
 #include <stdint.h>
 #include <string.h>
-#include <arpa/inet.h>
+// #include <arpa/inet.h>
+#include <winsock2.h>
 
 typedef unsigned char pbuf_t;
 
