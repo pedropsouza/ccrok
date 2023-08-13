@@ -14,7 +14,6 @@
 // the next exec
 //
 // Follows justified programming for ease of debugging
-#include <SDL.h>
 #include <assert.h>
 #include <errno.h>
 #include <stdio.h>

@@ -4,9 +4,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdbool.h>
+#include <raylib.h>
 //#include "../../libcrc/include/checksum.h"
-#include "SDL2/SDL.h"
-#include "SDL2/SDL_image.h"
 #include "ivec.h"
 #include "memutil.h"
 #include "sched.h"
@@ -185,16 +184,13 @@ typedef struct {
 } client;
 
 typedef struct {
-  SDL_Window *win;
-  SDL_Renderer *rdr;
-  
-  SDL_Texture *piles;
-  SDL_Texture *backs;
-  SDL_Texture *slot;
-  SDL_Texture *locked_icon;
-  SDL_Texture *suits[SUIT_MAX];
+  Texture2D piles;
+  Texture2D backs;
+  Texture2D slot;
+  Texture2D locked_icon;
+  Texture2D suits[SUIT_MAX];
 
-  SDL_Rect stack_areas[STACK_MAX];
+  Rectangle stack_areas[STACK_MAX];
   ivec win_dims;
   ivec card_dims;
 } solr_rdr;

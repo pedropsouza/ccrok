@@ -19,13 +19,13 @@ card_stack_serde(pbuf_t *buf, char mode, void *vs) {
 void
 update_stack_dims(solr* s, card_stack *ss) {
   solr_rdr *rd = &s->rdr;
-  SDL_Rect *target = rd->stack_areas + ss->id;
-  target->w = rd->card_dims.x;
-  target->h = rd->card_dims.y;
+  Rectangle *target = rd->stack_areas + ss->id;
+  target->width = rd->card_dims.x;
+  target->height = rd->card_dims.y;
   if (ss->splayed) {
-    target->h += (22*rd->win_dims.y/ref_window_dims.y)*ss->top;
+    target->height += (22.0f*rd->win_dims.y/ref_window_dims.y)*ss->top;
   } else if (ss->pile) {
-    target->h -= (2*rd->win_dims.y/ref_window_dims.y)*ss->top;
+    target->height -= (2.0f*rd->win_dims.y/ref_window_dims.y)*ss->top;
   }
 }
 

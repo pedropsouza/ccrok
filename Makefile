@@ -12,8 +12,8 @@ SOLR    := $(BIN)/solre
 #CCROK   := $(BIN)/ccrok
 #TCHESS := $(BIN)/tchess
 EXES    := $(SOLR)
-CFLAGS  := $(addprefix -I,$(SRCDIRS)) $(shell sdl2-config --cflags) $(XTRAFLAGS)
-LDLIBS  := -lm $(shell sdl2-config --libs)
+CFLAGS  := $(addprefix -I,$(SRCDIRS)) $(XTRAFLAGS)
+LDLIBS  := -lm -lraylib
 
 COMMON  := $(addprefix ./src/, draw.o ivec.o memutil.o net.o phys.o sched.o serde.o)
 SOLR_O  := ./app/solr.o ./src/solr/solr.o ./src/solr/cards_n_stacks.o ./src/solr/graphics.o ./src/solr/move.o ./src/solr/autosolve.o

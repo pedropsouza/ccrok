@@ -1,6 +1,7 @@
 #include "solr.h"
 #include "ivec.h"
 #include "net.h"
+#include <raylib.h>
 
 static void
 serde_init() {
@@ -37,9 +38,9 @@ gamestate_serde(pbuf_t *buf, char mode, void *vst) {
     &st->stage, &st->board, &st->players, &st->tick);
 }
 
-SDL_Rect
+Rectangle
 posdims2rect(ivec pos, ivec dims) {
-  return (SDL_Rect){pos.x, pos.y, dims.x, dims.y};
+  return (Rectangle){pos.x, pos.y, dims.x, dims.y};
 }
 
 void
@@ -97,17 +98,17 @@ static int flung_behaviour(solr *s) {
 static ssize_t
 stack_bbox(solr *s, ivec mpos) {
   for (size_t i = 0; i < STACK_BOARD_MAX; i++) {
-    SDL_Rect box = s->rdr.stack_areas[i];
-    SDL_Point p = {.x = mpos.x, .y = mpos.y};
-    printf("stack bbox test m %d,%d b %d,%d,%d,%d\n",
+    Rectangle box = s->rdr.stack_areas[i];
+    Vector2 p = {.x = mpos.x, .y = mpos.y};
+    printf("stack bbox test m %f,%f b %f,%f,%f,%f\n",
       p.x,
       p.y,
       box.x,
       box.y,
-      box.w,
-      box.h
+      box.width,
+      box.height
       );
-    if (SDL_PointInRect(&p, &box) == SDL_TRUE) {
+    if (CheckCollisionPointRec(p, box)) {
       return i;
     }
   }
@@ -118,26 +119,26 @@ static ssize_t
 card_bbox(solr *s, size_t stack_idx, ivec mpos) {
   solr_rdr *rd = &s->rdr;
   assert(stack_idx < STACK_BOARD_MAX);
-  SDL_Rect *area = rd->stack_areas + stack_idx;
+  Rectangle *area = rd->stack_areas + stack_idx;
   ivec pos = {area->x, area->y};
-  ivec s_dims = {area->w, area->h};
+  ivec s_dims = {area->width, area->height};
   card_stack *ss = s->st.board.stacks + stack_idx;
   if (ss->top == 0) goto not_found;
 
   int ystep = (s_dims.y - rd->card_dims.y)/(ss->top - 1 * (ss->top > 1));
   ivec cpos = {.x = pos.x, .y = pos.y + ystep * (ss->top - 1)};
   for (ssize_t i = ss->top - 1; i >= (ss->splayed ? 0 : ss->top - 1); i--) {
-    SDL_Rect box = posdims2rect(cpos, rd->card_dims);
-    SDL_Point p = {.x = mpos.x, .y = mpos.y};
-    printf("bbox test m %d,%d b %d,%d,%d,%d\n",
+    Rectangle box = posdims2rect(cpos, rd->card_dims);
+    Vector2 p = {.x = mpos.x, .y = mpos.y};
+    printf("bbox test m %f,%f b %f,%f,%f,%f\n",
       p.x,
       p.y,
       box.x,
       box.y,
-      box.w,
-      box.h
+      box.width,
+      box.height
       );
-    if (SDL_PointInRect(&p, &box) == SDL_TRUE) {
+    if (CheckCollisionPointRec(p, box)) {
       return i;
     }
     cpos.y -= ystep;
@@ -437,21 +438,21 @@ handle_pckt(solr *s, netpacket *p) {
       }
     }
 
-    printf("bef src %d,%d, dst %d,%d\n",
-        s->rdr.stack_areas[src->id].w,
-        s->rdr.stack_areas[src->id].h,
-        s->rdr.stack_areas[dst->id].w,
-        s->rdr.stack_areas[dst->id].h
+    s->sdata.server || printf("before src %f,%f, dst %f,%f\n",
+        s->rdr.stack_areas[src->id].width,
+        s->rdr.stack_areas[src->id].height,
+        s->rdr.stack_areas[dst->id].width,
+        s->rdr.stack_areas[dst->id].height
         );
 
     update_stack_dims(s, src);
     update_stack_dims(s, dst);
 
-    printf("bef src %d,%d, dst %d,%d\n",
-        s->rdr.stack_areas[src->id].w,
-        s->rdr.stack_areas[src->id].h,
-        s->rdr.stack_areas[dst->id].w,
-        s->rdr.stack_areas[dst->id].h
+    s->sdata.server || printf("after src %f,%f, dst %f,%f\n",
+        s->rdr.stack_areas[src->id].width,
+        s->rdr.stack_areas[src->id].height,
+        s->rdr.stack_areas[dst->id].width,
+        s->rdr.stack_areas[dst->id].height
         );
 
     
@@ -595,48 +596,33 @@ solr_fixed(scheduler *s, long step_ns) {
     }
   }
   
+  static ivec mouse_pos_last = {0};
   static ivec mouse_pos = {0};
-  SDL_Event input;
-  while (SDL_PollEvent(&input) > 0) {
-    game->net.tx = (netpacket){0};
-    game->net.peer = game->sdata.server_a;
 
-    switch (input.type) {
-    case SDL_WINDOWEVENT: {
-      switch (input.window.event)
-      case SDL_WINDOWEVENT_RESIZED:
-      case SDL_WINDOWEVENT_SIZE_CHANGED: {
-        ivec newsize = {input.window.data1, input.window.data2};
-        graphics_resize(game, newsize);
-        printf("resized to %ldx%ld\n", newsize.x, newsize.y);
-        break;
-      }
-      break;
-    }
-    case SDL_QUIT:
-      printf("leaving...\n");
-      game->net.tx.kind = PCKT_LEAVE;
-      netmgr_send(&game->net);
-      goto leave;
-    case SDL_MOUSEMOTION: {
-        mouse_pos = (ivec){.x = input.motion.x, .y = input.motion.y};
-        struct ivec pos = {.x = input.motion.x, .y = input.motion.y};
-	      game->net.tx.kind = PCKT_POS;
-      	game->net.tx.data_len = pack(game->net.tx.data, 8, "QQC", &pos.x, &pos.y, &game->client.uid);
-        netmgr_send(&game->net);
-      }
-      break;
-    
-    case SDL_MOUSEBUTTONUP: {
-      player *myp = game->st.players + game->client.uid;
-      if (input.button.button == SDL_BUTTON_RIGHT) {
-        game->net.tx.kind = PCKT_CANCEL;
-        game->net.tx.data_len = pack(game->net.tx.data, 1, "C", &game->client.uid);
-        netmgr_send(&game->net);
-        break;
-      }
-      ssize_t stack_idx = stack_bbox(game, mouse_pos);
-      if (stack_idx < 0) break;
+  PollInputEvents();
+
+  game->net.tx = (netpacket){0};
+  game->net.peer = game->sdata.server_a;
+
+  mouse_pos.x = GetMouseX();
+  mouse_pos.y = GetMouseY();
+
+  if (mouse_pos.x != mouse_pos_last.x || mouse_pos.y != mouse_pos_last.y) {
+    game->net.tx.kind = PCKT_POS;
+  	game->net.tx.data_len = pack(game->net.tx.data, 8, "QQC", &mouse_pos.x, &mouse_pos.y, &game->client.uid);
+    netmgr_send(&game->net);
+  }
+  mouse_pos_last = mouse_pos;
+
+  if (IsMouseButtonReleased(MOUSE_RIGHT_BUTTON)) {
+    game->net.tx.kind = PCKT_CANCEL;
+    game->net.tx.data_len = pack(game->net.tx.data, 1, "C", &game->client.uid);
+    netmgr_send(&game->net);
+  }
+  if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) {
+    player *myp = game->st.players + game->client.uid;
+    ssize_t stack_idx = stack_bbox(game, mouse_pos);
+    if (stack_idx >= 0) {
       unsigned char n = game->st.board.stacks[stack_idx].top
           - card_bbox(game, stack_idx, mouse_pos);
 
@@ -646,61 +632,63 @@ solr_fixed(scheduler *s, long step_ns) {
       };
       m.stacks.src = m.kind == MOVE_PUSH ? STACK_PLAYER_BEGIN + game->client.uid : stack_idx;
       m.stacks.dst = m.kind == MOVE_TAKE ? STACK_PLAYER_BEGIN + game->client.uid : stack_idx;
-      
-        if(m.stacks.dst == myp->held.camefrom){
-             game->net.tx.kind = PCKT_CANCEL;
+    
+      if(m.stacks.dst == myp->held.camefrom){
+        game->net.tx.kind = PCKT_CANCEL;
         game->net.tx.data_len = pack(game->net.tx.data, 1, "C", &game->client.uid);
         netmgr_send(&game->net);
-        break;
-        }
-      game->net.tx.kind = PCKT_MOVE;
-      game->net.tx.data_len = pack(game->net.tx.data, 1, "m", &m);
-      netmgr_send(&game->net);
-      break;
-    }
-    
-    case SDL_KEYUP:
-      switch (input.key.keysym.sym) {
-        case SDLK_RETURN:
-        case SDLK_RETURN2:
-        case SDLK_KP_ENTER:
-          break;
-        case SDLK_SPACE: {
-          move m = {
-            .kind = MOVE_TAKE,
-            .stacks.src = STACK_STOCK,
-            .stacks.dst = STACK_WASTE,
-            .num_cards = 1,
-          };
-
-          game->net.tx.kind = PCKT_MOVE;
-          game->net.tx.data_len = pack(game->net.tx.data, 1, "m", &m);
-          netmgr_send(&game->net);
-          break;
-        }
-        case SDLK_r: {
-          game->net.tx.kind = PCKT_RESTARTREQ;
-          game->net.tx.data_len = 0;
-          netmgr_send(&game->net);
-          break;
-        }
-        case SDLK_f: {
-          game->net.tx.kind = PCKT_FFWREQ;
-          game->net.tx.data_len = 0;
-          netmgr_send(&game->net);
-          break;
-        }
-        case SDLK_d: {
-          printf("state %d\n", game->st.stage);
-          break;
-        }
+      } else {
+        game->net.tx.kind = PCKT_MOVE;
+        game->net.tx.data_len = pack(game->net.tx.data, 1, "m", &m);
+        netmgr_send(&game->net);
       }
-      break;
-    default:
-      break;
     }
   }
-  
+
+  if (IsKeyReleased(KEY_SPACE)) {
+    move m = {
+      .kind = MOVE_TAKE,
+      .stacks.src = STACK_STOCK,
+      .stacks.dst = STACK_WASTE,
+      .num_cards = 1,
+    };
+
+    game->net.tx.kind = PCKT_MOVE;
+    game->net.tx.data_len = pack(game->net.tx.data, 1, "m", &m);
+    netmgr_send(&game->net);
+  }
+
+  if (IsKeyReleased(KEY_R)) {
+    game->net.tx.kind = PCKT_RESTARTREQ;
+    game->net.tx.data_len = 0;
+    netmgr_send(&game->net);
+  }
+
+  if (IsKeyReleased(KEY_F)) {
+    game->net.tx.kind = PCKT_FFWREQ;
+    game->net.tx.data_len = 0;
+    netmgr_send(&game->net);
+  }
+
+  if (WindowShouldClose()) {
+    printf("leaving...\n");
+    game->net.tx.kind = PCKT_LEAVE;
+    netmgr_send(&game->net);
+    goto leave;
+  }
+
+  //switch (input.type) {
+  // case SDL_WINDOWEVENT: {
+  //   switch (input.window.event)
+  //   case SDL_WINDOWEVENT_RESIZED:
+  //   case SDL_WINDOWEVENT_SIZE_CHANGED: {
+  //     ivec newsize = {input.window.data1, input.window.data2};
+  //     graphics_resize(game, newsize);
+  //     printf("resized to %ldx%ld\n", newsize.x, newsize.y);
+  //     break;
+  //   }
+  //   break;
+  // }
   end:
   return (sch_trans){.s = SCHED_CONTINUE, .why = "fixed call"};
   leave:
@@ -709,53 +697,41 @@ solr_fixed(scheduler *s, long step_ns) {
 
 void
 player_render(solr_rdr *rdr, player *p) {
-  SDL_SetRenderDrawColor(rdr->rdr, 0xff, 0x20, 0x20, 0xb0);
-  SDL_RenderFillCircle(rdr->rdr, p->pos.x, p->pos.y, 3);
+  DrawCircle(p->pos.x, p->pos.y, 3, (Color){.r = 0xff, .g = 0x20, .b = 0x20, .a = 0xb0});
 }
 
 void
 card_render(solr_rdr *rdr, card* c, ivec pos) {
-  SDL_Rect rect;
-  SDL_Rect dst = posdims2rect(pos, rdr->card_dims);
-  SDL_Texture **atlas;
+  Rectangle rect;
+  Rectangle dst = posdims2rect(pos, rdr->card_dims);
+  Texture2D *atlas;
 
   if (!c->faceup) {
     atlas = &rdr->backs;
     rect.x = 0; rect.y = 0;
-    rect.w = 88; rect.h = 124;
+    rect.width = 88; rect.height = 124;
   }
   else {
     atlas = &rdr->suits[c->s];
-    rect.x = ((c->r - 1) % 5) * 88;
-    rect.y = ((c->r - 1) / 5) * 124;
-    rect.w = 88; rect.h = 124;
+    rect.x = (int)((c->r - 1) % 5) * 88;
+    rect.y = (int)((c->r - 1) / 5) * 124;
+    rect.width = 88; rect.height = 124;
   }
-  if (SDL_RenderCopy(rdr->rdr, *atlas, &rect, &dst) < 0) {
-    fprintf(stderr, "%s: %s", __func__, SDL_GetError());
-    SDL_ClearError();
-  }
+  DrawTexturePro(*atlas, rect, dst, (Vector2){0.0,0.0}, 0.0f, WHITE);
 }
 
 void
 card_stack_render(solr_rdr *rdr, card_stack *s, ivec pos) {
-  SDL_Rect dst = posdims2rect(pos, rdr->card_dims);
+  Rectangle dst = posdims2rect(pos, rdr->card_dims);
+  Rectangle rect = {.x = 0, .y = 0, .width = 88, .height = 124};
   if (s->top == 0) {
-    SDL_Rect rect = {.x = 0, .y = 0, .w = 88, .h = 124};
-    
-    if (SDL_RenderCopy(rdr->rdr, rdr->slot, &rect, &dst) < 0) {
-      fprintf(stderr, "%s: %s", __func__, SDL_GetError());
-      SDL_ClearError();
-    }
+    DrawTexturePro(rdr->slot, rect, dst, (Vector2){0}, 0.0f, (Color){0});
     return;
   }
   if (s->pile) {
-    SDL_Rect rect = {.x = 0, .y = 0, .w = 88, .h = 124};
     for (ssize_t i = 0; i < s->top; i++) {
       if (i == s->top - 1) { card_render(rdr, &s->s[i], (ivec){dst.x,dst.y}); }
-      else if (SDL_RenderCopy(rdr->rdr, rdr->backs, &rect, &dst) < 0) {
-        fprintf(stderr, "%s: %s", __func__, SDL_GetError());
-        SDL_ClearError();
-      }
+      else { DrawTexturePro(rdr->backs, rect, dst, (Vector2){0}, 0.0f, WHITE); }
       dst.y -= 2;
     }
   }
@@ -770,19 +746,19 @@ card_stack_render(solr_rdr *rdr, card_stack *s, ivec pos) {
   }
 
   if (is_locked_stack(s)) {
-    SDL_Rect rect = {.x = 0, .y = 0, .w = 313, .h = 401};
+    Rectangle rect = {.x = 0, .y = 0, .width = 313, .height = 401};
     #define IW 62
     #define IH 80
-    SDL_Rect dst_icon = {.x = dst.x, .y = dst.y, .w = IW, .h = IH};
-    dst_icon.x += dst.w/2 - IW/2;
-    dst_icon.y += dst.h/2 - IH/2;
+    Rectangle dst_icon = {.x = dst.x, .y = dst.y, .width = IW, .height = IH};
+    dst_icon.x += dst.width/2 - IW/2.0;
+    dst_icon.y += dst.height/2 - IH/2.0;
     
-    SDL_RenderCopy(rdr->rdr, rdr->locked_icon, &rect, &dst_icon);
+    DrawTexturePro(rdr->locked_icon, rect, dst_icon, (Vector2){0}, 0.0f, WHITE);
   }
 }
 
 int yoff_card_stack(solr_rdr *rdr, card_stack *s) {
-  return (rdr->stack_areas[s->id].h - rdr->card_dims.y);
+  return (rdr->stack_areas[s->id].height - rdr->card_dims.y);
 }
 
 void
@@ -790,9 +766,10 @@ solr_render(scheduler *s, double a) {
   solr *game = (solr *)s->persistent_data;
   solr_rdr *r = &game->rdr;
 
-  SDL_SetRenderDrawColor(r->rdr, 0x3c, 0x3c, 0x3c, SDL_ALPHA_OPAQUE);
+  //SDL_SetRenderDrawColor(r->rdr, 0x3c, 0x3c, 0x3c, SDL_ALPHA_OPAQUE);
+  BeginDrawing();
   if (game->st.stage != STAGE_WON) {
-    SDL_RenderClear(r->rdr);
+    ClearBackground((Color){0x3c,0x3c,0x3c,0xff});
   } else {
     card_render(r, &game->st.flung_card.c, game->st.flung_card.pb.pos);
     goto end;
@@ -813,8 +790,9 @@ solr_render(scheduler *s, double a) {
     }
   }
 
+  end: EndDrawing();
   // triggers the double buffers for multiple rendering
-  end: SDL_RenderPresent(r->rdr);
+  SwapScreenBuffer();
 }
 
 // FIXME: player held_card should be held_stack
