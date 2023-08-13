@@ -12,7 +12,13 @@ const ivec card_dims = {.x = 66, .y = 93};
 
 static Texture2D
 tex_from_file(const char* filename) {
-  return LoadTexture(filename);
+  Image img = LoadImage(filename);
+  ImageColorReplace(&img, (Color){00,128,128,255}, (Color){0,0,0,0});
+  ImageColorReplace(&img, (Color){64,128,128,255}, (Color){0,0,0,0});
+  ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+  Texture2D tex = LoadTextureFromImage(img);
+  UnloadImage(img);
+  return tex;
 }
 
 void

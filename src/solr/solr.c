@@ -770,7 +770,9 @@ solr_render(scheduler *s, double a) {
   BeginDrawing();
   if (game->st.stage != STAGE_WON) {
     ClearBackground((Color){0x3c,0x3c,0x3c,0xff});
-  } else {
+  }
+  BeginBlendMode(BLEND_ALPHA);
+  if (game->st.stage == STAGE_WON) {
     card_render(r, &game->st.flung_card.c, game->st.flung_card.pb.pos);
     goto end;
   }
@@ -790,6 +792,7 @@ solr_render(scheduler *s, double a) {
     }
   }
 
+  EndBlendMode();
   end: EndDrawing();
   // triggers the double buffers for multiple rendering
   SwapScreenBuffer();
