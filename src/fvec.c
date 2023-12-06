@@ -25,6 +25,9 @@ struct fvec fvec_norm(struct fvec v) {
   float m = fvec_mag(v);
   return fvec_div(v, fvec_xy(m, m));
 }
+float fvec_dot(struct fvec l, struct fvec r) {
+  return l.x*r.x + l.y*r.y;
+}
 void fvec_print(struct fvec v, const char *name) {
   printf("fvec \"%s\" -> %f , %f\n", name, v.x, v.y);
 }

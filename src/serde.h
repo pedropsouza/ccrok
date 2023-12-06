@@ -13,11 +13,6 @@
 typedef unsigned char pbuf_t;
 
 union ser_t {
-    struct crok_state *st;
-    struct crok_player *p;
-    struct crok_disc *d;
-    struct physbody *pb;
-    struct ivec *v;
     uint64_t *u64;
     uint32_t *u32;
     uint16_t *u16;

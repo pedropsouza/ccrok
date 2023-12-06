@@ -15,6 +15,7 @@ struct fvec fvec_mul(struct fvec a, struct fvec b);
 struct fvec fvec_div(struct fvec num, struct fvec den);
 float fvec_mag(struct fvec v);
 struct fvec fvec_norm(struct fvec v);
+float fvec_dot(struct fvec l, struct fvec r);
 void fvec_print(struct fvec v, const char *name);
 
 #endif // FVEC_HG__

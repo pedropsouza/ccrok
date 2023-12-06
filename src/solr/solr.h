@@ -7,6 +7,7 @@
 //#include "../../libcrc/include/checksum.h"
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_image.h"
+#include "nuklear.h"
 #include "ivec.h"
 #include "memutil.h"
 #include "sched.h"
@@ -187,6 +188,8 @@ typedef struct {
 typedef struct {
   SDL_Window *win;
   SDL_Renderer *rdr;
+  struct nk_context nkctx;
+  struct nk_colorf bgclr;
   
   SDL_Texture *piles;
   SDL_Texture *backs;
@@ -228,7 +231,16 @@ int is_ffw_able(solr *s);
 void ffw(solr *s);
 void ffw_animate_server(solr *s);
 void ffw_animate_client(solr *s, ffw_anim *an);
+
+// networking
+
 void handle_pckt(solr *s, netpacket *p);
+
+// gui
+
+void gui_init(solr *s);
+void gui_finish(solr *s);
+void gui_render(solr *s);
 
 // misc. utils
 
