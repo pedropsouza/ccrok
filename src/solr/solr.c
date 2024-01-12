@@ -249,8 +249,8 @@ solr_setup(scheduler *s) {
       goto neterr;
     }
   
-    //setup_board_stacks(game);
-    almost_solved_stacks(game);
+    setup_board_stacks(game);
+    //almost_solved_stacks(game);
     
     printf("server running on port %d...\n", ntohs(sdata->server_a.sin_port));
   } else { // client
@@ -794,9 +794,6 @@ solr_render(scheduler *s, double a) {
   end: SDL_RenderPresent(r->rdr);
 }
 
-// FIXME: player held_card should be held_stack
-// TODO: game state serde
 // TODO: stack randomization
 // TODO: disconnect on win (or do something better)
-// TODO: figure out why after a win restarts don't work
 
