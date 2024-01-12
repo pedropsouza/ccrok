@@ -99,14 +99,6 @@ stack_bbox(solr *s, ivec mpos) {
   for (size_t i = 0; i < STACK_BOARD_MAX; i++) {
     SDL_Rect box = s->rdr.stack_areas[i];
     SDL_Point p = {.x = mpos.x, .y = mpos.y};
-    printf("stack bbox test m %d,%d b %d,%d,%d,%d\n",
-      p.x,
-      p.y,
-      box.x,
-      box.y,
-      box.w,
-      box.h
-      );
     if (SDL_PointInRect(&p, &box) == SDL_TRUE) {
       return i;
     }
@@ -129,14 +121,6 @@ card_bbox(solr *s, size_t stack_idx, ivec mpos) {
   for (ssize_t i = ss->top - 1; i >= (ss->splayed ? 0 : ss->top - 1); i--) {
     SDL_Rect box = posdims2rect(cpos, rd->card_dims);
     SDL_Point p = {.x = mpos.x, .y = mpos.y};
-    printf("bbox test m %d,%d b %d,%d,%d,%d\n",
-      p.x,
-      p.y,
-      box.x,
-      box.y,
-      box.w,
-      box.h
-      );
     if (SDL_PointInRect(&p, &box) == SDL_TRUE) {
       return i;
     }
@@ -306,6 +290,7 @@ solr_setup(scheduler *s) {
 
     printf("loading graphics...\n");
     graphics_init(game);
+    gui_init(game);
   }
 
   
@@ -323,6 +308,7 @@ solr_cleanup(scheduler *s) {
   }
   free(s->persistent_data);
   s->persistent_data = NULL;
+  gui_finish(game);
 
   return (sch_trans){.s = SCHED_HALT, .why = "cleanup finished"};
 }
@@ -395,7 +381,6 @@ handle_pckt(solr *s, netpacket *p) {
       printf("invalid move: %s\n", rej_reason);
       break;
     }
-    printf("move from %d to %d\n", m.stacks.src, m.stacks.dst);
 
     card_stack *src = stack_from_id(s, m.stacks.src);
     card_stack *dst = stack_from_id(s, m.stacks.dst);
@@ -437,24 +422,9 @@ handle_pckt(solr *s, netpacket *p) {
       }
     }
 
-    printf("bef src %d,%d, dst %d,%d\n",
-        s->rdr.stack_areas[src->id].w,
-        s->rdr.stack_areas[src->id].h,
-        s->rdr.stack_areas[dst->id].w,
-        s->rdr.stack_areas[dst->id].h
-        );
-
     update_stack_dims(s, src);
     update_stack_dims(s, dst);
 
-    printf("bef src %d,%d, dst %d,%d\n",
-        s->rdr.stack_areas[src->id].w,
-        s->rdr.stack_areas[src->id].h,
-        s->rdr.stack_areas[dst->id].w,
-        s->rdr.stack_areas[dst->id].h
-        );
-
-    
     if (is_solved(s)) {
       s->st.stage = STAGE_WON;
     }
@@ -477,6 +447,7 @@ handle_pckt(solr *s, netpacket *p) {
       card_stack *cf = stack_from_id(s, pl->held.camefrom);
       push_card_stack(cf, &pl->held.stack);
       unlock_stack(cf);
+      update_stack_dims(s, cf);
     }
     if (s->sdata.server) {
       s->net.tx.kind = p->kind;
@@ -518,7 +489,6 @@ handle_pckt(solr *s, netpacket *p) {
       s->net.tx.kind = PCKT_STDUMP;
       s->net.tx.data_len = pack(s->net.tx.data, 8, "G", &s->st);
       broadcast(s);
-      printf("got restart\n");
     }
     break;
   }
@@ -597,10 +567,14 @@ solr_fixed(scheduler *s, long step_ns) {
   
   static ivec mouse_pos = {0};
   SDL_Event input;
+
+  nk_input_begin(game->nk);
+
   while (SDL_PollEvent(&input) > 0) {
     game->net.tx = (netpacket){0};
     game->net.peer = game->sdata.server_a;
 
+    nk_sdl_handle_event(&input);
     switch (input.type) {
     case SDL_WINDOWEVENT: {
       switch (input.window.event)
@@ -647,12 +621,12 @@ solr_fixed(scheduler *s, long step_ns) {
       m.stacks.src = m.kind == MOVE_PUSH ? STACK_PLAYER_BEGIN + game->client.uid : stack_idx;
       m.stacks.dst = m.kind == MOVE_TAKE ? STACK_PLAYER_BEGIN + game->client.uid : stack_idx;
       
-        if(m.stacks.dst == myp->held.camefrom){
-             game->net.tx.kind = PCKT_CANCEL;
+      if(m.stacks.dst == myp->held.camefrom){
+        game->net.tx.kind = PCKT_CANCEL;
         game->net.tx.data_len = pack(game->net.tx.data, 1, "C", &game->client.uid);
         netmgr_send(&game->net);
         break;
-        }
+      }
       game->net.tx.kind = PCKT_MOVE;
       game->net.tx.data_len = pack(game->net.tx.data, 1, "m", &m);
       netmgr_send(&game->net);
@@ -700,6 +674,8 @@ solr_fixed(scheduler *s, long step_ns) {
       break;
     }
   }
+
+  nk_input_end(game->nk);
   
   end:
   return (sch_trans){.s = SCHED_CONTINUE, .why = "fixed call"};
@@ -813,6 +789,7 @@ solr_render(scheduler *s, double a) {
     }
   }
 
+  gui_update(game);
   // triggers the double buffers for multiple rendering
   end: SDL_RenderPresent(r->rdr);
 }

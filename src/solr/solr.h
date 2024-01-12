@@ -13,6 +13,8 @@
 #include "draw.h"
 #include "serde.h"
 #include "phys.h"
+#include "nuklear.h"
+#include "nuklear_sdl_renderer.h"
 
 #define SOLR_PORT 51743
 #define SOLR_NAME_LEN 64
@@ -36,6 +38,7 @@ typedef struct {
   struct sockaddr_in server_a;
   size_t window_w, window_h;
   char username[SOLR_NAME_LEN];
+  int username_len;
   long frametime_ns;
   int rdr_backend;
   bool server;
@@ -206,6 +209,7 @@ typedef struct {
   client client;
   setup_data sdata;
   solr_rdr rdr;
+  struct nk_context *nk;
 } solr;
 
 int move_valid(solr *s, move *m, char **reason);
@@ -229,6 +233,12 @@ void ffw(solr *s);
 void ffw_animate_server(solr *s);
 void ffw_animate_client(solr *s, ffw_anim *an);
 void handle_pckt(solr *s, netpacket *p);
+
+// gui
+
+void gui_init(solr *s);
+void gui_finish(solr *s);
+void gui_update(solr *s);
 
 // misc. utils
 

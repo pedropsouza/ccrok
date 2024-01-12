@@ -10,7 +10,7 @@ void headless_noop(struct scheduler *s, double a) {}
 int main(int argc, char *argv[]) {
   setup_data setdat = {
       .window_w = 850, .window_h = 800, .server = 0, .server_a = {0},
-      .username = "anon", .frametime_ns = 1e9/30, .rdr_backend = -1 };
+      .username = "anon", .username_len = sizeof(setdat.username), .frametime_ns = 1e9/30, .rdr_backend = -1 };
   // default address
   inet_pton(AF_INET, "127.0.0.1", &setdat.server_a.sin_addr);
   setdat.server_a.sin_family = AF_INET;
@@ -35,6 +35,7 @@ int main(int argc, char *argv[]) {
       break;
     case 'u':
       strncpy(setdat.username, optarg, SOLR_NAME_LEN);
+      setdat.username_len = strlen(setdat.username);
       break;
     case 'p':
       if (sscanf(optarg, "%hu", &setdat.server_a.sin_port) != 1) goto invalid_arg;

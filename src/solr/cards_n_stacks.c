@@ -88,12 +88,10 @@ void
 lock_stack(card_stack *stack, uint8_t who) {
   stack->lock_info = 0b1;
   stack->lock_info |= who << 1;
-  printf("user %d locked stack %d\n", who, stack->id);
 }
 void
 unlock_stack(card_stack *stack) {
   stack->lock_info &= ~0b1;
-  printf("unlocked stack %d\n", stack->id);
 }
 
 card_stack*
