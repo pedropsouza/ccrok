@@ -176,6 +176,7 @@ enum {
   PCKT_FFWREQ = 7,
   PCKT_FFWANIM = 8,
   PCKT_END = 16,
+  PCKT_MAX = PCKT_END+1,
 };
 
 typedef struct {
@@ -220,6 +221,16 @@ sch_trans solr_cleanup(scheduler *s);
 sch_trans solr_fixed  (scheduler *s, long step_ns);
 void      solr_render (scheduler *s, double a);
 
+// networking/gameplay
+
+typedef void (*pckt_handler)(solr *s, netpacket *p);
+extern pckt_handler *pckt_handler_vec_base;
+ssize_t true_uid(solr *s);
+void setup_board_stacks(solr *game);
+void almost_solved_stacks(solr *game);
+int is_solved(solr *s);
+void handle_pckt(solr *s, netpacket *p);
+
 // autosolve
 
 typedef struct {
@@ -232,7 +243,6 @@ int is_ffw_able(solr *s);
 void ffw(solr *s);
 void ffw_animate_server(solr *s);
 void ffw_animate_client(solr *s, ffw_anim *an);
-void handle_pckt(solr *s, netpacket *p);
 
 // gui
 
