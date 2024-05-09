@@ -216,12 +216,10 @@ is_solved(solr *s) {
   return c_suits >= 52;
 }
 
-sch_trans
-solr_setup(scheduler *s) {
-  setup_data *sdata = (setup_data *)s->setup_data;
-  s->persistent_data =
-      safe_calloc(sizeof (solr), "setup persistent_data alloc");
-  solr *game = (solr *)s->persistent_data;
+solr
+solr_setup  (setup_data *sdata) {
+  solr game_actual = {0};
+  solr *game = &game_actual;
 
   serde_init();
   srand(time(NULL));
@@ -295,22 +293,17 @@ solr_setup(scheduler *s) {
 
   
    
-  return (sch_trans){.s = SCHED_CONTINUE, .why = "setup finished"};
+  return game_actual;
 neterr:
-  return (sch_trans){.s = SCHED_ERR, .why = "network setup error"};
+  fprintf(stderr, "network error\n");
+  return game_actual; // FIXME: encode that a network error occurred
 }
 
-sch_trans
-solr_cleanup(scheduler *s) {
-  solr *game = (solr*)s->persistent_data;
+void solr_cleanup(solr *game) {
   if (!game->sdata.server) {
     graphics_finish(game);
   }
-  free(s->persistent_data);
-  s->persistent_data = NULL;
   gui_finish(game);
-
-  return (sch_trans){.s = SCHED_HALT, .why = "cleanup finished"};
 }
 
 ssize_t server_sockaddr2uid(server *s, struct sockaddr_in *sock) {
@@ -341,9 +334,8 @@ handle_pckt(solr *s, netpacket *p) {
   pckt_handler_vec_base[p->kind](s, p); 
 }
 
-sch_trans
-solr_fixed(scheduler *s, long step_ns) {
-  solr *game = (solr *)s->persistent_data;
+int
+solr_fixed(solr *game, long step_ns) {
   player *my_player = game->st.players + game->client.uid;
   game->st.tick += 1;
 
@@ -497,10 +489,10 @@ solr_fixed(scheduler *s, long step_ns) {
 
   nk_input_end(game->nk);
   
-  end:
-  return (sch_trans){.s = SCHED_CONTINUE, .why = "fixed call"};
+  end: return 1;
   leave:
-  return (sch_trans){.s = SCHED_CLEANUP, .why = "user requested quit"};
+  game->st.stage = STAGE_INVALID;
+  return 0;
 }
 
 void
@@ -582,8 +574,7 @@ int yoff_card_stack(solr_rdr *rdr, card_stack *s) {
 }
 
 void
-solr_render(scheduler *s, double a) {
-  solr *game = (solr *)s->persistent_data;
+solr_render (solr *game, double a) {
   solr_rdr *r = &game->rdr;
 
   SDL_SetRenderDrawColor(r->rdr, 0x3c, 0x3c, 0x3c, SDL_ALPHA_OPAQUE);

@@ -5,7 +5,16 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-void headless_noop(struct scheduler *s, double a) {}
+int fixed_retval;
+void fixed_adaptor(void *p) {
+  struct { solr *d; long tps; } *d = p;
+  fixed_retval = solr_fixed(d->d, d->tps);
+}
+
+void render_adaptor(void* p) {
+  struct { solr *d; double a; } *d = p;
+  solr_render(d->d, d->a);
+}
 
 int main(int argc, char *argv[]) {
   setup_data setdat = {
@@ -54,14 +63,27 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  render_fun renf = (setdat.server) ? headless_noop : solr_render;
 
-  struct scheduler s =
-      sched_init(solr_setup, solr_cleanup, solr_fixed, renf, setdat.frametime_ns,
-                 setdat.frametime_ns, &setdat, "main");
+  solr cd = solr_setup(&setdat);
+  struct periodic_callback fixed_call = {0};
+  fixed_call.func = fixed_adaptor;
+  fixed_call.arg = (&(struct { solr *d; long tps; }){.d = &cd, .tps = setdat.frametime_ns});
+  fixed_call.max_per_tick = 10;
+  fixed_call.strat = PERIODIC_CALLBACK_DEFAULT;
+  fixed_call.period_ns = setdat.frametime_ns;
 
-  sched_handover(&s);
-  sched_debugprint(stdout, &s);
+  struct periodic_callback render_call = {0};
+  render_call.func = render_adaptor;
+  render_call.arg = (&(struct { solr *d; double a; }){.d = &cd, .a = 0.0});
+  render_call.strat = PERIODIC_CALLBACK_NOACC;
+  render_call.period_ns = setdat.frametime_ns;
+  
+  do {
+    do_periodic_callback(&fixed_call);
+    do_periodic_callback(&render_call);
+  } while (fixed_retval);
+
+  solr_cleanup(&cd);
 
   return EXIT_SUCCESS;
 

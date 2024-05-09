@@ -216,10 +216,10 @@ typedef struct {
 int move_valid(solr *s, move *m, char **reason);
 typedef struct {card_stack *src,*dst;} card_stack_pair;
 
-sch_trans solr_setup  (scheduler *s);
-sch_trans solr_cleanup(scheduler *s);
-sch_trans solr_fixed  (scheduler *s, long step_ns);
-void      solr_render (scheduler *s, double a);
+solr solr_setup  (setup_data *s);
+void solr_cleanup(solr *);
+int  solr_fixed  (solr *, long step_ns);
+void solr_render (solr *, double a);
 
 // networking/gameplay
 
