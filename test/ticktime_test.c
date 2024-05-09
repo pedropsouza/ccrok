@@ -2,6 +2,7 @@
 #include "unity.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #define RATE (1e9 / 1000)
 #define THRESHOLD_NS RATE
@@ -20,17 +21,9 @@ void setUp(void) {
 void tearDown(void) {
   // clean stuff up here
 }
-struct sched_trans test_setup(struct scheduler *s) {
-  s->persistent_data = "foo";
-  return (struct sched_trans){.s = SCHED_CONTINUE, .why = "setup finished"};
-}
 
-struct sched_trans test_cleanup(struct scheduler *s) {
-  s->persistent_data = NULL;
-  return (struct sched_trans){.s = SCHED_HALT, .why = "cleanup finished"};
-}
-
-struct sched_trans test_fixed(struct scheduler *s, long step_ns) {
+int ticking_done = 0;
+void tick_func(void * _) {
   static long num_ticks = 0;
   if (num_ticks >= MAX_TICKS) {
     // fixed got called after a cleanup request
@@ -40,21 +33,18 @@ struct sched_trans test_fixed(struct scheduler *s, long step_ns) {
   timestamps[num_ticks] = (new_ts.tv_sec * 1e9) + new_ts.tv_nsec;
   num_ticks += 1;
 
-  if (num_ticks >= MAX_TICKS) {
-    return (struct sched_trans){.s = SCHED_CLEANUP,
-                                .why = "testing array full"};
-  }
-  return (struct sched_trans){.s = SCHED_CONTINUE, .why = "fixed call"};
+  ticking_done = num_ticks >= MAX_TICKS;
 }
-
-void test_render(struct scheduler *s, double a) {}
 
 void tickTest() {
   badticks = 0;
-  struct scheduler s =
-      sched_init(test_setup, test_cleanup, test_fixed, test_render, RATE,
-                 1e9 / 50, NULL, "ticktest");
-  sched_handover(&s);
+  struct periodic_callback tick_call = {0};
+  tick_call.max_per_tick = 1;
+  tick_call.func = tick_func;
+  tick_call.strat = PERIODIC_CALLBACK_DEFAULT;
+  
+  do { do_periodic_callback(&tick_call); } while(!ticking_done);
+
   long min = LONG_MAX, max = 0;
   int min_tick = -1, max_tick = -1;
   for (int i = 0; i < MAX_TICKS - 1; i++) {
