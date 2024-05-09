@@ -21,13 +21,12 @@ struct crok_netinput_data { struct crok_net_context *nc; struct crok_tick_data *
 //struct crok_net_packet crok_local_input(void *data);
 //struct crok_net_packet crok_network_input(void *data);
 
-struct sched_trans crok_setup(struct scheduler *s);
-struct sched_trans crok_cleanup(struct scheduler *s);
-struct sched_trans crok_fixed(struct scheduler *s, long step_ns);
+struct crok_data crok_setup(struct crok_setup_data *);
+void crok_cleanup(struct crok_data *);
+int crok_fixed(struct crok_data *, long step_ns);
+void crok_render(struct crok_data *, double a);
 
 void crok_simulate(struct crok_state *cs);
-void crok_render(struct scheduler *s, double a);
-
 enum crok_gamestage crok_process(struct crok_data *d);
 
 /* Utility functions, return <0 on error */

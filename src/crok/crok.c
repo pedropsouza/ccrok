@@ -1,4 +1,5 @@
 #include "crok.h"
+#include "crok/data.h"
 
 struct crok_net_pcktrecord crok_network_input(void *data) {
   struct crok_net_context *nc = data;
@@ -8,59 +9,56 @@ struct crok_net_pcktrecord crok_network_input(void *data) {
   return r;
 }
 
-struct sched_trans crok_setup(struct scheduler *s) {
-  struct crok_setup_data *setdat = (struct crok_setup_data *)s->setup_data;
-  s->persistent_data =
-      safe_calloc(sizeof(struct crok_data), "setup persistent_data alloc");
-  struct crok_data *d = (struct crok_data *)s->persistent_data;
-  *d = crok_game_init(*setdat);
+struct crok_data crok_setup(struct crok_setup_data *setdat) {
+  struct crok_data d = crok_game_init(*setdat);
+  d.setup_data = setdat; // POSSIBLE DEADCODE
 
-  struct sockaddr_in *saddr = &d->net.saddr;
+  struct sockaddr_in *saddr = &d.net.saddr;
   ssize_t addrl = sizeof(*saddr);
   memcpy(saddr, &setdat->saddr, addrl);
 
-  d->net.sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-  if (d->net.sockfd == -1) {
+  d.net.sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  if (d.net.sockfd == -1) {
     perror("Couldn't create a network socket");
     goto neterr;
   }
-  fcntl(d->net.sockfd, F_SETFL, O_NONBLOCK);
+  fcntl(d.net.sockfd, F_SETFL, O_NONBLOCK);
 
-  if (d->servermode) { // server
+  if (d.servermode) { // server
     saddr->sin_addr.s_addr = INADDR_ANY;
 
-    int retc = bind(d->net.sockfd, (struct sockaddr *)saddr, addrl);
+    int retc = bind(d.net.sockfd, (struct sockaddr *)saddr, addrl);
     if (retc < 0) {
       perror("Couldn't bind network socket");
       goto neterr;
     }
-
+    
     printf("server running on port %d...\n", CROK_PORT);
   } else { // client
 
-    if (connect(d->net.sockfd, (struct sockaddr *)saddr, addrl) < 0) {
+    if (connect(d.net.sockfd, (struct sockaddr *)saddr, addrl) < 0) {
       perror("Couldn't connect to server");
       goto neterr;
     }
 
     // announce our presence
-    d->net.tx = (struct crok_net_packet){0};
-    d->net.tx.kind = CROK_NET_CONNECT;
-    d->net.tx.data_len = pack(d->net.tx.data, 4, MACROSTR(CROK_PLAYER_NAME_MAXLEN) "s", setdat->name);
-    crok_net_tx_to_server(&d->net);
+    d.net.tx = (struct crok_net_packet){0};
+    d.net.tx.kind = CROK_NET_CONNECT;
+    d.net.tx.data_len = pack(d.net.tx.data, 4, MACROSTR(CROK_PLAYER_NAME_MAXLEN) "s", setdat->name);
+    crok_net_tx_to_server(&d.net);
 
     int wait = 0;
     do {
       usleep(5000);
       wait++;
-      crok_net_rx(&d->net);
-    } while(d->net.rx.kind != CROK_NET_ACK && wait < 50);
+      crok_net_rx(&d.net);
+    } while(d.net.rx.kind != CROK_NET_ACK && wait < 50);
     if (wait >= 50) {
-      crok_net_print_packet(stdout, &d->net.rx);
+      crok_net_print_packet(stdout, &d.net.rx);
       fprintf(stderr, "couldn't log into lobby!\n"); goto neterr; }
 
-    d->my_player_id = d->net.rx.conn_uid;
-    if (d->my_player_id == 0xff) { fprintf(stderr, "lobby full. quitting\n"); goto neterr; }
+    d.my_player_id = d.net.rx.conn_uid;
+    if (d.my_player_id == 0xff) { fprintf(stderr, "lobby full. quitting\n"); goto neterr; }
     
         char ip4[INET_ADDRSTRLEN];
     printf("using server %s on port %d...\n",
@@ -68,25 +66,21 @@ struct sched_trans crok_setup(struct scheduler *s) {
            CROK_PORT);
   }
 
-  return (struct sched_trans){.s = SCHED_CONTINUE, .why = "setup finished"};
+  return d;
 neterr:
-  crok_net_print_context(stderr, &d->net);
-  return (struct sched_trans){.s = SCHED_ERR, .why = "network setup error"};
+  crok_net_print_context(stderr, &d.net);
+  d.crok.stage.kind = CROK_GS_ERROR;
+  d.error_description = "network setup error";
+  return d;
 }
 
-struct sched_trans crok_cleanup(struct scheduler *s) {
-  struct crok_data *d = (struct crok_data *)s->persistent_data;
+void crok_cleanup(struct crok_data *d) {
   crok_game_finish(d);
-  free(s->persistent_data);
-  s->persistent_data = NULL;
-
-  return (struct sched_trans){.s = SCHED_HALT, .why = "cleanup finished"};
 }
 
 static void set_ui_stagebits(struct crok_data *d);
 
-struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
-  struct crok_data *d = (struct crok_data *)s->persistent_data;
+int crok_fixed(struct crok_data *d, long step_ns) {
   struct crok_state *st = &d->crok;
   struct crok_net_context *nc = &d->net;
   struct crok_render_data *rdr = &d->renderdata;
@@ -199,28 +193,25 @@ struct sched_trans crok_fixed(struct scheduler *s, long step_ns) {
     case CROK_GS_SIDESEL: break;
     case CROK_GS_ROUND: break;
     case CROK_GS_LEAVE:
-    return (struct sched_trans) {
-      .s = SCHED_CLEANUP,
-      .why = (d->servermode)? "all players left" : "user requested quit"
-    };
-    break;
+      return 0; // all players left / user requested quit
+      break;
     case CROK_GS_ERROR:
-    return (struct sched_trans) {.s = SCHED_ERR, .why = d->crok.stage.data.why};
+      d->error_description = (char*)d->crok.stage.data.why;
+      return 0;
     break;
     case CROK_GS_END: break;
   }
 
-  return (struct sched_trans){.s = SCHED_CONTINUE, .why = "fixed call"};
+  return 1;
 }
 
-void crok_render(struct scheduler *s, double a) {
-  struct crok_data *d = (struct crok_data *)s->persistent_data;
+void crok_render(struct crok_data *d, double a) {
   struct crok_render_data *r = &d->renderdata;
 
   SDL_SetRenderDrawColor(r->rdr, 0, 0, 0, SDL_ALPHA_OPAQUE);
   SDL_RenderClear(r->rdr);
 
-  SDL_RenderCopy(r->rdr, d->renderdata.board.tex, NULL, &d->renderdata.board.dest);
+  SDL_RenderCopy(r->rdr, r->board.tex, NULL, &r->board.dest);
   for (size_t i = 0; i < 4; i++) {
     struct crok_player *player[2] = {&d->crok.players[i], NULL};
     if (crok_unit_valid(player[0])) {

@@ -3,7 +3,7 @@
 
 #include "crok/config.h"
 #include "crok/globaltypes.h"
-#include "crok/phys.h"
+#include "phys.h"
 #include "draw.h"
 #include "ivec.h"
 

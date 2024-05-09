@@ -50,6 +50,8 @@ struct crok_data {
   struct crok_board board;
   struct crok_render_data renderdata;
   struct crok_net_context net;
+  struct crok_setup_data *setup_data;
+  char *error_description;
   size_t my_player_id;
 
   // latest values for both

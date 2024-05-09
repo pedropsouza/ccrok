@@ -7,7 +7,16 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-void headless_noop(struct scheduler *s, double a) {}
+int fixed_retval;
+void crok_fixed_adaptor(void *p) {
+  struct { struct crok_data *d; long tps; } *d = p;
+  fixed_retval = crok_fixed(d->d, d->tps);
+}
+
+void crok_render_adaptor(void* p) {
+  struct { struct crok_data *d; double a; } *d = p;
+  crok_render(d->d, d->a);
+}
 
 int main(int argc, char *argv[]) {
   struct crok_setup_data setdat = {
@@ -46,14 +55,26 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  render_fun renf = (setdat.servermode) ? headless_noop : crok_render;
+  struct crok_data cd = crok_setup(&setdat);
+  struct periodic_callback fixed_call = {0};
+  fixed_call.func = crok_fixed_adaptor;
+  fixed_call.arg = (&(struct { struct crok_data *d; long tps; }){.d = &cd, .tps = 1e9 / CROK_TPS});
+  fixed_call.max_per_tick = 10;
+  fixed_call.strat = PERIODIC_CALLBACK_DEFAULT;
+  fixed_call.period_ns = 1e9/CROK_TPS;
 
-  struct scheduler s =
-      sched_init(crok_setup, crok_cleanup, crok_fixed, renf, 1e9 / CROK_TPS,
-                 1e9 / CROK_FPS, &setdat, "main");
+  struct periodic_callback render_call = {0};
+  render_call.func = crok_render_adaptor;
+  render_call.arg = (&(struct { struct crok_data *d; double a; }){.d = &cd, .a = 0.0});
+  render_call.strat = PERIODIC_CALLBACK_NOACC;
+  render_call.period_ns = 1e9/CROK_FPS;
+  
+  do {
+    do_periodic_callback(&fixed_call);
+    do_periodic_callback(&render_call);
+  } while (fixed_retval);
 
-  sched_handover(&s);
-  sched_debugprint(stdout, &s);
+  crok_cleanup(&cd);
 
   return EXIT_SUCCESS;
 
