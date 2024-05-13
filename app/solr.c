@@ -3,6 +3,7 @@
 #include "solr/solr.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 
 int fixed_retval;
@@ -15,6 +16,8 @@ void render_adaptor(void* p) {
   struct { solr *d; double a; } *d = p;
   solr_render(d->d, d->a);
 }
+
+void nullrender_adaptor(void* p) {}
 
 int main(int argc, char *argv[]) {
   setup_data setdat = {
@@ -65,6 +68,7 @@ int main(int argc, char *argv[]) {
 
 
   solr cd = solr_setup(&setdat);
+  if (cd.st.stage != STAGE_PLAYING) { return EXIT_FAILURE; }
   struct periodic_callback fixed_call = {0};
   fixed_call.func = fixed_adaptor;
   fixed_call.arg = (&(struct { solr *d; long tps; }){.d = &cd, .tps = setdat.frametime_ns});
@@ -73,14 +77,15 @@ int main(int argc, char *argv[]) {
   fixed_call.period_ns = setdat.frametime_ns;
 
   struct periodic_callback render_call = {0};
-  render_call.func = render_adaptor;
+  render_call.func = setdat.server ? nullrender_adaptor : render_adaptor;
   render_call.arg = (&(struct { solr *d; double a; }){.d = &cd, .a = 0.0});
   render_call.strat = PERIODIC_CALLBACK_NOACC;
   render_call.period_ns = setdat.frametime_ns;
   
   do {
-    do_periodic_callback(&fixed_call);
+    struct timespec wait_f = do_periodic_callback(&fixed_call);
     do_periodic_callback(&render_call);
+    nanosleep(&wait_f, NULL);
   } while (fixed_retval);
 
   solr_cleanup(&cd);

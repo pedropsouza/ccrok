@@ -273,12 +273,12 @@ solr_setup  (setup_data *sdata) {
     } while(game->net.rx.kind != PCKT_ACK && wait < 50);
     if (wait >= 50) {
       //crok_net_print_packet(stdout, &d->net.rx);
-      fprintf(stderr, "couldn't log into lobby!\n"); goto neterr;
+      fprintf(stderr, "couldn't log into lobby!\n");
+      goto neterr;
     }
 
-    //game->client.uid = server_sockaddr2uid(&game->srv, &game->net.peer);
     unpack(game->net.rx.data, 1, "C", &game->client.uid);
-    if (game->client.uid == 0xff) { fprintf(stderr, "game full. quitting\n"); goto neterr; }
+    if (game->client.uid == 0xff) { fprintf(stderr, "game full!\n"); goto neterr; }
     game->st.players[game->client.uid].valid = 1;
     
     char ip4[INET_ADDRSTRLEN];
@@ -290,13 +290,13 @@ solr_setup  (setup_data *sdata) {
     graphics_init(game);
     gui_init(game);
   }
-
-  
+  game->st.stage = STAGE_PLAYING;
    
   return game_actual;
 neterr:
-  fprintf(stderr, "network error\n");
-  return game_actual; // FIXME: encode that a network error occurred
+  fprintf(stderr, "network error. quitting\n");
+  game->st.stage = STAGE_NETERR;
+  return game_actual;
 }
 
 void solr_cleanup(solr *game) {

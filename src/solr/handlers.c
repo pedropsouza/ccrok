@@ -45,6 +45,7 @@ void h_move(solr *s, netpacket *p) {
   unpack(p->data, 1, "m", &m);
   if (!move_valid(s, &m, &rej_reason)) {
     printf("invalid move: %s\n", rej_reason);
+    return;
   }
 
   card_stack *src = stack_from_id(s, m.stacks.src);

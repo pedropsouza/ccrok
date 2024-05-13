@@ -152,6 +152,7 @@ enum {
   STAGE_WON = 2,
   STAGE_LOST = 3,
   STAGE_FFW = 4,
+  STAGE_NETERR = 5,
 };
 
 typedef struct {
