@@ -5,12 +5,31 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-ivec ref_stack_areas[STACK_BOARD_MAX] = {
-};
-
 const ivec ref_window_dims = {.x = 850, .y = 478};
 //const ivec card_dims = {.x = 88, .y = 124};
 const ivec card_dims = {.x = 66, .y = 93};
+
+#define cw card_dims.x
+#define ch card_dims.y
+
+ivec ref_stack_areas[STACK_BOARD_MAX] = {
+  [0]  = (ivec){.x = 12,                 .y = ch/2,     },
+  [1]  = (ivec){.x = 12 + 1 * (12 + cw), .y = 140 + ch/2},
+  [2]  = (ivec){.x = 12 + 2 * (12 + cw), .y = 140 + ch/2},
+  [3]  = (ivec){.x = 12 + 3 * (12 + cw), .y = 140 + ch/2},
+  [4]  = (ivec){.x = 12 + 4 * (12 + cw), .y = 140 + ch/2},
+  [5]  = (ivec){.x = 12 + 5 * (12 + cw), .y = 140 + ch/2},
+  [6]  = (ivec){.x = 12 + 6 * (12 + cw), .y = 140 + ch/2},
+  [7]  = (ivec){.x = 12 + 7 * (12 + cw), .y = 140 + ch/2},
+  [8]  = (ivec){.x = 12 + 4 * (12 + cw), .y = ch/2,     },
+  [9]  = (ivec){.x = 12 + 5 * (12 + cw), .y = ch/2,     },
+  [10] = (ivec){.x = 12 + 6 * (12 + cw), .y = ch/2,     },
+  [11] = (ivec){.x = 12 + 7 * (12 + cw), .y = ch/2,     },
+  [12] = (ivec){.x = 12 + 1 * (12 + cw), .y = ch/2,     },
+};
+
+#undef cw
+#undef ch
 
 static SDL_Texture *
 tex_from_file(SDL_Renderer *rdr, const char* filename) {
@@ -76,19 +95,6 @@ graphics_init(solr *s) {
   rdat->suits[SUIT_S] = tex_from_file(rdat->rdr, "resources/cards/Spades-88x124.png");
 
   int cw = card_dims.x, ch = card_dims.y;
-  ref_stack_areas[0]  = (ivec){.x = 12,                 .y = ch/4,     };
-  ref_stack_areas[1]  = (ivec){.x = 12 + 1 * (12 + cw), .y = 140 + ch/4};
-  ref_stack_areas[2]  = (ivec){.x = 12 + 2 * (12 + cw), .y = 140 + ch/4};
-  ref_stack_areas[3]  = (ivec){.x = 12 + 3 * (12 + cw), .y = 140 + ch/4};
-  ref_stack_areas[4]  = (ivec){.x = 12 + 4 * (12 + cw), .y = 140 + ch/4};
-  ref_stack_areas[5]  = (ivec){.x = 12 + 5 * (12 + cw), .y = 140 + ch/4};
-  ref_stack_areas[6]  = (ivec){.x = 12 + 6 * (12 + cw), .y = 140 + ch/4};
-  ref_stack_areas[7]  = (ivec){.x = 12 + 7 * (12 + cw), .y = 140 + ch/4};
-  ref_stack_areas[8]  = (ivec){.x = 12 + 4 * (12 + cw), .y = ch/4,     };
-  ref_stack_areas[9]  = (ivec){.x = 12 + 5 * (12 + cw), .y = ch/4,     };
-  ref_stack_areas[10] = (ivec){.x = 12 + 6 * (12 + cw), .y = ch/4,     };
-  ref_stack_areas[11] = (ivec){.x = 12 + 7 * (12 + cw), .y = ch/4,     };
-  ref_stack_areas[12] = (ivec){.x = 12 + 1 * (12 + cw), .y = ch/4,     };
   
   graphics_resize(s, (ivec){s->sdata.window_w,s->sdata.window_h});
 }
@@ -111,13 +117,6 @@ graphics_resize(solr *s, ivec new_window_dims) {
     rd->stack_areas[i].y = area.y;
     rd->stack_areas[i].w = rd->card_dims.x;
     rd->stack_areas[i].h = rd->card_dims.y;
-    // printf("area %d -> %d,%d >< %d,%d\n",
-    //   i,
-    //   rd->stack_areas[i].x,
-    //   rd->stack_areas[i].y,
-    //   rd->stack_areas[i].w,
-    //   rd->stack_areas[i].h
-    // );
   }
   for (int i = 0; i < STACK_MAX; i++) {
     update_stack_dims(s, stack_from_id(s, i));

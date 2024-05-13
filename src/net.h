@@ -24,6 +24,7 @@ typedef struct {
 #define NETPACKET_FMTSTR_PARTIAL "C"
 size_t netpacket_pack  (pbuf_t *dst, netpacket *pckt);
 size_t netpacket_unpack(pbuf_t *src, netpacket *pckt);
+char *netpacket_owned_debug_str(netpacket *pckt);
 
 typedef struct {
   int sock_fd;

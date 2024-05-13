@@ -7,30 +7,36 @@ BIN     := ./bin
 SRCDIRS := ./src ./app ./src/solr
 SRCS    := $(foreach fd, $(SRCDIRS), $(wildcard $(fd)/*.c))
 OBJS    := $(patsubst %.c,%.o,$(SRCS))
-DEPS    := $(patsubst %.o,%.d,$(OBJS))
+SO_OBJS := $(patsubst %.c,%.dyn.o,$(SRCS))
 SOLR    := $(BIN)/solre
 #CCROK   := $(BIN)/ccrok
 #TCHESS := $(BIN)/tchess
 EXES    := $(SOLR)
 CFLAGS  := $(addprefix -I,$(SRCDIRS)) $(shell sdl2-config --cflags) $(XTRAFLAGS)
-LDLIBS  := -lm $(shell sdl2-config --libs)
+LDLIBS  := -lm $(shell sdl2-config --libs) -ldl
 
-COMMON  := $(addprefix ./src/, draw.o ivec.o memutil.o net.o phys.o sched.o serde.o)
-SOLR_O  := ./app/solr.o ./src/solr/solr.o ./src/solr/cards_n_stacks.o \
+COMMON_O  := $(addprefix ./src/, draw.o ivec.o net.o phys.o sched.o serde.o)
+COMMON_SO_O := $(patsubst %.o,%.dyn.o,$(COMMON_O))
+SOLR_O  := ./src/solr/solr.o ./src/solr/cards_n_stacks.o \
 	./src/solr/graphics.o ./src/solr/move.o ./src/solr/autosolve.o \
-	./src/solr/gui.c ./src/solr/handlers.c
+	./src/solr/gui.o ./src/solr/handlers.o
+SOLR_SO_O := $(patsubst %.o,%.dyn.o,$(SOLR_O))
+SOLR_SO := $(BIN)/solr.so
 
-all: $(EXES)
+all: $(EXES) $(SOLR_SO)
 .PHONY: all
 
-include makefile.defs
-include $(DEPS)
+%.dyn.o: %.c
+	$(CC) $(CFLAGS) -fPIC -o $@ -c $<
 
-$(SOLR): $(COMMON) $(SOLR_O) | $(BIN)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDLIBS)
+$(SOLR): src/solr/hotreload.c app/solr.c src/sched.c | $(BIN)
+	$(CC) $(CFLAGS) -Wl,-rpath=./ -o $@ $^ $(LDLIBS)
 
 $(BIN):
 	$(MKDIR) $@
+
+$(SOLR_SO): $(SOLR_SO_O) $(COMMON_SO_O)
+	$(CC) $(CFLAGS) -fPIC -shared -o $@ $^ $(LDLIBS)
 
 debug:
 	$(MAKE) XTRAFLAGS:="-g -fsanitize=undefined -fsanitize-undefined-trap-on-error -fno-omit-frame-pointer -O0 -DDEBUG -Wuninitialized"
@@ -42,5 +48,6 @@ release:
 
 clean:
 	-$(RM) $(OBJS)
+	-$(RM) $(SO_OBJS)
 	-$(RM) $(EXES)
 .PHONY: clean

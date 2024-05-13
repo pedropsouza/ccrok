@@ -8,7 +8,6 @@
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_image.h"
 #include "ivec.h"
-#include "memutil.h"
 #include "sched.h"
 #include "draw.h"
 #include "serde.h"
@@ -212,15 +211,18 @@ typedef struct {
   setup_data sdata;
   solr_rdr rdr;
   struct nk_context *nk;
+  int should_reload;
 } solr;
 
 int move_valid(solr *s, move *m, char **reason);
 typedef struct {card_stack *src,*dst;} card_stack_pair;
 
-solr solr_setup  (setup_data *s);
-void solr_cleanup(solr *);
-int  solr_fixed  (solr *, long step_ns);
-void solr_render (solr *, double a);
+//solr solr_setup  (setup_data *s);
+//void solr_post_reload(solr *);
+//void solr_pre_reload (solr *);
+//void solr_cleanup(solr *);
+//int  solr_fixed  (solr *, long step_ns);
+//void solr_render (solr *, double a);
 
 // networking/gameplay
 
@@ -268,5 +270,21 @@ extern const ivec ref_window_dims;
 extern const ivec card_dims;
 float lerp(float a, float b, float v);
 void broadcast(solr *s);
+
+// Hot reloading bits -- all tsoding's musializer code
+// https://github.com/tsoding/musializer/blob/master/src/hotreload.h
+
+#define HOT_FUNCS \
+HOT_FUNC(solr_setup, solr, setup_data *s) \
+HOT_FUNC(solr_post_reload, void, solr *); \
+HOT_FUNC(solr_pre_reload,  void, solr *); \
+HOT_FUNC(solr_cleanup, void, solr *) \
+HOT_FUNC(solr_fixed, int, solr *, long) \
+HOT_FUNC(solr_render, void, solr *, double)
+
+#define HOT_FUNC(name, ret, ...) \
+	typedef ret (name##_t)(__VA_ARGS__);
+HOT_FUNCS
+#undef HOT_FUNC
 
 #endif // SOLR_HG__

@@ -115,16 +115,20 @@ card_bbox(solr *s, size_t stack_idx, ivec mpos) {
   ivec s_dims = {area->w, area->h};
   card_stack *ss = s->st.board.stacks + stack_idx;
   if (ss->top == 0) goto not_found;
+  ssize_t tail = ss->top - 1;
+  if (!ss->splayed && !ss->pile) {
+    // must be a suit "pile"
+    return tail;
+  }
 
-  int ystep = (s_dims.y - rd->card_dims.y)/(ss->top - 1 * (ss->top > 1));
-  ivec cpos = {.x = pos.x, .y = pos.y + ystep * (ss->top - 1)};
-  for (ssize_t i = ss->top - 1; i >= (ss->splayed ? 0 : ss->top - 1); i--) {
+  int ystep = ss->pile ? -2 : rd->card_dims.y/6;
+  for (ssize_t i = tail; i >= (ss->splayed ? 0 : tail); i--) {
+    ivec cpos = {.x = pos.x, .y = pos.y + ystep * i};
     SDL_Rect box = posdims2rect(cpos, rd->card_dims);
     SDL_Point p = {.x = mpos.x, .y = mpos.y};
     if (SDL_PointInRect(&p, &box) == SDL_TRUE) {
       return i;
     }
-    cpos.y -= ystep;
   }
 
   // returning zero is technically incorrect,
@@ -157,12 +161,15 @@ setup_board_stacks(solr *game) {
 
   shuffle_stack(stock);
   
-  for (int i = STACK_TABLEAU_BEGIN; i <= STACK_TABLEAU_END; i++) {
-    card_stack *col = stack_from_id(game, i);
-    col->top = 0;
-    for (int j = 0; j < i; j++) {
+  for (int i = 0; i < 7; i++) {
+    for (int j = STACK_TABLEAU_BEGIN + i; j <= STACK_TABLEAU_END; j++) {
+      card_stack *col = stack_from_id(game, j);
       take_card_stack(stock, col, 1);
     }
+  }
+
+  for (int i = STACK_TABLEAU_BEGIN; i <= STACK_TABLEAU_END; i++) {
+    card_stack *col = stack_from_id(game, i);
     expose_top_card_stack(col);
   }
 
@@ -288,7 +295,7 @@ solr_setup  (setup_data *sdata) {
 
     printf("loading graphics...\n");
     graphics_init(game);
-    gui_init(game);
+    //gui_init(game);
   }
   game->st.stage = STAGE_PLAYING;
    
@@ -299,11 +306,19 @@ neterr:
   return game_actual;
 }
 
+void solr_post_reload(solr *_) {
+  serde_init();
+  printf("reloaded!\n");
+}
+void solr_pre_reload (solr *_) {
+  printf("preparing to reload...\n");
+}
+
 void solr_cleanup(solr *game) {
   if (!game->sdata.server) {
     graphics_finish(game);
   }
-  gui_finish(game);
+  //gui_finish(game);
 }
 
 ssize_t server_sockaddr2uid(server *s, struct sockaddr_in *sock) {
@@ -331,6 +346,11 @@ lerp(float a, float b, float v) {
 
 void
 handle_pckt(solr *s, netpacket *p) {
+  if (p->kind != PCKT_POS) {
+    char *pckt_str = netpacket_owned_debug_str(p);
+    puts(pckt_str);
+    free(pckt_str);
+  }
   pckt_handler_vec_base[p->kind](s, p); 
 }
 
@@ -380,13 +400,13 @@ solr_fixed(solr *game, long step_ns) {
   static ivec mouse_pos = {0};
   SDL_Event input;
 
-  nk_input_begin(game->nk);
+  //nk_input_begin(game->nk);
 
   while (SDL_PollEvent(&input) > 0) {
     game->net.tx = (netpacket){0};
     game->net.peer = game->sdata.server_a;
 
-    nk_sdl_handle_event(&input);
+    //nk_sdl_handle_event(&input);
     switch (input.type) {
     case SDL_WINDOWEVENT: {
       switch (input.window.event)
@@ -432,7 +452,7 @@ solr_fixed(solr *game, long step_ns) {
       };
       m.stacks.src = m.kind == MOVE_PUSH ? STACK_PLAYER_BEGIN + game->client.uid : stack_idx;
       m.stacks.dst = m.kind == MOVE_TAKE ? STACK_PLAYER_BEGIN + game->client.uid : stack_idx;
-      
+
       if(m.stacks.dst == myp->held.camefrom){
         game->net.tx.kind = PCKT_CANCEL;
         game->net.tx.data_len = pack(game->net.tx.data, 1, "C", &game->client.uid);
@@ -480,6 +500,11 @@ solr_fixed(solr *game, long step_ns) {
           printf("state %d\n", game->st.stage);
           break;
         }
+        case SDLK_h: {
+          printf("reloading...\n");
+          game->should_reload = 1;
+          break;
+        }
       }
       break;
     default:
@@ -487,7 +512,7 @@ solr_fixed(solr *game, long step_ns) {
     }
   }
 
-  nk_input_end(game->nk);
+  //nk_input_end(game->nk);
   
   end: return 1;
   leave:
@@ -553,7 +578,7 @@ card_stack_render(solr_rdr *rdr, card_stack *s, ivec pos) {
   } else {
     for (size_t i = 0; i < s->top; i++) {
       card_render(rdr, &s->s[i], pos);
-      pos.y += yoff_card_stack(rdr, s)/(s->top - 1 * (s->top > 1));
+      pos.y += rdr->card_dims.y/6;
     }
   }
 
@@ -600,7 +625,7 @@ solr_render (solr *game, double a) {
     }
   }
 
-  gui_update(game);
+  //gui_update(game);
   // triggers the double buffers for multiple rendering
   end: SDL_RenderPresent(r->rdr);
 }

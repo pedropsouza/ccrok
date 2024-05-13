@@ -23,9 +23,10 @@ update_stack_dims(solr* s, card_stack *ss) {
   target->w = rd->card_dims.x;
   target->h = rd->card_dims.y;
   if (ss->splayed) {
-    target->h += (22*rd->win_dims.y/ref_window_dims.y)*ss->top;
+    target->h += rd->card_dims.y*ss->top/6;
   } else if (ss->pile) {
-    target->h -= (2*rd->win_dims.y/ref_window_dims.y)*ss->top;
+    //this line just straight up doesn't make any sense
+    //target->h -= (2*rd->win_dims.y/ref_window_dims.y)*ss->top;
   }
 }
 

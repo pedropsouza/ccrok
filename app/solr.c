@@ -1,6 +1,5 @@
-#include "SDL2/SDL.h"
-#include "SDL2/SDL_image.h"
 #include "solr/solr.h"
+#include "solr/hotreload.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -66,6 +65,10 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  if(!reload_hot_functions()) {
+    fprintf(stderr, "this error is unrecoverable! quitting.\n");
+    return EXIT_FAILURE;
+  }
 
   solr cd = solr_setup(&setdat);
   if (cd.st.stage != STAGE_PLAYING) { return EXIT_FAILURE; }
@@ -85,6 +88,15 @@ int main(int argc, char *argv[]) {
   do {
     struct timespec wait_f = do_periodic_callback(&fixed_call);
     do_periodic_callback(&render_call);
+    if (cd.should_reload) {
+      solr_pre_reload(&cd);
+      if (!reload_hot_functions()) {
+        fprintf(stderr, "this error is unrecoverable! quitting.\n");
+        return EXIT_FAILURE;
+      }
+      solr_post_reload(&cd);
+      cd.should_reload = 0;
+    }
     nanosleep(&wait_f, NULL);
   } while (fixed_retval);
 
