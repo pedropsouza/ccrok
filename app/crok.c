@@ -1,19 +1,16 @@
-#include "SDL2/SDL.h"
-#include "SDL2/SDL_image.h"
-#include "crok/crok.h"
-#include "memutil.h"
-#include "sched.h"
+#include "crok/hotreload.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 
 int fixed_retval;
-void crok_fixed_adaptor(void *p) {
+void fixed_adaptor(void *p) {
   struct { struct crok_data *d; long tps; } *d = p;
   fixed_retval = crok_fixed(d->d, d->tps);
 }
 
-void crok_render_adaptor(void* p) {
+void render_adaptor(void* p) {
   struct { struct crok_data *d; double a; } *d = p;
   crok_render(d->d, d->a);
 }
@@ -55,23 +52,42 @@ int main(int argc, char *argv[]) {
     }
   }
 
+#ifdef ENABLE_HOTRELOAD
+  if(!reload_hot_functions()) {
+    fprintf(stderr, "this error is unrecoverable! quitting.\n");
+    return EXIT_FAILURE;
+  }
+#endif
+
   struct crok_data cd = crok_setup(&setdat);
   struct periodic_callback fixed_call = {0};
-  fixed_call.func = crok_fixed_adaptor;
+  fixed_call.func = fixed_adaptor;
   fixed_call.arg = (&(struct { struct crok_data *d; long tps; }){.d = &cd, .tps = 1e9 / CROK_TPS});
   fixed_call.max_per_tick = 10;
   fixed_call.strat = PERIODIC_CALLBACK_DEFAULT;
   fixed_call.period_ns = 1e9/CROK_TPS;
 
   struct periodic_callback render_call = {0};
-  render_call.func = crok_render_adaptor;
+  render_call.func =render_adaptor;
   render_call.arg = (&(struct { struct crok_data *d; double a; }){.d = &cd, .a = 0.0});
   render_call.strat = PERIODIC_CALLBACK_NOACC;
   render_call.period_ns = 1e9/CROK_FPS;
   
   do {
-    do_periodic_callback(&fixed_call);
+    struct timespec wait_f = do_periodic_callback(&fixed_call);
     do_periodic_callback(&render_call);
+#ifdef ENABLE_HOTRELOAD
+    if (cd.should_reload) {
+      //crok_pre_reload(&cd);
+      if (!reload_hot_functions()) {
+        fprintf(stderr, "this error is unrecoverable! quitting.\n");
+        return EXIT_FAILURE;
+      }
+      //crok_post_reload(&cd);
+      cd.should_reload = 0;
+    }
+#endif
+    nanosleep(&wait_f, NULL);
   } while (fixed_retval);
 
   crok_cleanup(&cd);

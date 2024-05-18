@@ -180,6 +180,9 @@ int crok_fixed(struct crok_data *d, long step_ns) {
           nc->tx.ticknum = d->ticknum;
           nc->tx.statesum = d->statesum;
           nc->tx.data_len = 0;
+          break;
+        case SDLK_h:
+          d->should_reload = 1;
       }
     default:
       break;

@@ -12,6 +12,7 @@ crok_game_init(struct crok_setup_data sdata) {
     .ticknum = 0,
     .statesum = 0,
     .my_player_id = 0,
+    .should_reload = 0,
   };
 
   if (!d.servermode) {

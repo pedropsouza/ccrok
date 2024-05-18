@@ -59,6 +59,7 @@ struct crok_data {
   uint32_t statesum;
 
   int width, height, servermode;
+  int should_reload;
 };
 
 struct crok_data crok_game_init(struct crok_setup_data sdata);

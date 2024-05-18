@@ -217,12 +217,14 @@ typedef struct {
 int move_valid(solr *s, move *m, char **reason);
 typedef struct {card_stack *src,*dst;} card_stack_pair;
 
-//solr solr_setup  (setup_data *s);
-//void solr_post_reload(solr *);
-//void solr_pre_reload (solr *);
-//void solr_cleanup(solr *);
-//int  solr_fixed  (solr *, long step_ns);
-//void solr_render (solr *, double a);
+#ifndef ENABLE_HOTRELOAD
+solr solr_setup  (setup_data *s);
+void solr_post_reload(solr *);
+void solr_pre_reload (solr *);
+void solr_cleanup(solr *);
+int  solr_fixed  (solr *, long step_ns);
+void solr_render (solr *, double a);
+#endif
 
 // networking/gameplay
 
@@ -273,18 +275,16 @@ void broadcast(solr *s);
 
 // Hot reloading bits -- all tsoding's musializer code
 // https://github.com/tsoding/musializer/blob/master/src/hotreload.h
+#ifdef ENABLE_HOTRELOAD
 
 #define HOT_FUNCS \
 HOT_FUNC(solr_setup, solr, setup_data *s) \
-HOT_FUNC(solr_post_reload, void, solr *); \
-HOT_FUNC(solr_pre_reload,  void, solr *); \
+HOT_FUNC(solr_post_reload, void, solr *) \
+HOT_FUNC(solr_pre_reload,  void, solr *) \
 HOT_FUNC(solr_cleanup, void, solr *) \
 HOT_FUNC(solr_fixed, int, solr *, long) \
 HOT_FUNC(solr_render, void, solr *, double)
 
-#define HOT_FUNC(name, ret, ...) \
-	typedef ret (name##_t)(__VA_ARGS__);
-HOT_FUNCS
-#undef HOT_FUNC
+#endif // ENABLE_HOTRELOAD
 
 #endif // SOLR_HG__

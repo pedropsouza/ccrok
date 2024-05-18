@@ -17,12 +17,14 @@ LDLIBS  := -lm $(shell sdl2-config --libs) -ldl
 
 COMMON_O  := $(addprefix ./src/, draw.o ivec.o net.o phys.o sched.o serde.o)
 COMMON_SO_O := $(patsubst %.o,%.dyn.o,$(COMMON_O))
-SOLR_O  := ./app/solr.o $(addprefix ./src/solr/, solr.o cards_n_stacks.o graphics.o move.o autosolve.o gui.o handlers.o)
+SOLR_O  := $(addprefix ./src/solr/, solr.o cards_n_stacks.o graphics.o move.o autosolve.o gui.o handlers.o)
 SOLR_SO_O := $(patsubst %.o,%.dyn.o,$(SOLR_O))
 SOLR_SO := $(BIN)/solr.so
-CROK_O := ./app/crok.o $(addprefix ./src/crok/, crok.o board.o data.o gloop.o state.o unit.o)
+CROK_O := $(addprefix ./src/crok/, crok.o board.o data.o gloop.o state.o unit.o)
+CROK_SO_O := $(patsubst %.o,%.dyn.o,$(CROK_O))
+CROK_SO := $(BIN)/crok.so
 
-all: $(EXES) $(SOLR_SO)
+all: $(EXES) $(SOLR_SO) $(CROK_SO)
 .PHONY: all
 
 %.dyn.o: %.c
@@ -31,10 +33,16 @@ all: $(EXES) $(SOLR_SO)
 $(SOLR): src/solr/hotreload.c app/solr.c src/sched.c | $(BIN)
 	$(CC) $(CFLAGS) -Wl,-rpath=./ -o $@ $^ $(LDLIBS)
 
+$(CROK): src/crok/hotreload.c app/crok.c src/sched.c | $(BIN)
+	$(CC) $(CFLAGS) -Wl,-rpath=./ -o $@ $^ $(LDLIBS)
+
 $(BIN):
 	$(MKDIR) $@
 
 $(SOLR_SO): $(SOLR_SO_O) $(COMMON_SO_O)
+	$(CC) $(CFLAGS) -fPIC -shared -o $@ $^ $(LDLIBS)
+
+$(CROK_SO): $(CROK_SO_O) $(COMMON_SO_O)
 	$(CC) $(CFLAGS) -fPIC -shared -o $@ $^ $(LDLIBS)
 
 debug:

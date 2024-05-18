@@ -1,6 +1,7 @@
 #include <dlfcn.h>
 #include "solr/hotreload.h"
 
+#ifdef ENABLE_HOTRELOAD
 #define HOT_FUNC(name, ...) name##_t *name;
 HOT_FUNCS
 #undef HOT_FUNC
@@ -27,3 +28,4 @@ int reload_hot_functions(void) {
 	#undef HOT_FUNC
 	return 1;
 }
+#endif // ENABLE_HOTRELOAD
