@@ -8,10 +8,9 @@ pbuf_t *crok_net_preamble_put(netpacket *pckt, crok_net_preamble *pre) {
   return pckt->data + pckt->data_len;
 }
 pbuf_t *crok_net_preamble_take(netpacket *pckt, crok_net_preamble *pre) {
-  unpack(pckt->data, 8, CROK_NET_PREAMBLE_FMT,
+  size_t pre_len = unpack(pckt->data, 8, CROK_NET_PREAMBLE_FMT,
          &pre->ticknum, &pre->statesum, &pre->conn_uid);
-  return pckt->data + pack_unpack(
-    NULL, SERDE_MODE_SIZEHINT, 8, CROK_NET_PREAMBLE_FMT, NULL, NULL);
+  return pckt->data + pre_len;
 }
 
 void

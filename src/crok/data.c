@@ -143,7 +143,7 @@ crok_ui_render(struct crok_data *d) {
     struct crok_player *p = d->crok.players + i;
     if (crok_unit_valid(p)) {
       struct crok_ui_text *namep = ui->nameplates + i;
-      struct fvec spos = crok_board_to_screen(rd, (struct fvec){.x = p->pos.x, .y = p->pos.y});
+      struct fvec spos = p->pos;//;crok_board_to_screen(rd, (struct fvec){.x = p->pos.x, .y = p->pos.y});
       namep->dst.x = spos.x - namep->dst.w/2.0;
       namep->dst.y = spos.y + namep->dst.h/2.0;
       crok_ui_render_text(rd->rdr, namep);

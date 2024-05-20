@@ -20,8 +20,8 @@
 #define CROK_NETPACKET_MAX 32
 #define CROK_ROLLBACK_MAX 48
 
-#define CROK_TPS 10
-#define CROK_FPS 10
+#define CROK_TPS 50
+#define CROK_FPS 50
 #define CROK_PACKET_MAX_DATA_SIZE 8192
 
 // For expanding macros inside string literals

@@ -12,7 +12,7 @@ crok_player_init(uint16_t flags, char *name) {
 
 void
 crok_player_render(struct crok_player *p[2], struct crok_render_data *rd) {
-  struct fvec spos = crok_board_to_screen(rd, (struct fvec){.x = p[0]->pos.x, .y = p[0]->pos.y});
+  struct fvec spos = p[0]->pos;//crok_board_to_screen(rd, (struct fvec){.x = p[0]->pos.x, .y = p[0]->pos.y});
   if (p[0]->flags & CROK_U_TEAM1) {
     SDL_SetRenderDrawColor(rd->rdr, 0x22, 0x77, 0xf7, 0xff);
   } else {
@@ -39,7 +39,7 @@ void
 crok_disc_render(struct crok_disc *d[2], struct crok_render_data *rd) {
   SDL_Rect dest = {0};
   double s = rd->board.disc_diam;
-  struct fvec spos = crok_board_to_screen(rd, d[0]->pb.pos);
+  struct fvec spos = d[0]->pb.pos;//crok_board_to_screen(rd, d[0]->pb.pos);
   dest.w = s;
   dest.h = s;
   dest.x = spos.x - (s - 1.0) / 2.0;
@@ -109,13 +109,16 @@ universal(struct crok_data *d, netpacket *pckt) {
       struct fvec recvd_pos;
       unpack(netdata, alignof(struct fvec), "v", &recvd_pos);
       d->crok.players[preamble.conn_uid].pos = recvd_pos;
-      fvec_print(recvd_pos, "pos");
 
       if (d->servermode) {
         net->tx.kind = CROK_NET_POS;
         net->tx.data_len = 0;
         netdata = crok_net_preamble_put(&net->tx, &preamble);
         net->tx.data_len += pack(netdata, alignof(struct fvec), "v", &recvd_pos);
+        char *pstr = netpacket_owned_debug_str(&net->tx);
+        printf("broadcasting %s\n", pstr);
+        free(pstr);
+
         broadcast(d);
       }
       break;
@@ -180,6 +183,10 @@ lobby(struct crok_data *d, netpacket *pckt) {
         preamble.statesum = d->statesum;
         netdata = crok_net_preamble_put(&net->tx, &preamble);
         net->tx.data_len += pack(netdata, alignof(struct crok_state), "G", &d->crok);
+        char *pstr = netpacket_owned_debug_str(&net->tx);
+        printf("broadcasting %s\n", pstr);
+        free(pstr);
+
         broadcast(d);
 
         printf("Player \"%s\" uid %hhu logged in.\n", d->crok.players[uid].name, (char)uid);

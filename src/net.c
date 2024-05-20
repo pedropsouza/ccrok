@@ -86,11 +86,11 @@ netmgr_sprecv(netmgr *n) {
 
 char *netpacket_owned_debug_str(netpacket *pckt) {
   const char *fmtstr = "packet kinded %d datalen %zu := ";
-  size_t out_len = 1 + strlen(fmtstr) + pckt->data_len*2 + 16; // null, description and data space, + smudge factor.
+  size_t out_len = 1 + strlen(fmtstr) + pckt->data_len*2 + 16 + pckt->data_len/8+1; // null, description and data space, + smudge factor.
   char *s = malloc(out_len);
   size_t head = snprintf(s, out_len, fmtstr, pckt->kind, pckt->data_len);
   for (size_t i = 0; i < pckt->data_len; i++) {
-    head += sprintf(s+head, "%02x", (unsigned char)pckt->data[i]);
+    head += sprintf(s+head, "%s%02x", (i%8 == 0)? " " : "", (unsigned char)pckt->data[i]);
   }
   return s;
 }
