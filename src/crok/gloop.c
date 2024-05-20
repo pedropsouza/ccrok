@@ -99,43 +99,37 @@ simulate(struct crok_state *cs) {
 }
 
 static void
-universal(struct crok_data *d, netpacket *pckt) {
+universal(struct crok_data *d, crok_netpacket *pckt) {
   netmgr *net = &d->net;
-  crok_net_preamble preamble;
-  pbuf_t *netdata = crok_net_preamble_take(pckt, &preamble);
+  crok_netpacket *tx = (crok_netpacket *)net->tx;
+  crok_netpacket *rx = (crok_netpacket *)net->rx; 
 
   switch (pckt->kind) {
     case CROK_NET_POS: {
       struct fvec recvd_pos;
-      unpack(netdata, alignof(struct fvec), "v", &recvd_pos);
-      d->crok.players[preamble.conn_uid].pos = recvd_pos;
+      unpack(pckt->body_ptr, alignof(struct fvec), "v", &recvd_pos);
+      d->crok.players[pckt->conn_uid].pos = recvd_pos;
 
       if (d->servermode) {
-        net->tx.kind = CROK_NET_POS;
-        net->tx.data_len = 0;
-        netdata = crok_net_preamble_put(&net->tx, &preamble);
-        net->tx.data_len += pack(netdata, alignof(struct fvec), "v", &recvd_pos);
-        char *pstr = netpacket_owned_debug_str(&net->tx);
-        printf("broadcasting %s\n", pstr);
-        free(pstr);
-
+        tx->kind = CROK_NET_POS;
+        tx->data_len += pack(tx->body_ptr, alignof(struct fvec), "v", &recvd_pos);
         broadcast(d);
       }
       break;
     }
     case CROK_NET_PLAYER_FLAGS:
-      unpack(netdata, 1, "C", &d->crok.players[preamble.conn_uid].flags);
+      unpack(pckt->body_ptr, 1, "C", &d->crok.players[pckt->conn_uid].flags);
       break;
     case CROK_NET_STATEDUMP:
       if (!d->servermode) {
-        unpack(netdata, alignof(struct crok_state), "G", &d->crok);
+        unpack(pckt->body_ptr, alignof(struct crok_state), "G", &d->crok);
         crok_state_print(&d->crok);
-        d->ticknum = preamble.ticknum;
+        d->ticknum = pckt->ticknum;
         update_nameplates(d);
       }
       break;
     default:
-      char *pcktstr = netpacket_owned_debug_str(pckt);
+      char *pcktstr = netpacket_owned_debug_str((netpacket *)pckt);
       fprintf(stderr, "Unhandled packet:\n%s\n", pcktstr);
       free(pcktstr);
       break;
@@ -143,15 +137,15 @@ universal(struct crok_data *d, netpacket *pckt) {
 }
 
 static void
-lobby(struct crok_data *d, netpacket *pckt) {
+lobby(struct crok_data *d, crok_netpacket *pckt) {
   netmgr *net = &d->net;
-  crok_net_preamble preamble;
-  pbuf_t *netdata = crok_net_preamble_take(pckt, &preamble);
+  crok_netpacket *tx = (crok_netpacket *)net->tx;
+  crok_netpacket *rx = (crok_netpacket *)net->rx; 
 
   switch (pckt->kind) {
     case CROK_NET_CONNECT:
       if (d->servermode) {
-        char *pcktstr = netpacket_owned_debug_str(pckt);
+        char *pcktstr = netpacket_owned_debug_str((netpacket *)pckt);
         printf("got connection packet:\n%s\n", pcktstr);
         free(pcktstr);
         char flags = 0;
@@ -159,17 +153,17 @@ lobby(struct crok_data *d, netpacket *pckt) {
         struct crok_player newp = crok_player_init(flags, "");
 
         // WARN: bad alignment has the potential to stack-smash!
-        unpack(netdata, 8, "s", newp.name);
+        unpack(rx->body_ptr, 8, "s", newp.name);
         if (strnlen((char *)newp.name, CROK_PLAYER_NAME_MAXLEN) == 0) {
           strcpy(newp.name, "anon");
         }
         newp.pos.x = d->board.arena_units/2;
         newp.pos.y = d->board.arena_units/2;
         uid = crok_spawn_player(&d->crok, newp);
-        net->tx.kind = CROK_NET_ACK;
-        net->tx.data_len = 0;
-        preamble.conn_uid = (uid < 0)? 0xff : uid;
-        crok_net_preamble_put(&net->tx, &preamble);
+
+        tx->kind = CROK_NET_ACK;
+        tx->conn_uid = (uid < 0)? 0xff : uid;
+        crok_netpacket_prepare_tx(tx);
         netmgr_send(net);
 
         if (uid < 0) break; // already full
@@ -177,13 +171,12 @@ lobby(struct crok_data *d, netpacket *pckt) {
 
         d->srv.socks[uid] = net->peer;
 
-        net->tx.kind = CROK_NET_STATEDUMP;
-        net->tx.data_len = 0;
-        preamble.ticknum = d->ticknum;
-        preamble.statesum = d->statesum;
-        netdata = crok_net_preamble_put(&net->tx, &preamble);
-        net->tx.data_len += pack(netdata, alignof(struct crok_state), "G", &d->crok);
-        char *pstr = netpacket_owned_debug_str(&net->tx);
+        tx->kind = CROK_NET_STATEDUMP;
+        tx->ticknum = d->ticknum;
+        tx->statesum = d->statesum;
+        crok_netpacket_prepare_tx(tx);
+        tx->data_len += pack(tx->body_ptr, alignof(struct crok_state), "G", &d->crok);
+        char *pstr = netpacket_owned_debug_str((netpacket *)tx);
         printf("broadcasting %s\n", pstr);
         free(pstr);
 
@@ -194,9 +187,9 @@ lobby(struct crok_data *d, netpacket *pckt) {
       }
       break;
     case CROK_NET_QUIT:
-      d->crok.players[preamble.conn_uid].flags ^= CROK_U_VALID;
+      d->crok.players[pckt->conn_uid].flags ^= CROK_U_VALID;
       d->crok.total_players--;
-      printf("Player \"%s\" uid %hhu left.\n", d->crok.players[preamble.conn_uid].name, preamble.conn_uid);
+      printf("Player \"%s\" uid %hhu left.\n", d->crok.players[pckt->conn_uid].name, pckt->conn_uid);
         
       if (d->servermode) {
         if (!d->crok.total_players) {
@@ -204,26 +197,25 @@ lobby(struct crok_data *d, netpacket *pckt) {
           printf("leaving...\n");
           //goto end;
         }
-        d->net.tx = *pckt;
+        *tx = *pckt;
         broadcast(d);
       } else {
         update_nameplates(d);
       }
       break;
     case CROK_NET_READY:
-      d->crok.stage.data.players_ready |= 1 << preamble.conn_uid;
+      d->crok.stage.data.players_ready |= 1 << pckt->conn_uid;
       if (d->crok.stage.data.players_ready == 0b1111) {
         d->crok.stage.kind = CROK_GS_SIDESEL;
         d->crok.stage.data.players_ready = 0;
       }
 
-      net->tx.kind = CROK_NET_STATEDUMP;
-      net->tx.data_len = 0;
-      preamble.ticknum = d->ticknum;
-      preamble.statesum = d->statesum;
-      preamble.conn_uid = 0;
-      netdata = crok_net_preamble_put(&net->tx, &preamble);
-      net->tx.data_len += pack(netdata, alignof(struct crok_state), "G", &d->crok);
+      tx->kind = CROK_NET_STATEDUMP;
+      tx->ticknum = d->ticknum;
+      tx->statesum = d->statesum;
+      tx->conn_uid = 0;
+      crok_netpacket_prepare_tx(tx);
+      tx->data_len += pack(tx->body_ptr, alignof(struct crok_state), "G", &d->crok);
       broadcast(d);
       break;
     
@@ -239,10 +231,10 @@ static uint8_t side2team(int64_t x) {
 }
 
 static void
-sidesel(struct crok_data *d, netpacket *pckt) {
+sidesel(struct crok_data *d, crok_netpacket *pckt) {
   netmgr *net = &d->net;
-  crok_net_preamble preamble;
-  pbuf_t *netdata = crok_net_preamble_take(pckt, &preamble);
+  crok_netpacket *tx = (crok_netpacket *)net->tx;
+  crok_netpacket *rx = (crok_netpacket *)net->rx; 
 
   if (!d->servermode) {
     struct crok_ui_text *dtxt = &d->renderdata.ui.debug;
@@ -258,14 +250,14 @@ sidesel(struct crok_data *d, netpacket *pckt) {
     goto end;
   }
   if (pckt->kind == CROK_NET_POS || pckt->kind == CROK_NET_CLICK) {
-    struct crok_player *p = d->crok.players + preamble.conn_uid;
-    if ((1 << preamble.conn_uid) & d->crok.stage.data.players_ready) goto end;
+    struct crok_player *p = d->crok.players + pckt->conn_uid;
+    if ((1 << pckt->conn_uid) & d->crok.stage.data.players_ready) goto end;
     if (!crok_unit_valid(p)) {
       fprintf(stderr, "invalid player tried to select a team:");
       crok_player_print(p);
       return;
     }
-    struct ivec pos; unpack(netdata, alignof(struct ivec), "v", &pos);
+    struct ivec pos; unpack(pckt->body_ptr, alignof(struct ivec), "v", &pos);
     char flag = side2team(pos.x);
     char is_second = 0;
     for (int i = 0; i < 4; i++) {
@@ -279,40 +271,37 @@ sidesel(struct crok_data *d, netpacket *pckt) {
 
     p->flags = flag | CROK_U_VALID;
 
-    net->tx.kind = CROK_NET_PLAYER_FLAGS;
-    net->tx.data_len = 0;
+    tx->kind = CROK_NET_PLAYER_FLAGS;
     // conn_uid stays the same
-    preamble.ticknum = d->ticknum;
-    preamble.statesum = d->statesum;
-    netdata = crok_net_preamble_put(&net->tx, &preamble);
-    net->tx.data_len += pack(netdata, 1, "C", &p->flags);
+    tx->ticknum = d->ticknum;
+    tx->statesum = d->statesum;
+    crok_netpacket_prepare_tx(tx);
+    tx->data_len += pack(tx->body_ptr, 1, "C", &p->flags);
     broadcast(d);
 
     if (pckt->kind == CROK_NET_CLICK) {
-      d->crok.stage.data.players_ready |= 1 << preamble.conn_uid;
+      d->crok.stage.data.players_ready |= 1 << pckt->conn_uid;
       if (d->crok.stage.data.players_ready == 0b1111) {
         d->crok.stage.kind = CROK_GS_ROUND;
         d->crok.stage.data.active_player = 0;
       }
       
-      net->tx.kind = CROK_NET_STATEDUMP;
-      net->tx.data_len = 0;
-      preamble.ticknum = d->ticknum;
-      preamble.statesum = d->statesum;
-      preamble.conn_uid = 0;
-      netdata = crok_net_preamble_put(&net->tx, &preamble);
-      net->tx.data_len += pack(netdata, alignof(struct crok_state), "G", &d->crok);
+      tx->kind = CROK_NET_STATEDUMP;
+      tx->ticknum = d->ticknum;
+      tx->statesum = d->statesum;
+      tx->conn_uid = 0;
+      crok_netpacket_prepare_tx(tx);
+      tx->data_len += pack(tx->body_ptr, alignof(struct crok_state), "G", &d->crok);
       broadcast(d);
-
     }
   }
   if (pckt->kind == CROK_NET_CANCEL) {
-    d->crok.stage.data.players_ready &= ~(1 << preamble.conn_uid);
+    d->crok.stage.data.players_ready &= ~(1 << pckt->conn_uid);
   }
   end: universal(d, pckt);
 }
 static void
-gameround(struct crok_data *d, netpacket *pckt) {
+gameround(struct crok_data *d, crok_netpacket *pckt) {
   if (d->crok.total_players > 0) {
     struct crok_player *p = &d->crok.players[d->crok.stage.data.active_player];
     if (!crok_unit_valid(p)) {
@@ -323,11 +312,11 @@ gameround(struct crok_data *d, netpacket *pckt) {
   universal(d, pckt);
 }
 static void
-leave(struct crok_data *d, netpacket *pckt) {
+leave(struct crok_data *d, crok_netpacket *pckt) {
   universal(d, pckt);
 }
 static void
-error(struct crok_data *d, netpacket *pckt) {
+error(struct crok_data *d, crok_netpacket *pckt) {
   universal(d, pckt);
 }
 

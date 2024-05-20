@@ -6,7 +6,7 @@
 #include "crok/net.h"
 
 
-typedef void (*crok_stage_gameloop_func)(struct crok_data *, netpacket *);
+typedef void (*crok_stage_gameloop_func)(struct crok_data *, crok_netpacket *);
 extern crok_stage_gameloop_func crok_stage_gameloops[CROK_GS_END];
 
 struct crok_player crok_player_init(uint16_t flags, char *name);

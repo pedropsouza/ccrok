@@ -1,18 +1,6 @@
 #include "crok/net.h"
 #include "crok.h"
 
-pbuf_t *crok_net_preamble_put(netpacket *pckt, crok_net_preamble *pre) {
-  assert(pckt->data_len == 0);
-  pckt->data_len = pack(pckt->data, 8, CROK_NET_PREAMBLE_FMT,
-                        &pre->ticknum, &pre->statesum, &pre->conn_uid);
-  return pckt->data + pckt->data_len;
-}
-pbuf_t *crok_net_preamble_take(netpacket *pckt, crok_net_preamble *pre) {
-  size_t pre_len = unpack(pckt->data, 8, CROK_NET_PREAMBLE_FMT,
-         &pre->ticknum, &pre->statesum, &pre->conn_uid);
-  return pckt->data + pre_len;
-}
-
 void
 broadcast(struct crok_data *cd) {
   for (int i = 0; i < 4; i++) {
@@ -22,3 +10,13 @@ broadcast(struct crok_data *cd) {
   }
 }
 
+void crok_netpacket_prepare_tx(crok_netpacket *pckt) {
+  pckt->data_len = pack(pckt->data, 8, CROK_NET_PREAMBLE_FMT,
+                        &pckt->ticknum, &pckt->statesum, &pckt->conn_uid);
+  pckt->body_ptr = pckt->data + pckt->data_len;
+}
+void crok_netpacket_prepare_rx(crok_netpacket *pckt) {
+  pckt->body_ptr = pckt->data
+    + unpack(pckt->data, 8, CROK_NET_PREAMBLE_FMT,
+             &pckt->ticknum, &pckt->statesum, &pckt->conn_uid);
+}

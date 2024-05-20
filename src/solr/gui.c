@@ -54,8 +54,8 @@ void gui_update(solr *s) {
 
     nk_layout_row_static(nk, 30, 80, 1);
     if (nk_button_label(nk, "Autosolve")) {
-      s->net.tx.kind = PCKT_FFWREQ;
-      s->net.tx.data_len = 0;
+      s->net.tx->kind = PCKT_FFWREQ;
+      s->net.tx->data_len = 0;
       netmgr_send(&s->net);
     }
     nk_layout_row_dynamic(nk, 30, 2);

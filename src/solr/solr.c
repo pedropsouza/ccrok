@@ -140,9 +140,11 @@ void
 setup_board_stacks(solr *game) {
   for (size_t i = STACK_TABLEAU_BEGIN; i <= STACK_TABLEAU_END; i++) {
     game->st.board.stacks[i].splayed = 1;
+    game->st.board.stacks[i].top = 0;
   }
   for (size_t i = 0; i < SOLR_MAX_PLAYERS; i++) {
     game->st.players[i].held.stack.splayed = 1;
+    game->st.board.stacks[i].top = 0;
   }
 
   card_stack *stock = stack_from_id(game, STACK_STOCK);
@@ -227,6 +229,10 @@ solr
 solr_setup  (setup_data *sdata) {
   solr game_actual = {0};
   solr *game = &game_actual;
+  game->net.tx = malloc(sizeof(netpacket));
+  game->net.rx = malloc(sizeof(netpacket));
+  netpacket *tx = (netpacket *)game->net.tx;
+  netpacket *rx = (netpacket *)game->net.rx;
 
   serde_init();
   srand(time(NULL));
@@ -267,24 +273,23 @@ solr_setup  (setup_data *sdata) {
 
     // announce our presence
     game->net.peer = game->sdata.server_a;
-    game->net.tx = (netpacket){0};
-    game->net.tx.kind = PCKT_JOIN;
-    game->net.tx.data_len = pack(game->net.tx.data, 1, MACROSTR(SOLR_NAME_LEN) "s", game->sdata.username);
+    *tx = (netpacket){0};
+    tx->kind = PCKT_JOIN;
+    tx->data_len = pack(tx->data, 1, MACROSTR(SOLR_NAME_LEN) "s", game->sdata.username);
     netmgr_send(&game->net);
 
     int wait = 0;
     do {
-      usleep(5000);
+      usleep(500000);
       wait++;
       netmgr_sprecv(&game->net);
-    } while(game->net.rx.kind != PCKT_ACK && wait < 50);
+    } while(rx->kind != PCKT_ACK && wait < 50);
     if (wait >= 50) {
-      //crok_net_print_packet(stdout, &d->net.rx);
       fprintf(stderr, "couldn't log into lobby!\n");
       goto neterr;
     }
 
-    unpack(game->net.rx.data, 1, "C", &game->client.uid);
+    unpack(rx->data, 1, "C", &game->client.uid);
     if (game->client.uid == 0xff) { fprintf(stderr, "game full!\n"); goto neterr; }
     game->st.players[game->client.uid].valid = 1;
     
@@ -318,6 +323,8 @@ void solr_cleanup(solr *game) {
   if (!game->sdata.server) {
     graphics_finish(game);
   }
+  free(game->net.tx);
+  free(game->net.rx);
   //gui_finish(game);
 }
 
@@ -357,6 +364,8 @@ handle_pckt(solr *s, netpacket *p) {
 int
 solr_fixed(solr *game, long step_ns) {
   player *my_player = game->st.players + game->client.uid;
+  netpacket *tx = game->net.tx;
+  netpacket *rx = game->net.rx; 
   game->st.tick += 1;
 
   if (game->st.stage == STAGE_FFW) {
@@ -367,15 +376,14 @@ solr_fixed(solr *game, long step_ns) {
   for (size_t i = 0; i < 10000; i++) {
     const char* reject_reason;
     netmgr_sprecv(&game->net);
-    netpacket *pckt = &game->net.rx;
 
-    if (pckt->kind == PCKT_END) break;
-    if (pckt->data_len > NETPACKET_MAX_PAYLOAD) {
+    if (rx->kind == PCKT_END) break;
+    if (rx->data_len > NETPACKET_MAX_PAYLOAD) {
       reject_reason = "packet too large:";
       goto reject_packet;
     }
 
-    handle_pckt(game, pckt);
+    handle_pckt(game, rx);
 
     continue;
     reject_packet:
@@ -403,7 +411,7 @@ solr_fixed(solr *game, long step_ns) {
   //nk_input_begin(game->nk);
 
   while (SDL_PollEvent(&input) > 0) {
-    game->net.tx = (netpacket){0};
+    *game->net.tx = (netpacket){0};
     game->net.peer = game->sdata.server_a;
 
     //nk_sdl_handle_event(&input);
@@ -421,14 +429,14 @@ solr_fixed(solr *game, long step_ns) {
     }
     case SDL_QUIT:
       printf("leaving...\n");
-      game->net.tx.kind = PCKT_LEAVE;
+      tx->kind = PCKT_LEAVE;
       netmgr_send(&game->net);
       goto leave;
     case SDL_MOUSEMOTION: {
         mouse_pos = (ivec){.x = input.motion.x, .y = input.motion.y};
         struct ivec pos = {.x = input.motion.x, .y = input.motion.y};
-	      game->net.tx.kind = PCKT_POS;
-      	game->net.tx.data_len = pack(game->net.tx.data, 8, "QQC", &pos.x, &pos.y, &game->client.uid);
+	      tx->kind = PCKT_POS;
+      	tx->data_len = pack(tx->data, 8, "QQC", &pos.x, &pos.y, &game->client.uid);
         netmgr_send(&game->net);
       }
       break;
@@ -436,8 +444,8 @@ solr_fixed(solr *game, long step_ns) {
     case SDL_MOUSEBUTTONUP: {
       player *myp = game->st.players + game->client.uid;
       if (input.button.button == SDL_BUTTON_RIGHT) {
-        game->net.tx.kind = PCKT_CANCEL;
-        game->net.tx.data_len = pack(game->net.tx.data, 1, "C", &game->client.uid);
+        tx->kind = PCKT_CANCEL;
+        tx->data_len = pack(tx->data, 1, "C", &game->client.uid);
         netmgr_send(&game->net);
         break;
       }
@@ -454,13 +462,13 @@ solr_fixed(solr *game, long step_ns) {
       m.stacks.dst = m.kind == MOVE_TAKE ? STACK_PLAYER_BEGIN + game->client.uid : stack_idx;
 
       if(m.stacks.dst == myp->held.camefrom){
-        game->net.tx.kind = PCKT_CANCEL;
-        game->net.tx.data_len = pack(game->net.tx.data, 1, "C", &game->client.uid);
+        tx->kind = PCKT_CANCEL;
+        tx->data_len = pack(tx->data, 1, "C", &game->client.uid);
         netmgr_send(&game->net);
         break;
       }
-      game->net.tx.kind = PCKT_MOVE;
-      game->net.tx.data_len = pack(game->net.tx.data, 1, "m", &m);
+      tx->kind = PCKT_MOVE;
+      tx->data_len = pack(tx->data, 1, "m", &m);
       netmgr_send(&game->net);
       break;
     }
@@ -479,20 +487,20 @@ solr_fixed(solr *game, long step_ns) {
             .num_cards = 1,
           };
 
-          game->net.tx.kind = PCKT_MOVE;
-          game->net.tx.data_len = pack(game->net.tx.data, 1, "m", &m);
+          tx->kind = PCKT_MOVE;
+          tx->data_len = pack(tx->data, 1, "m", &m);
           netmgr_send(&game->net);
           break;
         }
         case SDLK_r: {
-          game->net.tx.kind = PCKT_RESTARTREQ;
-          game->net.tx.data_len = 0;
+          tx->kind = PCKT_RESTARTREQ;
+          tx->data_len = 0;
           netmgr_send(&game->net);
           break;
         }
         case SDLK_f: {
-          game->net.tx.kind = PCKT_FFWREQ;
-          game->net.tx.data_len = 0;
+          tx->kind = PCKT_FFWREQ;
+          tx->data_len = 0;
           netmgr_send(&game->net);
           break;
         }

@@ -20,12 +20,12 @@ void h_join(solr *s, netpacket *p) {
     unpack(p->data, 4, "s", &s->st.players[vacant].username);
   }
 
-  s->net.tx.kind = PCKT_ACK;
-  s->net.tx.data_len = pack(s->net.tx.data, 1, "C", &vacant);
+  s->net.tx->kind = PCKT_ACK;
+  s->net.tx->data_len = pack(s->net.tx->data, 1, "C", &vacant);
   netmgr_send(&s->net);
 
-  s->net.tx.kind = PCKT_STDUMP;
-  s->net.tx.data_len = pack(s->net.tx.data, 8, "G", &s->st);
+  s->net.tx->kind = PCKT_STDUMP;
+  s->net.tx->data_len = pack(s->net.tx->data, 8, "G", &s->st);
   broadcast(s);
 }
 
@@ -96,8 +96,8 @@ void h_move(solr *s, netpacket *p) {
   }
 
   if (s->sdata.server) {
-    s->net.tx.kind = p->kind;
-    s->net.tx.data_len = pack(s->net.tx.data, 1, "m", &m);
+    s->net.tx->kind = p->kind;
+    s->net.tx->data_len = pack(s->net.tx->data, 1, "m", &m);
     broadcast(s);
   }
 }
@@ -117,8 +117,8 @@ void h_cancel(solr *s, netpacket *p) {
     update_stack_dims(s, cf);
   }
   if (s->sdata.server) {
-    s->net.tx.kind = p->kind;
-    s->net.tx.data_len = pack(s->net.tx.data, 1, "C", &uid);
+    s->net.tx->kind = p->kind;
+    s->net.tx->data_len = pack(s->net.tx->data, 1, "C", &uid);
     broadcast(s);
   }
 }
@@ -137,8 +137,8 @@ void h_pos(solr *s, netpacket *p) {
   s->st.players[uid].pos = pos;
   
   if (s->sdata.server) {
-    s->net.tx.kind = p->kind;
-    s->net.tx.data_len = pack(s->net.tx.data, 8, "QQC", &pos.x, &pos.y, (uint8_t*)&uid);
+    s->net.tx->kind = p->kind;
+    s->net.tx->data_len = pack(s->net.tx->data, 8, "QQC", &pos.x, &pos.y, (uint8_t*)&uid);
     broadcast(s);
   }
 }
@@ -154,8 +154,8 @@ void h_restartreq(solr *s, netpacket *p) {
   if (s->sdata.server) {
     s->st.stage = STAGE_PLAYING;
     setup_board_stacks(s);
-    s->net.tx.kind = PCKT_STDUMP;
-    s->net.tx.data_len = pack(s->net.tx.data, 8, "G", &s->st);
+    s->net.tx->kind = PCKT_STDUMP;
+    s->net.tx->data_len = pack(s->net.tx->data, 8, "G", &s->st);
     broadcast(s);
   }
 }

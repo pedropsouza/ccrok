@@ -9,11 +9,13 @@
 #ifndef NETPACKET_MAX_PAYLOAD
 #define NETPACKET_MAX_PAYLOAD 8192
 #endif
+#define NETPACKET_FIELDS \
+  uint32_t kind; \
+  uint32_t data_len; \
+  pbuf_t data[NETPACKET_MAX_PAYLOAD];
 
 typedef struct {
-  uint32_t kind;
-  pbuf_t data[NETPACKET_MAX_PAYLOAD];
-  size_t data_len;
+  NETPACKET_FIELDS
 } netpacket;
 
 typedef struct {
@@ -29,8 +31,8 @@ char *netpacket_owned_debug_str(netpacket *pckt);
 typedef struct {
   int sock_fd;
   alignas(8) pbuf_t serde_buf[sizeof(netpacket)];
-  netpacket tx;
-  netpacket rx;
+  netpacket *tx;
+  netpacket *rx;
   struct sockaddr_in peer;
   netspecialkinds spkinds;
 } netmgr;

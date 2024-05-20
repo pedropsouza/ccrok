@@ -16,11 +16,20 @@ struct crok_server_data {
 };
 
 #define CROK_NET_PREAMBLE_FMT "QIC"
-typedef struct {
-  uint64_t ticknum;
-  uint32_t statesum;
+#define CROK_NET_PREAMBLE_FIELDS \
+  uint64_t ticknum; \
+  uint32_t statesum; \
   uint8_t conn_uid;
+
+typedef struct {
+  CROK_NET_PREAMBLE_FIELDS
 } crok_net_preamble;
+
+typedef struct {
+  NETPACKET_FIELDS
+  pbuf_t *body_ptr;
+  CROK_NET_PREAMBLE_FIELDS
+} crok_netpacket;
 
 // returns the remaining usable space on the packet buffer
 pbuf_t *crok_net_preamble_put(netpacket *pckt, crok_net_preamble *pre);
@@ -29,5 +38,8 @@ pbuf_t *crok_net_preamble_take(netpacket *pckt, crok_net_preamble *pre);
 
 struct crok_data;
 void broadcast(struct crok_data *cd);
+
+void crok_netpacket_prepare_tx(crok_netpacket *packet);
+void crok_netpacket_prepare_rx(crok_netpacket *packet);
 
 #endif // CROK_NET_HG__

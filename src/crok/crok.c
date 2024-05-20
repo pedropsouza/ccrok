@@ -71,8 +71,12 @@ serde_init() {
 struct crok_data crok_setup(struct crok_setup_data *setdat) {
   struct crok_data d = crok_game_init(setdat);
   netmgr *net = &d.net;
-  pbuf_t *netdata;
-  crok_net_preamble preamble = {0};
+  net->tx = malloc(sizeof(crok_netpacket));
+  net->rx = malloc(sizeof(crok_netpacket));
+  net->spkinds.onblock = CROK_NET_END;
+  net->spkinds.onerror = CROK_NET_INVALID;
+  crok_netpacket *tx = (crok_netpacket *)net->tx;
+  crok_netpacket *rx = (crok_netpacket *)net->rx;
   serde_init();
 
   struct sockaddr_in *saddr = &d.srv.server_a;
@@ -85,8 +89,6 @@ struct crok_data crok_setup(struct crok_setup_data *setdat) {
     goto neterr;
   }
   fcntl(d.net.sock_fd, F_SETFL, O_NONBLOCK);
-  net->spkinds.onblock = CROK_NET_END;
-  net->spkinds.onerror = CROK_NET_INVALID;
 
   if (d.servermode) { // server
     saddr->sin_addr.s_addr = INADDR_ANY;
@@ -107,10 +109,10 @@ struct crok_data crok_setup(struct crok_setup_data *setdat) {
 
     // announce our presence
     net->peer = d.srv.server_a;
-    net->tx = (netpacket){0};
-    net->tx.kind = CROK_NET_CONNECT;
-    netdata = crok_net_preamble_put(&net->tx, &preamble);
-    net->tx.data_len += pack(netdata, 4, MACROSTR(CROK_PLAYER_NAME_MAXLEN) "s", setdat->name);
+    *tx = (crok_netpacket){0};
+    tx->kind = CROK_NET_CONNECT;
+    crok_netpacket_prepare_tx(tx);
+    tx->data_len += pack(tx->body_ptr, 4, MACROSTR(CROK_PLAYER_NAME_MAXLEN) "s", setdat->name);
     netmgr_send(net);
 
     int wait = 0;
@@ -118,20 +120,20 @@ struct crok_data crok_setup(struct crok_setup_data *setdat) {
       usleep(500000);
       wait++;
       netmgr_recv(net);
-    } while(net->rx.kind != CROK_NET_ACK && wait < 50);
+    } while(rx->kind != CROK_NET_ACK && wait < 50);
     if (wait >= 50) {
-      char *packetstr = netpacket_owned_debug_str(&net->rx);
+      char *packetstr = netpacket_owned_debug_str((netpacket *)rx);
       fprintf(stderr, "couldn't log into lobby! got packet:\n%s\n", packetstr);
       free(packetstr);
       goto neterr;
     }
 
-    netdata = crok_net_preamble_take(&net->rx, &preamble);
+    crok_netpacket_prepare_rx(rx);
 
-    d.my_player_id = preamble.conn_uid;
+    d.my_player_id = rx->conn_uid;
     if (d.my_player_id == 0xff) { fprintf(stderr, "lobby full. quitting\n"); goto neterr; }
     
-        char ip4[INET_ADDRSTRLEN];
+    char ip4[INET_ADDRSTRLEN];
     printf("using server %s on port %d...\n",
            inet_ntop(AF_INET, &saddr->sin_addr, ip4, INET_ADDRSTRLEN),
            CROK_PORT);
@@ -146,18 +148,23 @@ neterr:
 
 void crok_cleanup(struct crok_data *d) {
   crok_game_finish(d);
+  free(d->net.tx);
+  free(d->net.rx);
 }
 
 static void set_ui_stagebits(struct crok_data *d);
 static void user_input(struct crok_data *d, struct fvec *newpos) {
   netmgr *net = &d->net;
+  crok_netpacket *tx = (crok_netpacket *)net->tx;
+  crok_netpacket *rx = (crok_netpacket *)net->rx; 
+
   SDL_Event input;
   while (SDL_PollEvent(&input) > 0) {
     switch (input.type) {
     case SDL_QUIT:
       d->crok.stage.kind = CROK_GS_LEAVE;
       printf("leaving...\n");
-      net->tx.kind = CROK_NET_QUIT;
+      tx->kind = CROK_NET_QUIT;
       netmgr_send(net);
       break;
     case SDL_MOUSEMOTION: {
@@ -170,11 +177,11 @@ static void user_input(struct crok_data *d, struct fvec *newpos) {
     case SDL_MOUSEBUTTONUP:
       break;
     case SDL_MOUSEBUTTONDOWN:
-      net->tx.kind = CROK_NET_CLICK;
-      //net->tx.ticknum = d->ticknum;
-      //net->tx.statesum = d->statesum;
-      //net->tx.conn_uid = d->my_player_id;
-      net->tx.data_len = 0;
+      tx->kind = CROK_NET_CLICK;
+      tx->ticknum = d->ticknum;
+      tx->statesum = d->statesum;
+      tx->conn_uid = d->my_player_id;
+      crok_netpacket_prepare_tx(tx);
       netmgr_send(net);
       break;
     case SDL_KEYDOWN:
@@ -182,19 +189,19 @@ static void user_input(struct crok_data *d, struct fvec *newpos) {
         case SDLK_RETURN:
         case SDLK_RETURN2:
         case SDLK_KP_ENTER:
-          net->tx.kind = CROK_NET_READY;
-          //net->tx.conn_uid = d->my_player_id;
-          //net->tx.ticknum = d->ticknum;
-          //net->tx.statesum = d->statesum;
-          net->tx.data_len = 0;
+          tx->kind = CROK_NET_READY;
+          tx->conn_uid = d->my_player_id;
+          tx->ticknum = d->ticknum;
+          tx->statesum = d->statesum;
+          crok_netpacket_prepare_tx(tx);
           netmgr_send(net);
           break;
         case SDLK_BACKSPACE:
-          net->tx.kind = CROK_NET_CANCEL;
-          // net->tx.conn_uid = d->my_player_id;
-          // net->tx.ticknum = d->ticknum;
-          // net->tx.statesum = d->statesum;
-          net->tx.data_len = 0;
+          tx->kind = CROK_NET_CANCEL;
+          tx->conn_uid = d->my_player_id;
+          tx->ticknum = d->ticknum;
+          tx->statesum = d->statesum;
+          crok_netpacket_prepare_tx(tx);
           break;
         case SDLK_h:
           d->should_reload = 1;
@@ -208,8 +215,8 @@ static void user_input(struct crok_data *d, struct fvec *newpos) {
 int crok_fixed(struct crok_data *d, long step_ns) {
   struct crok_state *st = &d->crok;
   netmgr *net = &d->net;
-  pbuf_t *netdata;
-  crok_net_preamble preamble;
+  crok_netpacket *tx = (crok_netpacket *)net->tx;
+  crok_netpacket *rx = (crok_netpacket *)net->rx; 
   struct crok_render_data *rdr = &d->renderdata;
   struct crok_player *my_player = st->players + d->my_player_id;
 
@@ -220,22 +227,24 @@ int crok_fixed(struct crok_data *d, long step_ns) {
   size_t len = pack(stateser, alignof(struct crok_state), "G", st);
   d->statesum = crc_32((unsigned char *)stateser, len);
 
+  printf("%ld sum is %d\n", d->ticknum, d->statesum);
+
   for (size_t i = 0; i < 10000; i++) {
     const char* reject_reason;
     netmgr_sprecv(net);
-    netpacket *pckt = &net->rx;
+    crok_netpacket_prepare_rx(rx);
 
-    //if (pckt->conn_uid >= 4) {
-    //  reject_reason = "connection unique id out of bounds for packet:";
-      // goto reject_packet;
-    // }
-    if (pckt->kind == CROK_NET_END) break;
-    if (pckt->kind > CROK_PACKET_MAX_DATA_SIZE) {
+    if (rx->conn_uid >= 4) {
+      reject_reason = "connection unique id out of bounds for packet:";
+      goto reject_packet;
+    }
+    if (rx->kind == CROK_NET_END) break;
+    if (rx->kind > CROK_PACKET_MAX_DATA_SIZE) {
       reject_reason = "packet too large:";
       goto reject_packet;
     }
     
-    crok_stage_gameloops[d->crok.stage.kind](d, pckt);
+    crok_stage_gameloops[d->crok.stage.kind](d, rx);
 
     continue;
     reject_packet:
@@ -247,14 +256,13 @@ int crok_fixed(struct crok_data *d, long step_ns) {
   if (newpos.x != my_player->pos.x || newpos.y != my_player->pos.y) {
     //preamble.ticknum  = 0xddeeaaddbbeeeeff;
     //preamble.statesum = 0xdeadbeef;
-    preamble.ticknum  = d->ticknum;
-    preamble.statesum = d->statesum;
-    preamble.conn_uid = d->my_player_id;
-    net->tx.kind = CROK_NET_POS;
-    net->tx.data_len = 0;
-    netdata = crok_net_preamble_put(&net->tx, &preamble);
-    net->tx.data_len += pack(netdata, alignof(struct fvec), "v", &newpos);
-    char *pstr = netpacket_owned_debug_str(&net->tx);
+    tx->ticknum  = d->ticknum;
+    tx->statesum = d->statesum;
+    tx->conn_uid = d->my_player_id;
+    tx->kind = CROK_NET_POS;
+    crok_netpacket_prepare_tx(tx);
+    tx->data_len += pack(tx->body_ptr, alignof(struct fvec), "v", &newpos);
+    char *pstr = netpacket_owned_debug_str((netpacket *)tx);
     printf("sending to srv %s\n", pstr);
     free(pstr);
     netmgr_send(net);

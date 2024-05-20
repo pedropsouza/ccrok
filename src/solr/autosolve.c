@@ -31,8 +31,8 @@ ffw(solr *s) {
   s->st.stage = STAGE_FFW;
   player *bot = s->st.players + SOLR_AUTO_PLAYER;
   bot->valid = 1;
-  s->net.tx.kind = PCKT_STDUMP;
-  s->net.tx.data_len = pack(s->net.tx.data, 8, "G", &s->st);
+  s->net.tx->kind = PCKT_STDUMP;
+  s->net.tx->data_len = pack(s->net.tx->data, 8, "G", &s->st);
   broadcast(s);
 }
 
@@ -56,9 +56,9 @@ ffw_animate_server(solr *s) {
         .num_cards = 1,
       };
 
-      s->net.tx.kind = PCKT_MOVE;
-      s->net.tx.data_len = pack(s->net.tx.data, 1, "m", &m);
-      handle_pckt(s, &s->net.tx);
+      s->net.tx->kind = PCKT_MOVE;
+      s->net.tx->data_len = pack(s->net.tx->data, 1, "m", &m);
+      handle_pckt(s, s->net.tx);
       anim_lerp = 0;
     } else {
       float ease = 1-powf(1-anim_lerp, 3);
@@ -67,8 +67,8 @@ ffw_animate_server(solr *s) {
         .src = anim_stacks.src->id, .dst = anim_stacks.dst->id
       };
 
-      s->net.tx.kind = PCKT_FFWANIM;
-      s->net.tx.data_len = pack(s->net.tx.data, 1, "a", &an);
+      s->net.tx->kind = PCKT_FFWANIM;
+      s->net.tx->data_len = pack(s->net.tx->data, 1, "a", &an);
       broadcast(s);
       anim_lerp += 0.05;
     }
@@ -87,9 +87,9 @@ ffw_animate_server(solr *s) {
       .num_cards = 1,
     };
 
-    s->net.tx.kind = PCKT_MOVE;
-    s->net.tx.data_len = pack(s->net.tx.data, 1, "m", &m);
-    handle_pckt(s, &s->net.tx);
+    s->net.tx->kind = PCKT_MOVE;
+    s->net.tx->data_len = pack(s->net.tx->data, 1, "m", &m);
+    handle_pckt(s, s->net.tx);
   }
 }
 
@@ -116,9 +116,9 @@ ffw_animate_client(solr *s, ffw_anim *an) {
     };
     pos = ivec_add(pos, ivec_div(s->rdr.card_dims, (ivec){2,2}));
 
-    s->net.tx.kind = PCKT_POS;
+    s->net.tx->kind = PCKT_POS;
     char uid = SOLR_AUTO_PLAYER;
-    s->net.tx.data_len = pack(s->net.tx.data, 8, "QQC", &pos.x, &pos.y, &uid);
-    handle_pckt(s, &s->net.tx);
+    s->net.tx->data_len = pack(s->net.tx->data, 8, "QQC", &pos.x, &pos.y, &uid);
+    handle_pckt(s, s->net.tx);
   }
 }

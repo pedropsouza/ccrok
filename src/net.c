@@ -30,12 +30,12 @@ netmgr_retcheck(ssize_t v, const char *fn_name) {
 
 static size_t
 tx_pack(netmgr *n) {
-  return netpacket_pack(n->serde_buf, &n->tx);
+  return netpacket_pack(n->serde_buf, n->tx);
 }
 
 static size_t
 rx_unpack(netmgr *n) {
-  return netpacket_unpack(n->serde_buf, &n->rx);
+  return netpacket_unpack(n->serde_buf, n->rx);
 }
 
 static inline ssize_t
@@ -74,10 +74,10 @@ size_t
 netmgr_sprecv(netmgr *n) {
   ssize_t rtv = innerrecv(n);
   if (rtv == -1) {
-    n->rx.kind = n->spkinds.onblock;
+    n->rx->kind = n->spkinds.onblock;
     return 0;
   } else if (rtv == 0) {
-    n->rx.kind = n->spkinds.onerror;
+    n->rx->kind = n->spkinds.onerror;
     perror(__func__);
     return 0;
   }
