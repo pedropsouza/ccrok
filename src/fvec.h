@@ -8,6 +8,7 @@ struct fvec {
   float x, y;
 };
 
+struct fvec fvec_zero();
 struct fvec fvec_xy(float x, float y);
 struct fvec fvec_add(struct fvec a, struct fvec b);
 struct fvec fvec_sub(struct fvec a, struct fvec b);

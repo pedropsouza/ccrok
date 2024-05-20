@@ -1,33 +1,97 @@
 #include "crok.h"
 #include "crok/data.h"
 
-struct crok_net_pcktrecord crok_network_input(void *data) {
-  struct crok_net_context *nc = data;
-  struct crok_net_pcktrecord r;
-  r.origin = crok_net_rx(nc);
-  r.pckt = nc->rx;
-  return r;
+size_t crok_gstage_serde(pbuf_t *head, char mode, void* io) {
+  struct crok_gstage *iot = io;
+  size_t align = alignof(struct crok_gstage);
+  if (mode == SERDE_MODE_SIZEHINT) return sizeof(struct crok_gstage);
+  switch (iot->kind) {
+    case CROK_GS_LOBBY:
+    case CROK_GS_SIDESEL:
+      return pack_unpack(head, mode, align, "C", &iot->data.players_ready);
+    case CROK_GS_ROUND:
+      return pack_unpack(head, mode, align, "C", &iot->data.active_player);
+    default:
+      return 0;
+  }
+}
+
+size_t ivec_serde(pbuf_t *buf, char mode, void *vp) {
+  struct ivec *v = vp;
+  if (mode == SERDE_MODE_SIZEHINT) return sizeof(struct ivec);
+  return pack_unpack(buf, mode, alignof(struct ivec), "QQ", &v->x, &v->y);
+}
+
+size_t fvec_serde(pbuf_t *buf, char mode, void *vp) {
+  struct fvec *v = vp;
+  if (mode == SERDE_MODE_SIZEHINT) return sizeof(struct fvec);
+  return pack_unpack(buf, mode, alignof(struct fvec), "II", &v->x, &v->y);
+}
+
+size_t physbody_serde(pbuf_t *buf, char mode, void *pbp) {
+  struct physbody *pb = pbp;
+  if (mode == SERDE_MODE_SIZEHINT) return sizeof(struct physbody);
+  return pack_unpack(buf, mode, alignof(struct physbody),
+          "vvv",
+          &pb->pos, &pb->vel, &pb->acc);
+}
+
+size_t crok_player_serde(pbuf_t *buf, char mode, void *pp) {
+  struct crok_player *p = pp;
+  if (mode == SERDE_MODE_SIZEHINT) return sizeof(struct crok_player);
+  return pack_unpack(buf, mode, alignof(struct crok_player), "vIH" MACROSTR(CROK_PLAYER_NAME_MAXLEN) "s",
+          &p->pos, &p->score, &p->flags, &p->name);
+}
+
+size_t crok_disc_serde(pbuf_t *dst, char mode, void *dp) {
+  struct crok_disc *d = dp;
+  if (mode == SERDE_MODE_SIZEHINT) return sizeof(struct crok_disc);
+  return pack_unpack(dst, mode, alignof(struct crok_disc), "pI", &d->pb, &d->flags);
+}
+
+size_t crok_state_serde(pbuf_t *dst, char mode, void *stp) {
+  struct crok_state *st = stp;
+  if (mode == SERDE_MODE_SIZEHINT) return sizeof(struct crok_state);
+  return pack_unpack(dst, mode, alignof(struct crok_state), "4P" MACROSTR(CROK_DISCS_TOTAL) "DIIC[C]",
+              &st->players, &st->discs, &st->round,
+              &st->overall_score, &st->total_players,
+              &crok_gstage_serde, &st->stage);
+}
+
+static void
+serde_init() {
+  serde_fun *t = serializer_table;
+  t['D'] = crok_disc_serde;
+  t['p'] = physbody_serde;
+  t['v'] = fvec_serde;
+  t['P'] = crok_player_serde;
+  t['G'] = crok_state_serde;
 }
 
 struct crok_data crok_setup(struct crok_setup_data *setdat) {
-  struct crok_data d = crok_game_init(*setdat);
-  d.setup_data = setdat; // POSSIBLE DEADCODE
+  struct crok_data d = crok_game_init(setdat);
+  netmgr *net = &d.net;
+  pbuf_t *netdata;
+  crok_net_preamble preamble = {0};
+  serde_init();
 
-  struct sockaddr_in *saddr = &d.net.saddr;
+  struct sockaddr_in *saddr = &d.srv.server_a;
   ssize_t addrl = sizeof(*saddr);
   memcpy(saddr, &setdat->saddr, addrl);
 
-  d.net.sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-  if (d.net.sockfd == -1) {
+  net->sock_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  if (net->sock_fd == -1) {
     perror("Couldn't create a network socket");
     goto neterr;
   }
-  fcntl(d.net.sockfd, F_SETFL, O_NONBLOCK);
+  fcntl(d.net.sock_fd, F_SETFL, O_NONBLOCK);
+  net->spkinds.onblock = CROK_NET_END;
+  net->spkinds.onerror = CROK_NET_INVALID;
 
   if (d.servermode) { // server
     saddr->sin_addr.s_addr = INADDR_ANY;
 
-    int retc = bind(d.net.sockfd, (struct sockaddr *)saddr, addrl);
+    int retc = bind(d.net.sock_fd, (struct sockaddr *)saddr, addrl);
     if (retc < 0) {
       perror("Couldn't bind network socket");
       goto neterr;
@@ -36,28 +100,35 @@ struct crok_data crok_setup(struct crok_setup_data *setdat) {
     printf("server running on port %d...\n", CROK_PORT);
   } else { // client
 
-    if (connect(d.net.sockfd, (struct sockaddr *)saddr, addrl) < 0) {
+    if (connect(d.net.sock_fd, (struct sockaddr *)saddr, addrl) < 0) {
       perror("Couldn't connect to server");
       goto neterr;
     }
 
     // announce our presence
-    d.net.tx = (struct crok_net_packet){0};
-    d.net.tx.kind = CROK_NET_CONNECT;
-    d.net.tx.data_len = pack(d.net.tx.data, 4, MACROSTR(CROK_PLAYER_NAME_MAXLEN) "s", setdat->name);
-    crok_net_tx_to_server(&d.net);
+    net->peer = d.srv.server_a;
+    net->tx = (netpacket){0};
+    net->tx.kind = CROK_NET_CONNECT;
+    netdata = crok_net_preamble_put(&net->tx, &preamble);
+    net->tx.data_len += pack(netdata, 4, MACROSTR(CROK_PLAYER_NAME_MAXLEN) "s", setdat->name);
+    netmgr_send(net);
 
     int wait = 0;
     do {
       usleep(5000);
       wait++;
-      crok_net_rx(&d.net);
-    } while(d.net.rx.kind != CROK_NET_ACK && wait < 50);
+      netmgr_recv(net);
+    } while(net->rx.kind != CROK_NET_ACK && wait < 50);
     if (wait >= 50) {
-      crok_net_print_packet(stdout, &d.net.rx);
-      fprintf(stderr, "couldn't log into lobby!\n"); goto neterr; }
+      char *packetstr = netpacket_owned_debug_str(&net->rx);
+      fprintf(stderr, "couldn't log into lobby! got packet:\n%s\n", packetstr);
+      free(packetstr);
+      goto neterr;
+    }
 
-    d.my_player_id = d.net.rx.conn_uid;
+    netdata = crok_net_preamble_take(&net->rx, &preamble);
+
+    d.my_player_id = preamble.conn_uid;
     if (d.my_player_id == 0xff) { fprintf(stderr, "lobby full. quitting\n"); goto neterr; }
     
         char ip4[INET_ADDRSTRLEN];
@@ -68,7 +139,6 @@ struct crok_data crok_setup(struct crok_setup_data *setdat) {
 
   return d;
 neterr:
-  crok_net_print_context(stderr, &d.net);
   d.crok.stage.kind = CROK_GS_ERROR;
   d.error_description = "network setup error";
   return d;
@@ -82,7 +152,9 @@ static void set_ui_stagebits(struct crok_data *d);
 
 int crok_fixed(struct crok_data *d, long step_ns) {
   struct crok_state *st = &d->crok;
-  struct crok_net_context *nc = &d->net;
+  netmgr *net = &d->net;
+  pbuf_t *netdata;
+  crok_net_preamble preamble;
   struct crok_render_data *rdr = &d->renderdata;
   struct crok_player *my_player = st->players + d->my_player_id;
   d->ticknum += 1;
@@ -93,41 +165,29 @@ int crok_fixed(struct crok_data *d, long step_ns) {
 
   // twice the size to never overrun with padding
   static pbuf_t stateser[sizeof(struct crok_state)*2];
-  size_t len = crok_state_pack(stateser, st);
+  size_t len = pack(stateser, alignof(struct crok_state), "G", st);
   d->statesum = crc_32((unsigned char *)stateser, len);
 
-  size_t old_head = nc->circular_head;
-  size_t n_new_pckts = crok_net_accum(nc, crok_network_input, nc);
-  for (size_t i = 0; i < n_new_pckts; i++) {
-    size_t pckt_idx = (old_head + i + 1) % CROK_NETPACKET_MAX;
-    struct crok_net_pcktrecord *r = nc->buf + pckt_idx;
-    struct crok_net_packet *pckt = &r->pckt;
+  for (size_t i = 0; i < 10000; i++) {
     const char* reject_reason;
+    netmgr_sprecv(net);
+    netpacket *pckt = &net->rx;
 
-    if(0 && pckt->kind != CROK_NET_POS) {
-      crok_net_print_pcktrecord(stdout, r);
-    }
-
-    // sanitization
-    if (pckt->conn_uid >= 4) {
-      reject_reason = "connection unique id out of bounds for packet:";
-      goto reject_packet;
-    }
-    if (pckt->kind >= CROK_NET_END) {
-      reject_reason = "packet kind out of bounds for packet:";
-      goto reject_packet;
-    }
+    //if (pckt->conn_uid >= 4) {
+      // reject_reason = "connection unique id out of bounds for packet:";
+      // goto reject_packet;
+    // }
+    if (pckt->kind == CROK_NET_END) break;
     if (pckt->kind > CROK_PACKET_MAX_DATA_SIZE) {
       reject_reason = "packet too large:";
       goto reject_packet;
     }
     
-    crok_stage_gameloops[d->crok.stage.kind](d, r);
+    crok_stage_gameloops[d->crok.stage.kind](d, pckt);
 
     continue;
     reject_packet:
       fputs(reject_reason, stderr);
-      crok_net_print_pcktrecord(stderr, r);
   }
   
   if (d->servermode) goto end;
@@ -138,48 +198,51 @@ int crok_fixed(struct crok_data *d, long step_ns) {
     case SDL_QUIT:
       st->stage.kind = CROK_GS_LEAVE;
       printf("leaving...\n");
-      nc->tx.kind = CROK_NET_QUIT;
-      crok_net_tx_to_server(nc);
+      net->tx.kind = CROK_NET_QUIT;
+      netmgr_send(net);
       break;
     case SDL_MOUSEMOTION: {
         struct fvec spos = {.x = input.motion.x, .y = input.motion.y};
-        struct ivec bpos = crok_screen_to_board(rdr, spos);
-      	nc->tx.ticknum = d->ticknum;
-	      nc->tx.statesum = d->statesum;
-	      nc->tx.kind = CROK_NET_POS;
-	      nc->tx.conn_uid = d->my_player_id;
-      	nc->tx.data_len = ivec_pack(nc->tx.data, &bpos);
-        crok_net_tx_to_server(nc);
+        struct fvec bposf = crok_screen_to_board(rdr, spos);
+        struct ivec bpos = {.x = bposf.x, .y=bposf.y};
+      	preamble.ticknum  = d->ticknum;
+	      preamble.statesum = d->statesum;
+        preamble.conn_uid = d->my_player_id;
+	      net->tx.kind = CROK_NET_POS;
+        net->tx.data_len = 0;
+        netdata = crok_net_preamble_put(&net->tx, &preamble);
+      	net->tx.data_len += pack(netdata, alignof(struct ivec), "II", &bpos.x, &bpos.y);
+        netmgr_send(net);
       }
       break;
     case SDL_MOUSEBUTTONUP:
       break;
     case SDL_MOUSEBUTTONDOWN:
-      nc->tx.kind = CROK_NET_CLICK;
-      nc->tx.ticknum = d->ticknum;
-      nc->tx.statesum = d->statesum;
-      nc->tx.conn_uid = d->my_player_id;
-      nc->tx.data_len = 0;
-      crok_net_tx_to_server(nc);
+      net->tx.kind = CROK_NET_CLICK;
+      //net->tx.ticknum = d->ticknum;
+      //net->tx.statesum = d->statesum;
+      //net->tx.conn_uid = d->my_player_id;
+      net->tx.data_len = 0;
+      netmgr_send(net);
       break;
     case SDL_KEYDOWN:
       switch (input.key.keysym.sym) {
         case SDLK_RETURN:
         case SDLK_RETURN2:
         case SDLK_KP_ENTER:
-          nc->tx.kind = CROK_NET_READY;
-          nc->tx.conn_uid = d->my_player_id;
-          nc->tx.ticknum = d->ticknum;
-          nc->tx.statesum = d->statesum;
-          nc->tx.data_len = 0;
-          crok_net_tx_to_server(nc);
+          net->tx.kind = CROK_NET_READY;
+          //net->tx.conn_uid = d->my_player_id;
+          //net->tx.ticknum = d->ticknum;
+          //net->tx.statesum = d->statesum;
+          net->tx.data_len = 0;
+          netmgr_send(net);
           break;
         case SDLK_BACKSPACE:
-          nc->tx.kind = CROK_NET_CANCEL;
-          nc->tx.conn_uid = d->my_player_id;
-          nc->tx.ticknum = d->ticknum;
-          nc->tx.statesum = d->statesum;
-          nc->tx.data_len = 0;
+          net->tx.kind = CROK_NET_CANCEL;
+          // net->tx.conn_uid = d->my_player_id;
+          // net->tx.ticknum = d->ticknum;
+          // net->tx.statesum = d->statesum;
+          net->tx.data_len = 0;
           break;
         case SDLK_h:
           d->should_reload = 1;

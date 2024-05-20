@@ -2,8 +2,6 @@
 #ifndef GLOBALTYPES_HG__
 #define GLOBALTYPES_HG__
 #include "crok/config.h"
-#include <arpa/inet.h>
-#include <fcntl.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -38,15 +36,6 @@ enum crok_net_packet_kind {
   CROK_NET_PLAYER_FLAGS,
 
   CROK_NET_END = 0xff,
-};
-
-struct crok_net_packet {
-  uint64_t ticknum;
-  pbuf_t data[CROK_PACKET_MAX_DATA_SIZE];
-  uint32_t statesum;
-  uint32_t data_len;
-  enum crok_net_packet_kind kind;
-  uint8_t conn_uid;
 };
 
 #endif // GLOBALTYPES_HG__

@@ -18,7 +18,7 @@ enum crok_unit_flags {
 
 struct crok_player {
   enum crok_unit_flags flags;
-  struct ivec pos;
+  struct fvec pos;
   char name[CROK_PLAYER_NAME_MAXLEN];
   uint32_t score;
 };

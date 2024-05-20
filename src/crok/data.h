@@ -7,9 +7,10 @@
 #include "crok/config.h"
 #include "crok/state.h"
 #include "crok/unit.h"
+#include "crok/net.h"
+#include "net.h"
 #include "draw.h"
 #include "fvec.h"
-#include "net.h"
 #include <stdint.h>
 
 struct crok_setup_data {
@@ -36,6 +37,11 @@ struct crok_ui_data {
   struct crok_ui_text debug;
 };
 
+struct crok_srv_data {
+  struct sockaddr_in socks[4];
+  struct sockaddr_in server_a;
+};
+
 struct crok_render_data {
   SDL_Window *win;
   SDL_Renderer *rdr;
@@ -49,7 +55,8 @@ struct crok_data {
   struct crok_state crok;
   struct crok_board board;
   struct crok_render_data renderdata;
-  struct crok_net_context net;
+  netmgr net;
+  struct crok_srv_data srv;
   struct crok_setup_data *setup_data;
   char *error_description;
   size_t my_player_id;
@@ -62,10 +69,10 @@ struct crok_data {
   int should_reload;
 };
 
-struct crok_data crok_game_init(struct crok_setup_data sdata);
+struct crok_data crok_game_init(struct crok_setup_data *sdata);
 void crok_game_finish(struct crok_data *d);
-struct ivec crok_screen_to_board(struct crok_render_data *rd, struct fvec v);
-struct fvec crok_board_to_screen(struct crok_render_data *rd, struct ivec v);
+struct fvec crok_screen_to_board(struct crok_render_data *rd, struct fvec v);
+struct fvec crok_board_to_screen(struct crok_render_data *rd, struct fvec v);
 
 struct crok_ui_text crok_ui_new_text(SDL_Renderer *rdr, struct crok_ui_data *ui, char *text);
 void crok_ui_free_text(struct crok_ui_text *t);

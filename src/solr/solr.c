@@ -64,8 +64,8 @@ fling_suits(solr *s) {
   physical_card pc = {
     .pb.pos.x = s->rdr.stack_areas[fs->id].x,
     .pb.pos.y = s->rdr.stack_areas[fs->id].y,
-    .pb.vel = (ivec){.x = rand() % 20 - 10, .y = 0},
-    .pb.acc = ivec_zero(),
+    .pb.vel = (fvec){.x = rand() % 20 - 10, .y = 0},
+    .pb.acc = fvec_zero(),
     .c = c,
     .valid = 1,
   };
@@ -85,10 +85,10 @@ static int flung_behaviour(solr *s) {
     return -1;
   }
 
-  physbody_accel(&pc->pb, (ivec){0,1});
+  physbody_accel(&pc->pb, (fvec){0,1});
   physbody_tick(&pc->pb);
   if (y + rd->card_dims.y > rd->win_dims.y) {
-    physbody_accel(&pc->pb, (ivec){0, -pc->pb.vel.y - pc->pb.vel.y / 2});
+    physbody_accel(&pc->pb, (fvec){0, -pc->pb.vel.y - pc->pb.vel.y / 2});
     pc->pb.pos.y = rd->win_dims.y - rd->card_dims.y;
   }
   return 0;
@@ -606,7 +606,8 @@ solr_render (solr *game, double a) {
   if (game->st.stage != STAGE_WON) {
     SDL_RenderClear(r->rdr);
   } else {
-    card_render(r, &game->st.flung_card.c, game->st.flung_card.pb.pos);
+    fvec cardpos = game->st.flung_card.pb.pos;
+    card_render(r, &game->st.flung_card.c, (ivec){.x = cardpos.x, .y = cardpos.y});
     goto end;
   }
 

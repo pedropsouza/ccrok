@@ -1,5 +1,6 @@
 #include "fvec.h"
 
+struct fvec fvec_zero() { return (struct fvec){0}; }
 struct fvec fvec_xy(float x, float y) {
   struct fvec v = {.x = x, .y = y};
   return v;

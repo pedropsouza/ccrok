@@ -2,16 +2,17 @@
 #define CROK_HG__
 
 #include <unistd.h>
+#include <fcntl.h>
 #include "../../libcrc/include/checksum.h"
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_image.h"
 #include "crok/data.h"
 #include "crok/globaltypes.h"
 #include "crok/gloop.h"
-#include "crok/net.h"
 #include "fvec.h"
 #include "sched.h"
 #include "serde.h"
+#include "net.h"
 
 #define CROK_PORT 33850
 

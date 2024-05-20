@@ -2,18 +2,17 @@
 
 // sets up most things, except the networking subsystem
 struct crok_data
-crok_game_init(struct crok_setup_data sdata) {
-   struct crok_data d = {
-    .width = sdata.width,
-    .height = sdata.height,
-    .servermode = sdata.servermode,
-    .crok = crok_state_init(),
-    .board = crok_board_calc(),
-    .ticknum = 0,
-    .statesum = 0,
-    .my_player_id = 0,
-    .should_reload = 0,
-  };
+crok_game_init(struct crok_setup_data *sdata) {
+   struct crok_data d = {0};
+   d.width = sdata->width;
+   d.height = sdata->height;
+   d.servermode = sdata->servermode;
+   d.crok = crok_state_init();
+   d.board = crok_board_calc();
+   d.ticknum = 0;
+   d.statesum = 0;
+   d.my_player_id = 0;
+   d.should_reload = 0;
 
   if (!d.servermode) {
     struct crok_render_data *rdat = &d.renderdata;
@@ -86,18 +85,18 @@ crok_game_finish(struct crok_data *d) {
   }
 }
 
-struct ivec
+struct fvec
 crok_screen_to_board(struct crok_render_data *rd, struct fvec v) {
   double radius = rd->board.radius;
   double ix = ((double)v.x - (rd->board.dest.x + radius)) / rd->board.diam;
   double iy = ((double)v.y - (rd->board.dest.y + radius)) / rd->board.diam;
   double bx = ix * CROK_BOARD_DIAM;
   double by = iy * CROK_BOARD_DIAM;
-  return (struct ivec){.x = bx, .y = by};
+  return (struct fvec){.x = bx, .y = by};
 }
 
 struct fvec
-crok_board_to_screen(struct crok_render_data *rd, struct ivec v) {
+crok_board_to_screen(struct crok_render_data *rd, struct fvec v) {
   double radius = rd->board.radius;
   double ix = (double)v.x / CROK_BOARD_DIAM;
   double iy = (double)v.y / CROK_BOARD_DIAM;
@@ -144,7 +143,7 @@ crok_ui_render(struct crok_data *d) {
     struct crok_player *p = d->crok.players + i;
     if (crok_unit_valid(p)) {
       struct crok_ui_text *namep = ui->nameplates + i;
-      struct fvec spos = crok_board_to_screen(rd, p->pos);
+      struct fvec spos = crok_board_to_screen(rd, (struct fvec){.x = p->pos.x, .y = p->pos.y});
       namep->dst.x = spos.x - namep->dst.w/2.0;
       namep->dst.y = spos.y + namep->dst.h/2.0;
       crok_ui_render_text(rd->rdr, namep);

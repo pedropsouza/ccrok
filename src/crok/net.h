@@ -6,62 +6,28 @@
 #include "crok/state.h"
 #include "ivec.h"
 #include "serde.h"
+#include "../net.h"
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 
-struct crok_net_pcktrecord {
-  struct sockaddr_in origin;
-  struct crok_net_packet pckt;
-};
-
-struct crok_net_context {
-  struct crok_net_packet tx;
-  struct crok_net_packet rx;
-
-  alignas(8) pbuf_t serbuf[sizeof(struct crok_net_packet)];
-
-  size_t circular_head;
-  struct crok_net_pcktrecord buf[CROK_NETPACKET_MAX];
-
-  int sockfd;
-  struct sockaddr_in saddr;
+struct crok_server_data {
   struct sockaddr_in players[4];
 };
 
-typedef struct crok_net_pcktrecord (*crok_net_producer_fun)(void* data);
+#define CROK_NET_PREAMBLE_FMT "QIC"
+typedef struct {
+  uint64_t ticknum;
+  uint32_t statesum;
+  uint8_t conn_uid;
+} crok_net_preamble;
 
-// query the producer fun till it's empty, accumulating
-// its packets in the net context
-//
-// returns the number of accumulated packets
-int crok_net_accum(struct crok_net_context *nc, crok_net_producer_fun f, void* f_data);
+// returns the remaining usable space on the packet buffer
+pbuf_t *crok_net_preamble_put(netpacket *pckt, crok_net_preamble *pre);
+// returns the rest of the data that is yet to be read
+pbuf_t *crok_net_preamble_take(netpacket *pckt, crok_net_preamble *pre);
 
-void crok_net_print_context(FILE *stream, struct crok_net_context *nc);
+struct crok_data;
+void broadcast(struct crok_data *cd);
 
-void
-crok_net_tx_to_server(struct crok_net_context *nc);
-
-void
-crok_net_tx_to_addr(struct crok_net_context *nc, struct sockaddr_in *addr);
-
-void
-crok_net_tx_to_player(struct crok_net_context *nc, char player_id);
-
-void
-crok_net_tx_to_game(struct crok_net_context *nc);
-
-struct sockaddr_in
-crok_net_rx(struct crok_net_context *nc);
-
-void
-crok_net_print_packet(
-  FILE *stream,  
-  struct crok_net_packet *pckt);
-
-void
-crok_net_print_pcktrecord(
-  FILE *stream,  
-  struct crok_net_pcktrecord *r);
-
-#undef CINPCKTHEAD
 #endif // CROK_NET_HG__
