@@ -2,7 +2,7 @@
 MKDIR   := mkdir
 RMDIR   := rm -r
 RM      := rm
-CC      := gcc
+#CC      := gcc
 BIN     := ./bin
 SRCDIRS := ./src ./app ./src/solr ./src/crok ./src/mahjongcell
 SRCS    := $(foreach fd, $(SRCDIRS), $(wildcard $(fd)/*.c))
@@ -31,7 +31,7 @@ CROK_O := $(addprefix ./src/crok/, crok.o board.o data.o gloop.o state.o unit.o 
 CROK_SO_O := $(patsubst %.o,%.dyn.o,$(CROK_O))
 CROK_SO := $(BIN)/crok.so
 
-MAHJONGCELL_O := $(addprefix ./src/mahjongcell/, solr.o cards_n_stacks.o graphics.o move.o autosolve.o gui.o handlers.o)
+MAHJONGCELL_O := $(addprefix ./src/mahjongcell/, solr.o cards_n_stacks.o graphics.o move.o autosolve.o handlers.o)
 MAHJONGCELL_SO_O := $(patsubst %.o,%.dyn.o,$(MAHJONGCELL_O))
 MAHJONGCELL_SO := $(BIN)/mahjcell.so
 

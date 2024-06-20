@@ -1,4 +1,4 @@
-#include "SDL_video.h"
+//#include "SDL_video.h"
 #include "ivec.h"
 #include "solr.h"
 #include <stdio.h>
@@ -35,7 +35,7 @@ ivec ref_stack_areas[STACK_BOARD_MAX] = {
 #undef ch
 
 static SDL_Texture *
-tex_from_file(SDL_Renderer *rdr, const char* filename) {
+tex_from_file(struct sdl_syms *sdl, SDL_Renderer *rdr, const char* filename) {
   FILE *f = fopen(filename, "r");
   int w,h,chnum;
   stbi_uc *pix = stbi_load_from_file(f, &w, &h, &chnum, 4);
@@ -45,10 +45,10 @@ tex_from_file(SDL_Renderer *rdr, const char* filename) {
     if (*g == 128 && *b == 128) { *a = 0; }
   }
   printf("%s, %dx%d, chn %d\n", filename, w, h, chnum);
-  SDL_Surface *surf = SDL_CreateRGBSurfaceFrom(pix, w, h, 32, 4*w, 0x0000ff, 0x00ff00, 0xff0000, 0xff000000);
-  SDL_Texture *tex = SDL_CreateTextureFromSurface(rdr, surf);
-  SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
-  SDL_FreeSurface(surf);
+  SDL_Surface *surf = sdl->SDL_CreateRGBSurfaceFrom(pix, w, h, 32, 4*w, 0x0000ff, 0x00ff00, 0xff0000, 0xff000000);
+  SDL_Texture *tex = sdl->SDL_CreateTextureFromSurface(rdr, surf);
+  sdl->SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+  sdl->SDL_FreeSurface(surf);
   stbi_image_free(pix);
   fclose(f);
   return tex;
@@ -57,33 +57,38 @@ tex_from_file(SDL_Renderer *rdr, const char* filename) {
 void
 graphics_init(solr *s) {
   solr_rdr *rdat = &s->rdr;
+  struct sdl_syms *sdl = &s->sdl;
   memset(&rdat->stack_areas, 0, sizeof(rdat->stack_areas));
 
-  SDL_Init(SDL_INIT_VIDEO);
-  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
-  rdat->win = SDL_CreateWindow("solr", SDL_WINDOWPOS_UNDEFINED,
+  sdl->SDL_Init(SDL_INIT_VIDEO);
+  sdl->SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+  rdat->win = sdl->SDL_CreateWindow("mahjongcell", SDL_WINDOWPOS_UNDEFINED,
                                SDL_WINDOWPOS_UNDEFINED, s->sdata.window_w, s->sdata.window_h, SDL_WINDOW_RESIZABLE);
-  rdat->rdr = SDL_CreateRenderer(rdat->win, s->sdata.rdr_backend, SDL_RENDERER_ACCELERATED);
+  if (rdat->win == NULL) {
+    fprintf(stderr, "failed to create SDL window: %s\n", sdl->SDL_GetError());
+    return;
+  }
+  rdat->rdr = sdl->SDL_CreateRenderer(rdat->win, s->sdata.rdr_backend, SDL_RENDERER_ACCELERATED);
   if (rdat->rdr == NULL) {
-    fprintf(stderr, "failed to create SDL renderer: %s\n", SDL_GetError());
+    fprintf(stderr, "failed to create SDL renderer: %s\n", sdl->SDL_GetError());
     return; // FIXME: add proper error handling up the callstack
   }
 
   SDL_RendererInfo rdr_info;
   printf("available renderers:\n");
-  for (int i = 0; i < SDL_GetNumRenderDrivers(); i++) {
-    SDL_GetRenderDriverInfo(i, &rdr_info);
+  for (int i = 0; i < sdl->SDL_GetNumRenderDrivers(); i++) {
+    sdl->SDL_GetRenderDriverInfo(i, &rdr_info);
     printf("\t%d: %s\n", i, rdr_info.name);
   }
-  SDL_GetRendererInfo(rdat->rdr, &rdr_info);
+  sdl->SDL_GetRendererInfo(rdat->rdr, &rdr_info);
   printf("renderer: %s\n", rdr_info.name);
 
-  SDL_SetRenderDrawBlendMode(rdat->rdr, SDL_BLENDMODE_BLEND);
-  SDL_SetRenderDrawColor(rdat->rdr, 0, 0, 0, SDL_ALPHA_OPAQUE);
-  SDL_RenderClear(rdat->rdr);
+  sdl->SDL_SetRenderDrawBlendMode(rdat->rdr, SDL_BLENDMODE_BLEND);
+  sdl->SDL_SetRenderDrawColor(rdat->rdr, 0, 0, 0, SDL_ALPHA_OPAQUE);
+  sdl->SDL_RenderClear(rdat->rdr);
 
   // modified dimensions maybe
-  SDL_GetRendererOutputSize(rdat->rdr, (int*)&s->sdata.window_w, (int*)&s->sdata.window_h);
+  sdl->SDL_GetRendererOutputSize(rdat->rdr, (int*)&s->sdata.window_w, (int*)&s->sdata.window_h);
 
   int smaller = (s->sdata.window_w > s->sdata.window_h) ?
     s->sdata.window_h : s->sdata.window_w;
@@ -124,10 +129,11 @@ graphics_resize(solr *s, ivec new_window_dims) {
 void
 graphics_finish(solr *s) {
   solr_rdr *rdat = &s->rdr;
-  SDL_DestroyTexture(rdat->backs);
-  SDL_DestroyTexture(rdat->suits);
-  SDL_DestroyTexture(rdat->locked_icon);
-  SDL_DestroyRenderer(rdat->rdr);
-  SDL_DestroyWindow(rdat->win);
-  SDL_Quit();
+  struct sdl_syms *sdl = &s->sdl;
+  sdl->SDL_DestroyTexture(rdat->backs);
+  sdl->SDL_DestroyTexture(rdat->suits);
+  sdl->SDL_DestroyTexture(rdat->locked_icon);
+  sdl->SDL_DestroyRenderer(rdat->rdr);
+  sdl->SDL_DestroyWindow(rdat->win);
+  sdl->SDL_Quit();
 }

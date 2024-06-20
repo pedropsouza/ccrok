@@ -1,6 +1,6 @@
 #include "draw.h"
 
-int SDL_RenderDrawCircle(SDL_Renderer *renderer, int x, int y, int radius) {
+int SDL_RenderDrawCircle(struct sdl_syms *sdl, SDL_Renderer *renderer, int x, int y, int radius) {
   int offsetx, offsety, d;
   int status;
 
@@ -10,14 +10,14 @@ int SDL_RenderDrawCircle(SDL_Renderer *renderer, int x, int y, int radius) {
   status = 0;
 
   while (offsety >= offsetx) {
-    status += SDL_RenderDrawPoint(renderer, x + offsetx, y + offsety);
-    status += SDL_RenderDrawPoint(renderer, x + offsety, y + offsetx);
-    status += SDL_RenderDrawPoint(renderer, x - offsetx, y + offsety);
-    status += SDL_RenderDrawPoint(renderer, x - offsety, y + offsetx);
-    status += SDL_RenderDrawPoint(renderer, x + offsetx, y - offsety);
-    status += SDL_RenderDrawPoint(renderer, x + offsety, y - offsetx);
-    status += SDL_RenderDrawPoint(renderer, x - offsetx, y - offsety);
-    status += SDL_RenderDrawPoint(renderer, x - offsety, y - offsetx);
+    status += sdl->SDL_RenderDrawPoint(renderer, x + offsetx, y + offsety);
+    status += sdl->SDL_RenderDrawPoint(renderer, x + offsety, y + offsetx);
+    status += sdl->SDL_RenderDrawPoint(renderer, x - offsetx, y + offsety);
+    status += sdl->SDL_RenderDrawPoint(renderer, x - offsety, y + offsetx);
+    status += sdl->SDL_RenderDrawPoint(renderer, x + offsetx, y - offsety);
+    status += sdl->SDL_RenderDrawPoint(renderer, x + offsety, y - offsetx);
+    status += sdl->SDL_RenderDrawPoint(renderer, x - offsetx, y - offsety);
+    status += sdl->SDL_RenderDrawPoint(renderer, x - offsety, y - offsetx);
 
     if (status < 0) {
       status = -1;
@@ -40,7 +40,7 @@ int SDL_RenderDrawCircle(SDL_Renderer *renderer, int x, int y, int radius) {
   return status;
 }
 
-int SDL_RenderFillCircle(SDL_Renderer *renderer, int x, int y, int radius) {
+int SDL_RenderFillCircle(struct sdl_syms *sdl, SDL_Renderer *renderer, int x, int y, int radius) {
   int offsetx, offsety, d;
   int status;
 
@@ -51,13 +51,13 @@ int SDL_RenderFillCircle(SDL_Renderer *renderer, int x, int y, int radius) {
 
   while (offsety >= offsetx) {
 
-    status += SDL_RenderDrawLine(renderer, x - offsety, y + offsetx,
+    status += sdl->SDL_RenderDrawLine(renderer, x - offsety, y + offsetx,
                                  x + offsety, y + offsetx);
-    status += SDL_RenderDrawLine(renderer, x - offsetx, y + offsety,
+    status += sdl->SDL_RenderDrawLine(renderer, x - offsetx, y + offsety,
                                  x + offsetx, y + offsety);
-    status += SDL_RenderDrawLine(renderer, x - offsetx, y - offsety,
+    status += sdl->SDL_RenderDrawLine(renderer, x - offsetx, y - offsety,
                                  x + offsetx, y - offsety);
-    status += SDL_RenderDrawLine(renderer, x - offsety, y - offsetx,
+    status += sdl->SDL_RenderDrawLine(renderer, x - offsety, y - offsetx,
                                  x + offsety, y - offsetx);
 
     if (status < 0) {

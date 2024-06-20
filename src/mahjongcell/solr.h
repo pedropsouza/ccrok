@@ -5,15 +5,14 @@
 #include <fcntl.h>
 #include <stdbool.h>
 //#include "../../libcrc/include/checksum.h"
-#include "SDL2/SDL.h"
-#include "SDL2/SDL_image.h"
+//#include "SDL2/SDL.h"
+//#include "SDL2/SDL_image.h"
 #include "ivec.h"
 #include "sched.h"
 #include "draw.h"
 #include "serde.h"
 #include "phys.h"
-#include "nuklear.h"
-#include "nuklear_sdl_renderer.h"
+#include "indirect_sdl.h"
 
 #define SOLR_PORT 51743
 #define SOLR_NAME_LEN 64
@@ -211,6 +210,7 @@ typedef struct {
   setup_data sdata;
   solr_rdr rdr;
   struct nk_context *nk;
+  struct sdl_syms *sdl;
   int should_reload;
 } solr;
 
