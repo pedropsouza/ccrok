@@ -61,6 +61,7 @@ void h_move(solr *s, netpacket *p) {
     int target_slot = -1;
     for (int i = STACK_HOLDING_1; !slot_found && i <= STACK_HOLDING_3; i++) {
       card_stack *hs = stack_from_id(s, i);
+      if (is_locked_stack(hs)) continue;
       if (hs->top > 0) {
         card *d_c = hs->s + hs->top - 1;
         if (d_c->r == RANK_DRAGON && d_c->s == m.suit) {
@@ -75,6 +76,7 @@ void h_move(solr *s, netpacket *p) {
     // search everything but the player hands
     for (int i = 0; i < STACK_BOARD_MAX; i++) {
       card_stack *dragon_src = stack_from_id(s, i);
+      if (is_locked_stack(dragon_src)) continue;
       if (dragon_src == target_stack) continue;
       card *d_c = dragon_src->s + dragon_src->top - 1;
       if (d_c->r == RANK_DRAGON && d_c->s == m.suit) {

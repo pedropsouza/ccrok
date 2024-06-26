@@ -195,7 +195,8 @@ setup_board_stacks(solr *game) {
   }
 
   for (int i = STACK_SUITS_BEGIN; i <= STACK_SUITS_END; i++) {
-    game->st.board.stacks[i].top = 0;
+    stack_from_id(game, i)->top = 0;
+    stack_from_id(game, i)->splayed = 0;
   }
 
   for (size_t i = 0; i < STACK_MAX; i++) {
@@ -204,37 +205,6 @@ setup_board_stacks(solr *game) {
     s->id = i;
   }
 }
-
-/*
-void almost_solved_stacks(solr *game) {
-  for (size_t i = STACK_TABLEAU_BEGIN; i <= STACK_TABLEAU_END; i++) {
-    game->st.board.stacks[i].splayed = 1;
-  }
-  for (size_t i = 0; i < SOLR_MAX_PLAYERS; i++) {
-    game->st.players[i].held.stack.splayed = 1;
-  }
-
-  card_stack *stock = stack_from_id(game, STACK_STOCK);
-  stock->pile = 1;
-  for (int suit = SUIT_BEG; suit < SUIT_MAX; suit++) {
-    int clr = suit <= 2;
-    card_stack *cs = &game->st.board.stacks[STACK_SUITS_BEGIN + suit - SUIT_BEG];
-    for (int rank = RANK_BEG; rank < RANK_MAX; rank++) {
-      cs->s[cs->top] = (card){.s = suit, .r = rank, .faceup = 1, .clr = clr};
-      cs->top++;
-    }
-  }
-
-  take_card_stack(stack_from_id(game, STACK_SUITS_BEGIN), stock, 1);
-  stock->s[stock->top - 1].faceup = 0;
-  
-  for (size_t i = 0; i < STACK_MAX; i++) {
-    card_stack *s = stack_from_id(game, i);
-    update_stack_dims(game, s);
-    s->id = i;
-  }
-}
-*/
 
 int
 is_solved(solr *s) {
@@ -508,7 +478,6 @@ skip_accept:
   }
 
   if (game->sdata.server && game->st.tick % (30 * 5) == 0) {
-    printf("pinto\n");
     game->net.tx->kind = PCKT_STDUMP;
     game->net.tx->data_len = pack(game->net.tx->data, 8, "G", &game->st);
     broadcast(game);
