@@ -16,7 +16,7 @@ SOLR_HOT := $(SOLR)-hot
 CROK_HOT := $(CROK)-hot
 MAHJONGCELL_HOT := $(MAHJONGCELL)-hot
 
-EXES    := $(SOLR) $(CROK) $(MAHJONGCELL)
+EXES    := $(MAHJONGCELL) #$(SOLR) $(CROK) $(MAHJONGCELL)
 CFLAGS  := $(addprefix -I,./src ./app) $(shell sdl2-config --cflags) $(XTRAFLAGS)
 LDLIBS  := -lm $(shell sdl2-config --libs) -ldl -lSDL2_ttf
 

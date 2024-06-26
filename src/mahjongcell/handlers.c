@@ -2,6 +2,8 @@
 
 void h_join(solr *s, netpacket *p) {
   if (!s->sdata.server) return;
+
+  // FIXME: duplicate code shared with accept branch of fixed
   unsigned char vacant = 0xff;
   for (int i = 0; i < SOLR_MAX_PLAYERS; i++) {
     if (!s->st.players[i].valid) {
@@ -9,17 +11,16 @@ void h_join(solr *s, netpacket *p) {
       break;
     }
   }
-  if (vacant == 0xff) {} // TODO
+  if (vacant == 0xff) { return; } // TODO
 
   s->st.players[vacant].valid = 1;
   s->st.players[vacant].pos = (ivec){0};
-    
-  s->srv.socks[vacant] = s->net.peer;
     
   if (p->data_len > 4 && p->data_len < SOLR_NAME_LEN + 4) {
     unpack(p->data, 4, "s", &s->st.players[vacant].username);
   }
 
+  s->net.sock_fd = s->srv.sock_fds[vacant];
   s->net.tx->kind = PCKT_ACK;
   s->net.tx->data_len = pack(s->net.tx->data, 1, "C", &vacant);
   netmgr_send(&s->net);
@@ -34,8 +35,13 @@ void h_leave(solr *s, netpacket *p) {
   if (!s->sdata.server) return;
   uid = true_uid(s);
   if (uid < 0) return;
-  s->srv.socks[uid] = (struct sockaddr_in){0};
+  s->srv.sock_fds[uid] = 0;
+  s->srv.sock_addresses[uid] = (struct sockaddr_storage){0};
   s->st.players[uid].valid = 0;
+}
+
+void h_disconnect(solr *s, netpacket *p) {
+  h_leave(s, p);
 }
 
 void h_move(solr *s, netpacket *p) {
@@ -64,6 +70,7 @@ void h_move(solr *s, netpacket *p) {
         target_slot = i; // empty ones are fair game
       }
     }
+    if (target_slot < 0) return;
     card_stack *target_stack = stack_from_id(s, target_slot);
     // search everything but the player hands
     for (int i = 0; i < STACK_BOARD_MAX; i++) {
@@ -156,6 +163,7 @@ void h_pos(solr *s, netpacket *p) {
 }
 
 void h_stdump(solr *s, netpacket *p) {
+  fprintf(stderr, "st_dump recv and processed\n");
   gamestate nst = {0};
   unpack(p->data, 8, "G", &nst);
   s->st = nst;
@@ -206,6 +214,7 @@ pckt_handler handler_vec[PCKT_MAX] = {
   [PCKT_RESTARTREQ] = h_restartreq,
   [PCKT_FFWREQ] = h_ffwreq,
   [PCKT_FFWANIM] = h_ffwanim,
+  [PCKT_DISCONNECT] = h_disconnect,
 };
 #pragma GCC diagnostic pop
 pckt_handler *pckt_handler_vec_base = handler_vec;

@@ -2,6 +2,7 @@
 #define SOLR_HG__
 
 #include <unistd.h>
+#include <sys/poll.h>
 #include <fcntl.h>
 #include <stdbool.h>
 //#include "../../libcrc/include/checksum.h"
@@ -165,26 +166,36 @@ typedef struct {
 } gamestate;
 size_t gamestate_serde(pbuf_t *buf, char mode, void *st);
 
+#define PACKET_KINDS \
+  X(INVALID, 0) \
+  X(ACK, 1) \
+  X(POS, 2) \
+  X(STDUMP, 3) \
+  X(MOVE, 4) \
+  X(CANCEL, 5) \
+  X(RESTARTREQ, 6) \
+  X(FFWREQ, 7) \
+  X(FFWANIM, 8) \
+  X(JOIN, 9) \
+  X(LEAVE, 10) \
+  X(DISCONNECT, 11) \
+  X(END, 16) \
+  X(MAX, PCKT_END+1)
+
+#define X(name, num_expr) PCKT_ ## name = num_expr,
 enum {
-  PCKT_INVALID = 0,
-  PCKT_ACK = 1,
-  PCKT_JOIN = 10,
-  PCKT_LEAVE = 11,
-  PCKT_POS = 2,
-  PCKT_MOVE = 4,
-  PCKT_CANCEL = 5,
-  PCKT_STDUMP = 3,
-  PCKT_RESTARTREQ = 6,
-  PCKT_FFWREQ = 7,
-  PCKT_FFWANIM = 8,
-  PCKT_END = 16,
-  PCKT_MAX = PCKT_END+1,
+  PACKET_KINDS
 };
+#undef X
+const char *packet_kind_to_name(int kind);
 
 typedef struct {
-  struct sockaddr_in socks[SOLR_MAX_PLAYERS];
+  int listen_sock_fd;
+  int sock_fds[SOLR_MAX_PLAYERS];
+  struct sockaddr_storage sock_addresses[SOLR_MAX_PLAYERS];
+  struct pollfd listen_sock_pfd;
 } server;
-ssize_t server_sockaddr2uid(server *s, struct sockaddr_in *sock);
+ssize_t server_sock_fd2uid(server *s, int fd);
 
 typedef struct {
   size_t uid;

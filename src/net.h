@@ -20,20 +20,20 @@ typedef struct {
 
 typedef struct {
   uint32_t onblock;
-  uint32_t onerror;
+  uint32_t onerror; // FIXME: this one is not really used, even though it should
+  uint32_t ondisconnect;
 } netspecialkinds;
 
 #define NETPACKET_FMTSTR_PARTIAL "C"
 size_t netpacket_pack  (pbuf_t *dst, netpacket *pckt);
 size_t netpacket_unpack(pbuf_t *src, netpacket *pckt);
-char *netpacket_owned_debug_str(netpacket *pckt);
+char *netpacket_owned_debug_str(netpacket *pckt, const char *(*kind_to_name)(int));
 
 typedef struct {
   int sock_fd;
   alignas(8) pbuf_t serde_buf[sizeof(netpacket)];
   netpacket *tx;
   netpacket *rx;
-  struct sockaddr_in peer;
   netspecialkinds spkinds;
 } netmgr;
 

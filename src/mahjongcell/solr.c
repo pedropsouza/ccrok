@@ -45,8 +45,14 @@ void
 broadcast(solr *s) {
   for (int i = 0; i < SOLR_REAL_PLAYERS; i++) {
     if (!s->st.players[i].valid) continue;
-    s->net.peer = s->srv.socks[i];
+    s->net.sock_fd = s->srv.sock_fds[i];
+    char *pcktstr = netpacket_owned_debug_str(
+        s->net.tx,
+        packet_kind_to_name
+      );
+    printf("broadcasting %s to %d, fd %d)\n", pcktstr, i, s->net.sock_fd);
     netmgr_send(&s->net);
+    free(pcktstr);
   }
 }
 
@@ -133,6 +139,16 @@ card_bbox(solr *s, size_t stack_idx, ivec mpos) {
   // returning zero is technically incorrect,
   // as it is a valid index. but it's easier this way
   not_found: return 0;
+}
+
+const char *
+packet_kind_to_name(int kind) {
+  #define X(name, num_expr) case num_expr: return #name;
+  switch (kind) {
+    PACKET_KINDS
+    default: return "unknown / undefined";
+  };
+  #undef X
 }
 
 void
@@ -247,7 +263,9 @@ solr_setup  (setup_data *sdata) {
 
   game->sdata = *sdata;
 
-  game->net.sock_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  game->net.sock_fd =
+    //socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (game->net.sock_fd == -1) {
     perror("Couldn't create a network socket");
     goto neterr;
@@ -255,6 +273,7 @@ solr_setup  (setup_data *sdata) {
   fcntl(game->net.sock_fd, F_SETFL, O_NONBLOCK);
   game->net.spkinds.onblock = PCKT_END;
   game->net.spkinds.onerror = PCKT_INVALID;
+  game->net.spkinds.ondisconnect = PCKT_DISCONNECT;
 
   struct sockaddr_in *saddr = &game->sdata.server_a;
   size_t addrl = sizeof (*saddr);
@@ -271,24 +290,61 @@ solr_setup  (setup_data *sdata) {
     setup_board_stacks(game);
     //almost_solved_stacks(game);
     
+    if (listen(game->net.sock_fd, SOLR_MAX_PLAYERS) < 0) {
+      perror("network socket listen");
+      goto neterr;
+    }
+    game->srv.listen_sock_fd = game->net.sock_fd; // save for later switcheroos
+    game->srv.listen_sock_pfd = (struct pollfd){
+      .fd = game->srv.listen_sock_fd,
+      .events = POLLIN,
+    };
+    
     printf("server running on port %d...\n", ntohs(sdata->server_a.sin_port));
   } else { // client
-
-    if (connect(game->net.sock_fd, (struct sockaddr *)saddr, addrl) < 0) {
-      perror("Couldn't connect to server");
-      goto neterr;
+    int retv = connect(game->net.sock_fd, (struct sockaddr *)saddr, addrl);
+    if (retv < 0) {
+      if (errno == EINPROGRESS) {
+        struct pollfd sock_pfd = {.fd = game->net.sock_fd, .events = POLLOUT};
+        retv = poll(&sock_pfd, 1, 10*1000);
+        if (retv == 0) {
+          fprintf(stderr, "network connection timed out.\n");
+          goto neterr;
+        } else if (retv < 0) {
+          perror("setup connection");
+          goto neterr;
+        }
+        if (!(sock_pfd.revents & POLLOUT)) {
+          fprintf(stderr, "socket still not writable after connection (?)\n");
+          goto neterr;
+        }
+        int so_error_val = 0;
+        socklen_t so_error_len = sizeof(int);
+        if (getsockopt(
+              game->net.sock_fd,
+              SOL_SOCKET, SO_ERROR,
+              &so_error_val, &so_error_len) < 0)
+        {
+          perror("getsockopt");
+        }
+        if (so_error_val != 0) {
+          fprintf(stderr, "tcp connection failure: %s\n", strerror(so_error_val));
+          goto neterr;
+        }
+      }
     }
 
     // announce our presence
-    game->net.peer = game->sdata.server_a;
-    *tx = (netpacket){0};
-    tx->kind = PCKT_JOIN;
-    tx->data_len = pack(tx->data, 1, MACROSTR(SOLR_NAME_LEN) "s", game->sdata.username);
-    netmgr_send(&game->net);
+    if (0) { // only needed for UDP
+      *tx = (netpacket){0};
+      tx->kind = PCKT_JOIN;
+      tx->data_len = pack(tx->data, 1, MACROSTR(SOLR_NAME_LEN) "s", game->sdata.username);
+      netmgr_send(&game->net);
+    }
 
     int wait = 0;
     do {
-      usleep(500000);
+      usleep(500*1e3);
       wait++;
       netmgr_sprecv(&game->net);
     } while(rx->kind != PCKT_ACK && wait < 50);
@@ -336,12 +392,10 @@ void solr_cleanup(solr *game) {
   //gui_finish(game);
 }
 
-ssize_t server_sockaddr2uid(server *s, struct sockaddr_in *sock) {
+ssize_t server_sock_fd2uid(server *s, int fd) {
   ssize_t loc = -1;
   for (size_t i = 0; i < SOLR_MAX_PLAYERS; i++) {
-    if (s->socks[i].sin_addr.s_addr == sock->sin_addr.s_addr
-        && s->socks[i].sin_port == sock->sin_port)
-    {
+    if (s->sock_fds[i] == fd) {
       loc = i;
       break;
     }
@@ -351,7 +405,7 @@ ssize_t server_sockaddr2uid(server *s, struct sockaddr_in *sock) {
 
 ssize_t
 true_uid(solr *s) {
-  return server_sockaddr2uid(&s->srv, &s->net.peer);
+  return server_sock_fd2uid(&s->srv, s->net.sock_fd);
 }
 
 float
@@ -362,7 +416,7 @@ lerp(float a, float b, float v) {
 void
 handle_pckt(solr *s, netpacket *p) {
   if (p->kind != PCKT_POS) {
-    char *pckt_str = netpacket_owned_debug_str(p);
+    char *pckt_str = netpacket_owned_debug_str(p, packet_kind_to_name);
     puts(pckt_str);
     free(pckt_str);
   }
@@ -376,33 +430,89 @@ solr_fixed(solr *game, long step_ns) {
   netpacket *rx = game->net.rx; 
   game->st.tick += 1;
 
+  if (game->sdata.server) {
+    int retv = poll(&game->srv.listen_sock_pfd, 1, 1);
+    if (retv < 0) {
+      perror("listen socket poll");
+      fprintf(stderr, "ignoring and continuing\n");
+    }
+    if (!(game->srv.listen_sock_pfd.revents & POLLIN)) {
+      goto skip_accept;
+    }
+    unsigned char vacant = 0xff;
+    for (int i = 0; i < SOLR_MAX_PLAYERS; i++) {
+      if (!game->st.players[i].valid) {
+        vacant = i;
+        break;
+      }
+    }
+    if (vacant == 0xff) {
+      fprintf(stderr, "got connection but game is full! ignoring.\n");
+      goto skip_accept;
+    }
+    struct sockaddr_storage new_sock;
+    socklen_t new_sock_len = sizeof(new_sock);
+    int new_sock_fd = accept(
+        game->srv.listen_sock_fd,
+        (struct sockaddr *)&new_sock, &new_sock_len
+      );
+    if (new_sock_fd == -1) {
+      perror("listen sock accept");
+      fprintf(stderr, "ignoring and continuing\n");
+      goto skip_accept;
+    }
+    fcntl(new_sock_fd, F_SETFL, O_NONBLOCK);
+    game->srv.sock_addresses[vacant] = new_sock;
+    game->srv.sock_fds[vacant] = new_sock_fd;
+
+    netpacket virtual_join = {0};
+      virtual_join.kind = PCKT_JOIN;
+      virtual_join.data_len = pack(
+          virtual_join.data, 1, MACROSTR(SOLR_NAME_LEN) "s", "anon");
+    handle_pckt(game, &virtual_join);
+skip_accept:
+    
+  }
+
   if (game->st.stage == STAGE_FFW) {
     ffw_animate_server(game);
   }
 
-  // just to not leave unbounded
-  for (size_t i = 0; i < 10000; i++) {
-    const char* reject_reason;
-    netmgr_sprecv(&game->net);
+  for (size_t pid = 0; pid < SOLR_MAX_PLAYERS; pid++) {
+    if (game->sdata.server) {
+      if (!game->st.players[pid].valid) continue;
 
-    if (rx->kind == PCKT_END) break;
-    if (rx->data_len > NETPACKET_MAX_PAYLOAD) {
-      reject_reason = "packet too large:";
-      goto reject_packet;
+      game->net.sock_fd = game->srv.sock_fds[pid];
     }
+    // just to not leave unbounded
+    for (size_t i = 0; i < 10000; i++) {
+      const char* reject_reason;
+      netmgr_sprecv(&game->net);
 
-    handle_pckt(game, rx);
+      bool should_break = rx->kind == PCKT_END || rx->kind == PCKT_DISCONNECT;
+      if (should_break) break;
+      if (rx->data_len > NETPACKET_MAX_PAYLOAD) {
+        reject_reason = "packet too large:";
+        goto reject_packet;
+      }
 
-    continue;
-    reject_packet:
-      fputs(reject_reason, stderr);
+      handle_pckt(game, rx);
+
+      continue;
+      reject_packet:
+        fputs(reject_reason, stderr);
+    }
+    // client only needs to talk to server
+
+    if (!game->sdata.server) break;
   }
 
-  // if (game->sdata.server && game->st.tick % 200 == 0) {
-  //   game->net.tx.kind = PCKT_STDUMP;
-  //   game->net.tx.data_len = pack(game->net.tx.data, 8, "G", &game->st);
-  //   broadcast(game);
-  // }
+  if (game->sdata.server && game->st.tick % (30 * 5) == 0) {
+    printf("pinto\n");
+    game->net.tx->kind = PCKT_STDUMP;
+    game->net.tx->data_len = pack(game->net.tx->data, 8, "G", &game->st);
+    broadcast(game);
+  }
   
   if (game->sdata.server) goto end;
   
@@ -420,7 +530,7 @@ solr_fixed(solr *game, long step_ns) {
 
   while (SDL_PollEvent(&input) > 0) {
     *game->net.tx = (netpacket){0};
-    game->net.peer = game->sdata.server_a;
+    //game->net.peer = game->sdata.server_a;
 
     //nk_sdl_handle_event(&input);
     switch (input.type) {
@@ -585,8 +695,8 @@ void
 card_stack_render(solr_rdr *rdr, card_stack *s, ivec pos) {
   SDL_Rect dst = posdims2rect(pos, rdr->card_dims);
 
-  SDL_SetRenderDrawColor(rdr->rdr, 0x00, 0xf0, 0x20, 0xb0);
-  SDL_RenderFillCircle(rdr->rdr, pos.x, pos.y, 13);
+  //SDL_SetRenderDrawColor(rdr->rdr, 0x00, 0xf0, 0x20, 0xb0);
+  //SDL_RenderFillCircle(rdr->rdr, pos.x, pos.y, 13);
 
   if (s->top == 0) {
     SDL_Rect rect = {.x = 8*64, .y = 4*64, .w = 64, .h = 64};

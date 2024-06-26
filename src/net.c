@@ -16,7 +16,7 @@ netpacket_unpack(pbuf_t *src, netpacket *pckt) {
 
 static size_t
 netmgr_retcheck(ssize_t v, const char *fn_name) {
-  if (v < 0) {
+  if (v < 0) {  
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
       fprintf(stderr, "%s would block, ignoring\n", fn_name);
       return -1;
@@ -40,15 +40,12 @@ rx_unpack(netmgr *n) {
 
 static inline ssize_t
 innersend(netmgr *n) {
-  return sendto(n->sock_fd, n->serde_buf, tx_pack(n),
-    0, (struct sockaddr*)&n->peer, sizeof(n->peer));
+  return send(n->sock_fd, n->serde_buf, tx_pack(n), 0);
 }
 
 static inline ssize_t
 innerrecv(netmgr *n) {
-  socklen_t sl = sizeof(struct sockaddr_in);
-  ssize_t rtv = recvfrom(n->sock_fd, n->serde_buf, sizeof(n->serde_buf),
-    0, (struct sockaddr *)&n->peer, &sl);
+  ssize_t rtv = recv(n->sock_fd, n->serde_buf, sizeof(n->serde_buf), 0);
   if (rtv > 0) {
     rx_unpack(n);
   }
@@ -75,20 +72,32 @@ netmgr_sprecv(netmgr *n) {
   ssize_t rtv = innerrecv(n);
   if (rtv == -1) {
     n->rx->kind = n->spkinds.onblock;
+    // FIXME: error checking
     return 0;
   } else if (rtv == 0) {
-    n->rx->kind = n->spkinds.onerror;
+    n->rx->kind = n->spkinds.ondisconnect;
     perror(__func__);
     return 0;
   }
   return rtv;
 }
 
-char *netpacket_owned_debug_str(netpacket *pckt) {
+char *netpacket_owned_debug_str(netpacket *pckt, const char *(*kind_to_name)(int)) {
   const char *fmtstr = "packet kinded %d datalen %zu := ";
-  size_t out_len = 1 + strlen(fmtstr) + pckt->data_len*2 + 16 + pckt->data_len/8+1; // null, description and data space, + smudge factor.
+  const char *pckt_name = "";
+  if (kind_to_name != NULL) {
+    pckt_name = kind_to_name(pckt->kind);
+    fmtstr = "packet %s datalen %zu := ";
+  }
+  // null char, description, name and data space, + smudge factor.
+  size_t out_len = 1 + strlen(fmtstr) + strlen(pckt_name) + pckt->data_len*2 + 16 + pckt->data_len/8+1;
   char *s = malloc(out_len);
-  size_t head = snprintf(s, out_len, fmtstr, pckt->kind, pckt->data_len);
+  size_t head;
+  if (kind_to_name != NULL) {
+    head = snprintf(s, out_len, fmtstr, pckt_name, pckt->data_len);
+  } else {
+    head = snprintf(s, out_len, fmtstr, pckt->kind, pckt->data_len);
+  }
   for (size_t i = 0; i < pckt->data_len; i++) {
     head += sprintf(s+head, "%s%02x", (i%8 == 0)? " " : "", (unsigned char)pckt->data[i]);
   }
