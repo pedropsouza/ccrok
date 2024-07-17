@@ -50,7 +50,11 @@ broadcast(solr *s) {
         s->net.tx,
         packet_kind_to_name
       );
-    printf("broadcasting %s to %d, fd %d)\n", pcktstr, i, s->net.sock_fd);
+    if (s->net.tx->kind != PCKT_STDUMP) {
+      printf("broadcasting %s to %d, fd %d)\n", pcktstr, i, s->net.sock_fd);
+    } else {
+      printf("broadcasting statedump to %d, fd %d\n", i, s->net.sock_fd);
+    }
     netmgr_send(&s->net);
     free(pcktstr);
   }

@@ -115,12 +115,14 @@ next_ffw_stacks(solr *s) {
     if (seq_d) {
       int top_rank = srcs->s[srcs->top-1].r;
       int top_suit = srcs->s[srcs->top-1].s;
+      if (top_rank == RANK_DRAGON) { continue; }
+      if (top_suit == SUIT_FLOWER) { continue; }
       card_stack *dsts = NULL;
       for (int i = STACK_SUITS_BEGIN; i <= STACK_SUITS_END; i++) {
         card_stack *ss = stack_from_id(s, i);
         if (!ss->top) {
           if (top_rank == RANK_1) {
-            dsts == ss;
+            dsts = ss;
             break;
           } else continue;
         }

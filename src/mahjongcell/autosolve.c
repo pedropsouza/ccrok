@@ -52,6 +52,7 @@ ffw_animate_server(solr *s) {
       s->net.tx->data_len = pack(s->net.tx->data, 1, "[C]", &move_serde, &m);
       handle_pckt(s, s->net.tx);
       anim_lerp = 0;
+      s->srv.ffwd_able_stacks = (card_stack_pair){0};
     } else {
       float ease = 1-powf(1-anim_lerp, 3);
       ffw_anim an = {
@@ -63,7 +64,8 @@ ffw_animate_server(solr *s) {
       s->net.tx->data_len = pack(s->net.tx->data, 1, "a", &an);
       broadcast(s);
       // FIXME: this should be a function of TPS
-      anim_lerp += 0.05;
+      const float anim_length_ns = 2.0 * 1e9;
+      anim_lerp += s->sdata.frametime_ns/anim_length_ns;
     }
   } else {
     anim_stacks = next_ffw_stacks(s);
@@ -95,7 +97,10 @@ ffw_animate_client(solr *s, ffw_anim *an) {
   if (s->sdata.server) return;
 
   player *bot = s->st.players + SOLR_AUTO_PLAYER;
-  assert(bot->valid);
+  if (!bot->valid) {
+    fprintf(stderr, "tried ffwding with and invalid bot!\n");
+    return;
+  }
   if (bot->held.stack.top) {
     struct ivec srcpos = {
       .x = rd->stack_areas[an->src].x,
