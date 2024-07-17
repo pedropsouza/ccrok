@@ -14,20 +14,6 @@ move_serde(pbuf_t *buf, char mode, void *vm) {
   }
 }
 
-int is_seq(card_stack *s, size_t depth) {
-  int so = 1;
-  if (depth < 2) return 1;
-  for (int i = 1; so && (i < depth); i++) {
-    card *lo = s->s + (s->top - i);
-    card *hi = s->s + (s->top - 1 - i);
-    so = lo->r != RANK_DRAGON
-      && hi->r != RANK_DRAGON
-      && lo->r + 1 == hi->r
-      && lo->s != hi->s;
-  }
-  return so;
-}
-
 int dragons_reachable(board *b, uint8_t suit) {
   int hitcount = 0;
   // start from zero so the holding
@@ -91,7 +77,7 @@ move_valid(solr *s, move *m, char **reason) {
         return 0;
       }
 
-      if (!is_seq(src, m->num_cards)) {
+      if (m->num_cards > stack_sequence_depth(src)) {
         *reason = "taking a non-sequence";
         return 0;
       }

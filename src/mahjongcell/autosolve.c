@@ -10,19 +10,11 @@ ffw_anim_serde(pbuf_t *buf, char mode, void *van) {
   return pack_unpack(buf, mode, 8, "QII", &an->lerpval, &an->src, &an->dst);
 }
 
-int
+int // this sneaky lil shit caches the found stack for later opts. alreight :3
 is_ffw_able(solr *s) {
-  for (size_t i = 0; i < STACK_MAX; i++) {
-    card_stack *cs = stack_from_id(s, i);
-    if (cs->top == 0) { continue; }
-    for (size_t j = 0; j < cs->top; j++) {
-      if(!cs->s[j].faceup) {
-        //printf("got face down card @ %zu,%zu\n", i,j);
-        return 0;
-      }
-    }
-  }
-  return 1;
+  next_ffw_stacks(s);
+  card_stack_pair *cpair = &s->srv.ffwd_able_stacks;
+  return cpair->src != NULL && cpair->dst != NULL;
 }
 
 void
@@ -70,6 +62,7 @@ ffw_animate_server(solr *s) {
       s->net.tx->kind = PCKT_FFWANIM;
       s->net.tx->data_len = pack(s->net.tx->data, 1, "a", &an);
       broadcast(s);
+      // FIXME: this should be a function of TPS
       anim_lerp += 0.05;
     }
   } else {
@@ -86,6 +79,9 @@ ffw_animate_server(solr *s) {
       .stacks.dst = STACK_PLAYER_BEGIN + SOLR_AUTO_PLAYER,
       .num_cards = 1,
     };
+
+    // FIXME: this caching is jank, it should be transparent
+    s->srv.ffwd_able_stacks = (card_stack_pair){0};
 
     s->net.tx->kind = PCKT_MOVE;
     s->net.tx->data_len = pack(s->net.tx->data, 1, "[C]", &move_serde, &m);

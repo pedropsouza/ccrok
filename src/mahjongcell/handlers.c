@@ -44,6 +44,7 @@ void h_disconnect(solr *s, netpacket *p) {
   h_leave(s, p);
 }
 
+void h_ffwreq(solr *s, netpacket *p);
 void h_move(solr *s, netpacket *p) {
   card_stack *stacks = s->st.board.stacks;
   move m;
@@ -71,7 +72,7 @@ void h_move(solr *s, netpacket *p) {
         target_slot = i; // empty ones are fair game
       }
     }
-    if (target_slot < 0) return;
+    if (target_slot < 0) goto finish_move;
     card_stack *target_stack = stack_from_id(s, target_slot);
     // search everything but the player hands
     for (int i = 0; i < STACK_BOARD_MAX; i++) {
@@ -121,8 +122,10 @@ void h_move(solr *s, netpacket *p) {
     s->net.tx->data_len = pack(s->net.tx->data, 1, "[C]", &move_serde, &m);
     broadcast(s);
   }
-}
 
+finish_move:
+  h_ffwreq(s, NULL);
+}
 
 void h_cancel(solr *s, netpacket *p) {
   int8_t uid;

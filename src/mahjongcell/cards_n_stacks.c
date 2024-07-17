@@ -104,17 +104,49 @@ stack_from_id(solr *s, uint8_t id) {
 
 card_stack_pair
 next_ffw_stacks(solr *s) {
-  for (int i = STACK_SUITS_BEGIN; i <= STACK_SUITS_END; i++) {
-    for (int j = 0; j <= STACK_BOARD_END; j++) {
-      card_stack *dst = stack_from_id(s, i), *src = stack_from_id(s, j);
-      if (!dst->top || !src->top) continue;
-      card *a = src->s + (src->top - 1), *b = dst->s + (dst->top - 1);
-      if (a->s == b->s && a->r == b->r + 1) {
-        return (card_stack_pair){.src = src, .dst = dst};
+  card_stack_pair *cpair = &s->srv.ffwd_able_stacks;
+  if (cpair->src != NULL && cpair->dst != NULL) {
+    return *cpair;
+  }
+  for (size_t i = STACK_BOARD_BEGIN; i <= STACK_BOARD_END; i++) {
+    card_stack *srcs = stack_from_id(s, i);
+    if (srcs->top == 0) { continue; }
+    int seq_d = stack_sequence_depth(srcs);
+    if (seq_d) {
+      int top_rank = srcs->s[srcs->top-1].r;
+      int top_suit = srcs->s[srcs->top-1].s;
+      card_stack *dsts = NULL;
+      for (int i = STACK_SUITS_BEGIN; i <= STACK_SUITS_END; i++) {
+        card_stack *ss = stack_from_id(s, i);
+        if (!ss->top) {
+          if (top_rank == RANK_1) {
+            dsts == ss;
+            break;
+          } else continue;
+        }
+        card *ss_top = ss->s + (ss->top - 1);
+        if (ss_top->s == top_suit && ss_top->r == top_rank - 1) {
+          dsts = ss;
+          break;
+        }
       }
+      if (dsts == NULL) continue;
+      // conservative anti-softlock check
+      for (int i = STACK_BOARD_BEGIN; i <= STACK_BOARD_END; i++) {
+        card_stack *os = stack_from_id(s, i);
+        for (int j = 0; j < os->top; j++) {
+          if (os->s[j].r == top_rank - 1) continue;
+        }
+      }
+      // cache
+      *cpair = (card_stack_pair){.src = srcs, .dst = dsts};
+      return *cpair;
     }
   }
+
   fprintf(stderr, "next_ffw_stack failed!\n");
-  return (card_stack_pair){0};
+  card_stack_pair zeroed_pair = {0};
+  *cpair = zeroed_pair;
+  return *cpair;
 }
 

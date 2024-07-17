@@ -98,6 +98,8 @@ int who_locked_stack(card_stack *stack);
 void lock_stack(card_stack *stack, uint8_t who);
 void unlock_stack(card_stack *stack);
 
+typedef struct {card_stack *src,*dst;} card_stack_pair;
+
 typedef struct {
   card_stack stack;
   uint8_t camefrom;
@@ -194,6 +196,9 @@ typedef struct {
   int sock_fds[SOLR_MAX_PLAYERS];
   struct sockaddr_storage sock_addresses[SOLR_MAX_PLAYERS];
   struct pollfd listen_sock_pfd;
+
+  // costly call optimizations
+  card_stack_pair ffwd_able_stacks;
 } server;
 ssize_t server_sock_fd2uid(server *s, int fd);
 
@@ -226,7 +231,6 @@ typedef struct {
 } solr;
 
 int move_valid(solr *s, move *m, char **reason);
-typedef struct {card_stack *src,*dst;} card_stack_pair;
 
 #ifndef ENABLE_HOTRELOAD
 solr solr_setup  (setup_data *s);
@@ -274,6 +278,7 @@ void shuffle_stack(card_stack *s);
 void expose_top_card_stack(card_stack *s);
 card_stack_pair next_ffw_stacks(solr *s);
 int yoff_card_stack(solr_rdr *rdr, card_stack *s);
+int stack_sequence_depth(card_stack *s);
 
 void graphics_init(solr *s);
 void graphics_finish(solr *s);

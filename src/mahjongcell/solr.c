@@ -141,6 +141,21 @@ card_bbox(solr *s, size_t stack_idx, ivec mpos) {
   not_found: return 0;
 }
 
+int stack_sequence_depth(card_stack *s) {
+  if (s->top <= 1) return 1; // base case
+  for (int i = s->top - 1; i > 0; i--) {
+    card *lo = s->s + i;
+    card *hi = s->s + i - 1;
+    bool ordered = 1
+      && lo->r != RANK_DRAGON
+      && hi->r != RANK_DRAGON
+      && lo->r + 1 == hi->r
+      && lo->s != hi->s;
+    if (!ordered) return s->top - i;
+  }
+  return s->top;
+}
+
 const char *
 packet_kind_to_name(int kind) {
   #define X(name, num_expr) case num_expr: return #name;
@@ -208,15 +223,11 @@ setup_board_stacks(solr *game) {
 
 int
 is_solved(solr *s) {
-  /*
-  size_t c_suits = 0;
-  for (size_t i = STACK_SUITS_BEGIN; i <= STACK_SUITS_END; i++) {
-    card_stack *cs = s->st.board.stacks + i;
-    c_suits += cs->top;
+  for (size_t i = STACK_BOARD_BEGIN; i <= STACK_BOARD_END; i++) {
+    card_stack *cs = stack_from_id(s, i);
+    if (cs->top) return false;
   }
-  return c_suits >= 52;
-  */
-  return false;
+  return true;
 }
 
 solr
