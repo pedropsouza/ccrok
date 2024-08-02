@@ -3,6 +3,8 @@
 
 #include <unistd.h>
 #include <sys/poll.h>
+#include <sys/socket.h>
+#include <netinet/tcp.h>
 #include <fcntl.h>
 #include <stdbool.h>
 //#include "../../libcrc/include/checksum.h"
@@ -124,19 +126,25 @@ typedef struct {
 } move;
 size_t move_serde(pbuf_t *buf, char mode, void *m);
 
+#define STACKS_XLIST \
+  X(HOLDING_1, 0) \
+  X(HOLDING_2, 1) \
+  X(HOLDING_3, 2) \
+  X(FLOWER, 3) \
+  X(SUITS_BEGIN, 4) \
+  X(SUITS_END, 6) \
+  X(BOARD_BEGIN, 7) \
+  X(BOARD_END, 14) \
+  X(BOARD_MAX, 15) \
+  X(PLAYER_BEGIN, 15) \
+  X(MAX, STACK_PLAYER_BEGIN + SOLR_MAX_PLAYERS)
+
+#define X(name, id) STACK_ ## name = id,
 enum {
-  STACK_HOLDING_1 = 0,
-  STACK_HOLDING_2 = 1,
-  STACK_HOLDING_3 = 2,
-  STACK_FLOWER = 3,
-  STACK_SUITS_BEGIN = 4, // 4 - 5 - 6
-  STACK_SUITS_END = 6,
-  STACK_BOARD_BEGIN = 7, // 7 - 8 - 9 - 10 - 11 - 12 - 13 - 14
-  STACK_BOARD_END = 14,
-  STACK_BOARD_MAX = 15,
-  STACK_PLAYER_BEGIN = 15,
-  STACK_MAX = STACK_PLAYER_BEGIN + SOLR_MAX_PLAYERS,
+  STACKS_XLIST
 };
+#undef X
+
 typedef struct {
   card_stack stacks[STACK_BOARD_MAX];
 } board;
@@ -231,6 +239,7 @@ typedef struct {
 } solr;
 
 int move_valid(solr *s, move *m, char **reason);
+char *move_repr(solr *s, move *m);
 
 #ifndef ENABLE_HOTRELOAD
 solr solr_setup  (setup_data *s);
@@ -279,6 +288,7 @@ void expose_top_card_stack(card_stack *s);
 card_stack_pair next_ffw_stacks(solr *s);
 int yoff_card_stack(solr_rdr *rdr, card_stack *s);
 int stack_sequence_depth(card_stack *s);
+char *stack_name_from_id(int id);
 
 void graphics_init(solr *s);
 void graphics_finish(solr *s);

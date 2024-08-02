@@ -5,34 +5,48 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-const ivec ref_window_dims = {.x = 850, .y = 478};
-//const ivec card_dims = {.x = 88, .y = 124};
+const ivec ref_window_dims = {.x = 352, .y = 336};
 const ivec card_dims = {.x = 44, .y = 60};
 
 #define cw card_dims.x
 #define ch card_dims.y
-#define hpad 12
+
+#define pw 0
+#define ph 12
+
+ivec ref_stack_cols[8];
+ivec ref_stack_rows[2];
+
+#define REF_COL(i) pw + i * (cw + pw)
+#define REF_ROW(i) ph + i * (ch + ph * 2)
+#define REF_CxR(col, row) (ivec) {.x = REF_COL(col), .y = REF_ROW(row) }
 
 ivec ref_stack_areas[STACK_BOARD_MAX] = {
-  [0]  = (ivec){.x = hpad,                   .y = ch/2,     },
-  [1]  = (ivec){.x = hpad + 1 * (hpad + cw), .y = ch/2      },
-  [2]  = (ivec){.x = hpad + 2 * (hpad + cw), .y = ch/2      },
-  [3]  = (ivec){.x=2*hpad + 3 * (hpad + cw), .y = ch/2      },
-  [4]  = (ivec){.x=2*hpad + 4 * (hpad + cw), .y = ch/2},
-  [5]  = (ivec){.x=2*hpad + 5 * (hpad + cw), .y = ch/2},
-  [6]  = (ivec){.x=2*hpad + 6 * (hpad + cw), .y = ch/2},
-  [7]  = (ivec){.x = hpad + 0 * (hpad + cw), .y = 140+ch/2,     },
-  [8]  = (ivec){.x = hpad + 1 * (hpad + cw), .y = 140+ch/2,     },
-  [9]  = (ivec){.x = hpad + 2 * (hpad + cw), .y = 140+ch/2,     },
-  [10]  = (ivec){.x = hpad + 3 * (hpad + cw), .y = 140+ch/2,     },
-  [11]  = (ivec){.x = hpad + 4 * (hpad + cw), .y = 140+ch/2,     },
-  [12]  = (ivec){.x = hpad + 5 * (hpad + cw), .y = 140+ch/2,     },
-  [13]  = (ivec){.x = hpad + 6 * (hpad + cw), .y = 140+ch/2,     },
-  [14]  = (ivec){.x = hpad + 7 * (hpad + cw), .y = 140+ch/2,     },
+  [STACK_HOLDING_1]       = REF_CxR(0,0),
+  [STACK_HOLDING_2]       = REF_CxR(1,0),
+  [STACK_HOLDING_3]       = REF_CxR(2,0),
+  [STACK_FLOWER]          = REF_CxR(4,0),
+  [STACK_SUITS_BEGIN + 0] = REF_CxR(5,0),
+  [STACK_SUITS_BEGIN + 1] = REF_CxR(6,0),
+  [STACK_SUITS_BEGIN + 2] = REF_CxR(7,0),
+
+  [STACK_BOARD_BEGIN + 0] = REF_CxR(0,1),
+  [STACK_BOARD_BEGIN + 1] = REF_CxR(1,1),
+  [STACK_BOARD_BEGIN + 2] = REF_CxR(2,1),
+  [STACK_BOARD_BEGIN + 3] = REF_CxR(3,1),
+  [STACK_BOARD_BEGIN + 4] = REF_CxR(4,1),
+  [STACK_BOARD_BEGIN + 5] = REF_CxR(5,1),
+  [STACK_BOARD_BEGIN + 6] = REF_CxR(6,1),
+  [STACK_BOARD_BEGIN + 7] = REF_CxR(7,1),
 };
 
 #undef cw
 #undef ch
+#undef pw
+#undef ph
+#undef REF_COL
+#undef REF_ROW
+#undef REF_CxR
 
 static SDL_Texture *
 tex_from_file(SDL_Renderer *rdr, const char* filename) {

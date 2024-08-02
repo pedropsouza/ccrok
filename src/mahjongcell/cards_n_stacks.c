@@ -120,31 +120,44 @@ next_ffw_stacks(solr *s) {
       card_stack *dsts = NULL;
       for (int i = STACK_SUITS_BEGIN; i <= STACK_SUITS_END; i++) {
         card_stack *ss = stack_from_id(s, i);
-        if (!ss->top) {
-          if (top_rank == RANK_1) {
-            dsts = ss;
-            break;
-          } else continue;
+        move m = {
+          .kind = MOVE_PUSH,
+          .stacks.src = srcs->id,
+          .stacks.dst = ss->id,
+          .num_cards = 1
+        };
+        printf("%s: test %s\n", __func__, move_repr(s, &m));
+        char *reason;
+        if (move_valid(s, &m, &reason)) {
+          dsts = stack_from_id(s, ss->id);
+          break; // validity check / dest. search loop
         }
-        card *ss_top = ss->s + (ss->top - 1);
-        if (ss_top->s == top_suit && ss_top->r == top_rank - 1) {
-          dsts = ss;
-          break;
-        }
-      }
-      if (dsts == NULL) continue;
+      } // end for all possible destinations
+      // invalid move check
+      if (dsts == NULL) continue; // for all stacks in board
+
       // conservative anti-softlock check
-      for (int i = STACK_BOARD_BEGIN; i <= STACK_BOARD_END; i++) {
-        card_stack *os = stack_from_id(s, i);
-        for (int j = 0; j < os->top; j++) {
-          if (os->s[j].r == top_rank - 1) continue;
+      int possibly_needed = 0;
+      if (top_rank != 1) { // 1's are never needed elsewhere
+        for (int i = STACK_BOARD_BEGIN; i <= STACK_BOARD_END; i++) {
+          card_stack *os = stack_from_id(s, i);
+          for (int j = 0; j < os->top; j++) {
+            if (os->s[j].r == top_rank - 1) {
+              possibly_needed = 1;
+              break;
+            }
+          }
+          if (possibly_needed) break;
+        } // end anti softlock check loop
+        if (possibly_needed) {
+          continue; // for all stacks in board
         }
-      }
+      } // end if source top rank is not 1
       // cache
       *cpair = (card_stack_pair){.src = srcs, .dst = dsts};
       return *cpair;
-    }
-  }
+    } // end if stack is a non-zero sequence
+  } // end for all stacks in board
 
   fprintf(stderr, "next_ffw_stack failed!\n");
   card_stack_pair zeroed_pair = {0};

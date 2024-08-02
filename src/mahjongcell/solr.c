@@ -46,6 +46,7 @@ broadcast(solr *s) {
   for (int i = 0; i < SOLR_REAL_PLAYERS; i++) {
     if (!s->st.players[i].valid) continue;
     s->net.sock_fd = s->srv.sock_fds[i];
+    if (s->net.tx->kind == PCKT_POS) { netmgr_send(&s->net); return; }
     char *pcktstr = netpacket_owned_debug_str(
         s->net.tx,
         packet_kind_to_name
@@ -170,6 +171,24 @@ packet_kind_to_name(int kind) {
   #undef X
 }
 
+char *
+stack_name_from_id(int id) {
+  static char buf[2][24] = { "", "" };
+  static char buf_idx = 0;
+
+  char *choice;
+  if (id >= STACK_MAX) {
+    return "unknown (out of range)"; 
+  }
+  // can't use a switch here since stack ids don't have unique names necessarily
+  #define X(name, sid) if (id >= sid) snprintf(buf[buf_idx], 24, #name " #%d", id - sid);
+  STACKS_XLIST
+  #undef X
+  choice = buf[buf_idx];
+  buf_idx = (buf_idx+1)%2;
+  return choice;
+}
+
 void
 setup_board_stacks(solr *game) {
   for (size_t i = 0; i <= STACK_BOARD_END; i++) {
@@ -256,6 +275,9 @@ solr_setup  (setup_data *sdata) {
     goto neterr;
   }
   fcntl(game->net.sock_fd, F_SETFL, O_NONBLOCK);
+  // disable Nagle's algo
+  int one = 1;
+  setsockopt(game->net.sock_fd, SOL_TCP, TCP_NODELAY, &one, sizeof(one));
   game->net.spkinds.onblock = PCKT_END;
   game->net.spkinds.onerror = PCKT_INVALID;
   game->net.spkinds.ondisconnect = PCKT_DISCONNECT;
@@ -400,9 +422,8 @@ lerp(float a, float b, float v) {
 
 void
 handle_pckt(solr *s, netpacket *p) {
-  if (p->kind != PCKT_POS) {
+  if (0 && p->kind != PCKT_POS) {
     char *pckt_str = netpacket_owned_debug_str(p, packet_kind_to_name);
-    puts(pckt_str);
     free(pckt_str);
   }
   pckt_handler_vec_base[p->kind](s, p); 
@@ -555,13 +576,15 @@ skip_accept:
       if (stack_idx < 0) break;
       unsigned char n = game->st.board.stacks[stack_idx].top
           - card_bbox(game, stack_idx, mouse_pos);
+      unsigned char n_held = myp->held.stack.top;
 
       move m = {
         .kind = myp->held.stack.top > 0 ? MOVE_PUSH : MOVE_TAKE,
-        .num_cards = n,
+        .num_cards = (n > n_held)? n : n_held,
       };
       m.stacks.src = m.kind == MOVE_PUSH ? STACK_PLAYER_BEGIN + game->client.uid : stack_idx;
       m.stacks.dst = m.kind == MOVE_TAKE ? STACK_PLAYER_BEGIN + game->client.uid : stack_idx;
+      printf("sending move %s\n", move_repr(game, &m));
 
       if(m.stacks.dst == myp->held.camefrom){
         tx->kind = PCKT_CANCEL;

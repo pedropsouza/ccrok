@@ -88,7 +88,14 @@ move_valid(solr *s, move *m, char **reason) {
       int empty_dst = dst->top == 0;
       card *top_dst = NULL;
       if (!empty_dst) top_dst = &dst->s[dst->top - 1];
-      card *bot_src = &src->s[0];
+      // pivot is the card which would follow the destination top in
+      // a sequence if the move is followed through
+      ssize_t pivot_idx = (ssize_t)src->top - m->num_cards;
+      if (pivot_idx < 0) {
+        *reason = "too few cards in source";
+        return 0;
+      }
+      card *pivot = &src->s[pivot_idx];
       if (src->top == 0) {
         *reason = "no cards to push";
         return 0;
@@ -111,7 +118,7 @@ move_valid(solr *s, move *m, char **reason) {
           return 1;
         }
 
-        if (IS_FLOWER(dst->id) && bot_src->s != SUIT_FLOWER) {
+        if (IS_FLOWER(dst->id) && pivot->s != SUIT_FLOWER) {
           *reason = "reserved for the flower :3";
           return 0;
         }
@@ -121,11 +128,11 @@ move_valid(solr *s, move *m, char **reason) {
             *reason = "can't put anything on top of a dragon";
             return 0;
           }
-          if (top_dst->s == bot_src->s) {
+          if (top_dst->s == pivot->s) {
             *reason = "color rule";
             return 0;
           }
-          if (top_dst->r != bot_src->r + 1) {
+          if (top_dst->r != pivot->r + 1) {
             *reason = "rank rule";
             return 0;
           }
@@ -134,21 +141,21 @@ move_valid(solr *s, move *m, char **reason) {
       }
 
       if (is_suits) {
-        if (bot_src->r == RANK_DRAGON || bot_src->s == SUIT_FLOWER) {
+        if (pivot->r == RANK_DRAGON || pivot->s == SUIT_FLOWER) {
           *reason = "suit piles only take number cards";
           return 0;
         }
         if (empty_dst) {
-          if (bot_src->r != RANK_1) {
+          if (pivot->r != RANK_1) {
             *reason = "only ones can be placed there";
             return 0;
           }
           return 1;
         }
         bool number = src->top == 1;
-        bool color = top_dst->s == bot_src->s;
-        bool rank = bot_src->r == top_dst->r + 1;
-        bool suit = bot_src->s == top_dst->s;
+        bool color = top_dst->s == pivot->s;
+        bool rank = pivot->r == top_dst->r + 1;
+        bool suit = pivot->s == top_dst->s;
         int r = number && color && rank && suit;
         if (!r) *reason = "against the rules";
         return r;
@@ -170,4 +177,36 @@ move_valid(solr *s, move *m, char **reason) {
 #undef IS_TABLEAU
 #undef IS_STOCK
 #undef IS_SUITS
+}
+
+char *
+move_repr(solr *s, move *m) {
+  static char buf[128];
+  char *reason;
+  char *name_src = stack_name_from_id(m->stacks.src);
+  char *name_dst = stack_name_from_id(m->stacks.dst);
+  if (m->stacks.src == NULL || m->stacks.dst == NULL) return "invalid move (null)";
+  char valid = move_valid(s, m, &reason);
+  
+  // pivot is the card which would follow the destination top in
+  // a sequence if the move is followed through
+  card_stack *src = stack_from_id(s, m->stacks.src);
+  ssize_t pivot_idx = (ssize_t)src->top - m->num_cards;
+  size_t written = snprintf(buf, 128,
+      "%s %s to %s (%d cards): %s",
+      (m->kind == MOVE_TAKE)? "taking"
+        : (m->kind == MOVE_PUSH)? "pulling"
+        : (m->kind == MOVE_GROUP_DRAGONS)? "grouping dragons"
+        : "unknown movement from",
+      name_src, name_dst, m->num_cards, reason
+  );
+
+  if (pivot_idx >= 0) {
+    card *pivot = &src->s[pivot_idx];
+    snprintf(buf + written, 128 - written,
+        " (pivot %d suit %d)",
+        pivot->r, pivot->s
+    );
+  } else snprintf(buf + written, 128 - written, "(no pivot)");
+  return buf;
 }
