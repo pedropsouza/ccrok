@@ -46,7 +46,7 @@ broadcast(solr *s) {
   for (int i = 0; i < SOLR_REAL_PLAYERS; i++) {
     if (!s->st.players[i].valid) continue;
     s->net.sock_fd = s->srv.sock_fds[i];
-    if (s->net.tx->kind == PCKT_POS) { netmgr_send(&s->net); return; }
+    if (s->net.tx->kind == PCKT_POS) { netmgr_send(&s->net); continue; }
     char *pcktstr = netpacket_owned_debug_str(
         s->net.tx,
         packet_kind_to_name
