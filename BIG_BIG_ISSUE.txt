@@ -1,0 +1,1 @@
+live position only gets sent to the first one to connect to a mahjcell server!

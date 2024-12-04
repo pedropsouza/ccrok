@@ -15,6 +15,7 @@
 #include "draw.h"
 #include "serde.h"
 #include "phys.h"
+#include "crc32.h"
 #include "nuklear.h"
 #include "nuklear_sdl_renderer.h"
 

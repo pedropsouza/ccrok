@@ -20,7 +20,7 @@ EXES    := $(MAHJONGCELL) #$(SOLR) $(CROK) $(MAHJONGCELL)
 CFLAGS  := $(addprefix -I,./src ./app) $(shell sdl2-config --cflags) $(XTRAFLAGS)
 LDLIBS  := -lm $(shell sdl2-config --libs) -ldl -lSDL2_ttf
 
-COMMON_O  := $(addprefix ./src/, draw.o ivec.o fvec.o net.o phys.o sched.o serde.o) libcrc/lib/libcrc.a
+COMMON_O  := $(addprefix ./src/, draw.o ivec.o fvec.o net.o phys.o sched.o serde.o crc32.o) #libcrc/lib/libcrc.a
 COMMON_SO_O := $(patsubst %.o,%.dyn.o,$(COMMON_O))
 
 SOLR_O  := $(addprefix ./src/solr/, solr.o cards_n_stacks.o graphics.o move.o autosolve.o gui.o handlers.o)

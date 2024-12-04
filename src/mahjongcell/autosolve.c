@@ -97,7 +97,10 @@ ffw_animate_client(solr *s, ffw_anim *an) {
 
   player *bot = s->st.players + SOLR_AUTO_PLAYER;
   if (!bot->valid) {
-    fprintf(stderr, "tried ffwding with and invalid bot!\n");
+    fprintf(stderr,
+      "tried ffwding with and invalid bot!\n"
+      "dirty patching it for now... (until a better animation sync solution is made)\n");
+    bot->valid = 1;
     return;
   }
   struct ivec srcpos = {
