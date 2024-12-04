@@ -7,10 +7,12 @@
 #include "serde.h"
 
 #ifndef NETPACKET_MAX_PAYLOAD
-#define NETPACKET_MAX_PAYLOAD 8192
+#define NETPACKET_MAX_PAYLOAD 8192+256
 #endif
 #define NETPACKET_FIELDS \
   uint32_t kind; \
+  uint32_t crc; \
+  uint32_t tick; \
   uint32_t data_len; \
   pbuf_t data[NETPACKET_MAX_PAYLOAD];
 
@@ -24,7 +26,7 @@ typedef struct {
   uint32_t ondisconnect;
 } netspecialkinds;
 
-#define NETPACKET_FMTSTR_PARTIAL "C"
+#define NETPACKET_FMTSTR_PARTIAL "CII"
 size_t netpacket_pack  (pbuf_t *dst, netpacket *pckt);
 size_t netpacket_unpack(pbuf_t *src, netpacket *pckt);
 char *netpacket_owned_debug_str(netpacket *pckt, const char *(*kind_to_name)(int));

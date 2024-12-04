@@ -259,6 +259,7 @@ solr_setup  (setup_data *sdata) {
   solr *game = &game_actual;
   game->net.tx = malloc(sizeof(netpacket));
   game->net.rx = malloc(sizeof(netpacket));
+  assert(game->net.tx && game->net.rx);
   netpacket *tx = (netpacket *)game->net.tx;
   netpacket *rx = (netpacket *)game->net.rx;
 

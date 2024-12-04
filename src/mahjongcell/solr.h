@@ -24,7 +24,6 @@
 #define SOLR_REAL_PLAYERS 7
 #define SOLR_AUTO_PLAYER 7
 #define SOLR_MAX_PLAYERS 8
-#define NETPACKET_MAX_PAYLOAD 8192
 #include "net.h"
 
 // For expanding macros inside string literals

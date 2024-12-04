@@ -6,12 +6,14 @@ netpacket_pack(pbuf_t *dst, netpacket *pckt) {
   char fmt[32] = NETPACKET_FMTSTR_PARTIAL;
   size_t plen = strlen(fmt);
   snprintf(fmt + plen, sizeof(fmt) - plen, "%zus", pckt->data_len);
-  return pack(dst, alignof(netpacket), fmt, &pckt->kind, &pckt->data);
+  return pack(dst, alignof(netpacket),
+    fmt, &pckt->kind, &pckt->crc, &pckt->tick, &pckt->data
+  );
 }
 size_t
 netpacket_unpack(pbuf_t *src, netpacket *pckt) {
   return unpack(src, alignof(netpacket),
-          NETPACKET_FMTSTR_PARTIAL "s?", &pckt->kind, &pckt->data, &pckt->data_len);
+          NETPACKET_FMTSTR_PARTIAL "s?", &pckt->kind, &pckt->crc, &pckt->tick, &pckt->data, &pckt->data_len);
 }
 
 static size_t
