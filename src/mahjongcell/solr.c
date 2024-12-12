@@ -236,6 +236,11 @@ setup_board_stacks(solr *game) {
     stack_from_id(game, i)->top = 0;
     stack_from_id(game, i)->splayed = 0;
   }
+  
+  for (int i = STACK_HOLDING_1; i <= STACK_HOLDING_3; i++) {
+    stack_from_id(game, i)->top = 0;
+    stack_from_id(game, i)->splayed = 0;
+  }
 
   for (size_t i = 0; i < STACK_MAX; i++) {
     card_stack *s = stack_from_id(game, i);
@@ -250,7 +255,12 @@ is_solved(solr *s) {
     card_stack *cs = stack_from_id(s, i);
     if (cs->top) return false;
   }
-  return true;
+  size_t stack_card_count = 0;
+  for (size_t i = STACK_SUITS_BEGIN; i <= STACK_SUITS_END; i++) {
+    card_stack *cs = stack_from_id(s, i);
+    stack_card_count += cs->top;
+  }
+  return stack_card_count == 27;
 }
 
 solr

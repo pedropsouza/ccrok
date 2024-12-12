@@ -106,17 +106,26 @@ card_stack_pair
 next_ffw_stacks(solr *s) {
   card_stack_pair *cpair = &s->srv.ffwd_able_stacks;
   if (cpair->src != NULL && cpair->dst != NULL) {
-    return *cpair;
+    move m = {
+      .kind = MOVE_PUSH,
+      .stacks.src = cpair->src->id,
+      .stacks.dst = cpair->dst->id,
+      .num_cards = 1
+    };
+    char *reason;
+    if (move_valid(s, &m, &reason)) return *cpair;
+    else { *cpair = (card_stack_pair){0}; }
   }
   for (size_t i = STACK_BOARD_BEGIN; i <= STACK_BOARD_END; i++) {
     card_stack *srcs = stack_from_id(s, i);
     if (srcs->top == 0) { continue; }
+    int top_rank = srcs->s[srcs->top-1].r;
+    int top_suit = srcs->s[srcs->top-1].s;
+    if (top_rank == RANK_DRAGON) { continue; }
+    if (top_suit == SUIT_FLOWER) { continue; }
+    
     int seq_d = stack_sequence_depth(srcs);
     if (seq_d) {
-      int top_rank = srcs->s[srcs->top-1].r;
-      int top_suit = srcs->s[srcs->top-1].s;
-      if (top_rank == RANK_DRAGON) { continue; }
-      if (top_suit == SUIT_FLOWER) { continue; }
       card_stack *dsts = NULL;
       for (int i = STACK_SUITS_BEGIN; i <= STACK_SUITS_END; i++) {
         card_stack *ss = stack_from_id(s, i);
@@ -126,10 +135,11 @@ next_ffw_stacks(solr *s) {
           .stacks.dst = ss->id,
           .num_cards = 1
         };
-        printf("%s: test %s\n", __func__, move_repr(s, &m));
+        printf("%s:\n test %s\n", __func__, move_repr(s, &m));
         char *reason;
         if (move_valid(s, &m, &reason)) {
           dsts = stack_from_id(s, ss->id);
+          printf("%s: move found!\n", __func__);
           break; // validity check / dest. search loop
         }
       } // end for all possible destinations
@@ -143,6 +153,7 @@ next_ffw_stacks(solr *s) {
           card_stack *os = stack_from_id(s, i);
           for (int j = 0; j < os->top; j++) {
             if (os->s[j].r == top_rank - 1) {
+              printf("%s: determined to be possible softlock!\n", __func__);
               possibly_needed = 1;
               break;
             }

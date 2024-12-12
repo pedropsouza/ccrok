@@ -152,7 +152,7 @@ move_valid(solr *s, move *m, char **reason) {
           }
           return 1;
         }
-        bool number = src->top == 1;
+        bool number = m->num_cards == 1;
         bool color = top_dst->s == pivot->s;
         bool rank = pivot->r == top_dst->r + 1;
         bool suit = pivot->s == top_dst->s;
@@ -193,7 +193,7 @@ move_repr(solr *s, move *m) {
   card_stack *src = stack_from_id(s, m->stacks.src);
   ssize_t pivot_idx = (ssize_t)src->top - m->num_cards;
   size_t written = snprintf(buf, 128,
-      "%s %s to %s (%d cards): %s",
+      "%s %s to %s (%d cards):\n%s",
       (m->kind == MOVE_TAKE)? "taking"
         : (m->kind == MOVE_PUSH)? "pulling"
         : (m->kind == MOVE_GROUP_DRAGONS)? "grouping dragons"

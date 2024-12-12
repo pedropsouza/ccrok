@@ -14,6 +14,11 @@ int // this sneaky lil shit caches the found stack for later opts. alreight :3
 is_ffw_able(solr *s) {
   next_ffw_stacks(s);
   card_stack_pair *cpair = &s->srv.ffwd_able_stacks;
+  
+  // won't ffwd if players are holding cards
+  for (size_t i = 0; i < SOLR_MAX_PLAYERS; i++) {
+    if (s->st.players[i].held.stack.top) return false;
+  }
   return cpair->src != NULL && cpair->dst != NULL;
 }
 

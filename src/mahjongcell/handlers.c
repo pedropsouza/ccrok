@@ -116,6 +116,7 @@ void h_move(solr *s, netpacket *p) {
     update_stack_dims(s, dst);
   }
 
+finish_move:
   if (is_solved(s)) {
     s->st.stage = STAGE_WON;
   }
@@ -126,7 +127,6 @@ void h_move(solr *s, netpacket *p) {
     broadcast(s);
   }
 
-finish_move:
   h_ffwreq(s, NULL);
 }
 
