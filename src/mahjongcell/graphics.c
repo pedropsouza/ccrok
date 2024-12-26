@@ -14,8 +14,8 @@ const ivec card_dims = {.x = 44, .y = 60};
 #define pw 0
 #define ph 12
 
-ivec ref_stack_cols[8];
-ivec ref_stack_rows[2];
+//ivec ref_stack_cols[8];
+//ivec ref_stack_rows[2];
 
 #define REF_COL(i) pw + i * (cw + pw)
 #define REF_ROW(i) ph + i * (ch + ph * 2)

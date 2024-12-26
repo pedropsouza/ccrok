@@ -24,7 +24,7 @@ size_t
 player_serde(pbuf_t *buf, char mode, void *vp) {
   player *p = vp;
   if (mode == SERDE_MODE_SIZEHINT) return sizeof(player);
-  return pack_unpack(buf, mode, 8, "QQ" MACROSTR(SOLR_NAME_LEN) "sfCC",
+  return pack_unpack(buf, mode, 8, "II" MACROSTR(SOLR_NAME_LEN) "sfCC",
     &p->pos.x, &p->pos.y, &p->username, &p->held.stack, &p->held.camefrom, &p->valid);
 }
 
@@ -32,7 +32,7 @@ size_t
 gamestate_serde(pbuf_t *buf, char mode, void *vst) {
   gamestate *st = vst;
   if (mode == SERDE_MODE_SIZEHINT) return sizeof(gamestate);
-  return pack_unpack(buf, mode, 8, "Cb" MACROSTR(SOLR_MAX_PLAYERS) "pQ",
+  return pack_unpack(buf, mode, 8, "Cb" MACROSTR(SOLR_MAX_PLAYERS) "pI",
     &st->stage, &st->board, &st->players, &st->tick);
 }
 
@@ -344,6 +344,9 @@ solr_setup  (setup_data *sdata) {
       usleep(500*1e3);
       wait++;
       netmgr_sprecv(&game->net);
+      char* pckt_str = netpacket_owned_debug_str(game->net.rx, packet_kind_to_name);
+      printf("join routine: %s\n", pckt_str);
+      free(pckt_str);
     } while(rx->kind != PCKT_ACK && wait < 50);
     if (wait >= 50) {
       fprintf(stderr, "couldn't log into lobby!\n");
@@ -412,9 +415,14 @@ lerp(float a, float b, float v) {
 
 void
 handle_pckt(solr *s, netpacket *p) {
-  if (0 && p->kind != PCKT_POS) {
+  if (1 && p->kind != PCKT_POS) {
     char *pckt_str = netpacket_owned_debug_str(p, packet_kind_to_name);
+    puts(pckt_str);
     free(pckt_str);
+  }
+  if (p->kind >= PCKT_END) {
+    puts("bad packet!");
+    return;
   }
   pckt_handler_vec_base[p->kind](s, p); 
 }
@@ -464,9 +472,10 @@ solr_fixed(solr *game, long step_ns) {
     game->srv.sock_last_comm[vacant] = time(NULL);
 
     netpacket virtual_join = {0};
-      virtual_join.kind = PCKT_JOIN;
-      virtual_join.data_len = pack(
-          virtual_join.data, 1, MACROSTR(SOLR_NAME_LEN) "s", "anon");
+    virtual_join.kind = PCKT_JOIN;
+    char username[SOLR_NAME_LEN] = "anon";
+    virtual_join.data_len = pack(
+      virtual_join.data, 1, MACROSTR(SOLR_NAME_LEN) "s", username);
     handle_pckt(game, &virtual_join);
 skip_accept:
 
@@ -512,16 +521,19 @@ skip_accept:
       netmgr_sprecv(&game->net); // populates rx
       
       if (game->sdata.server) {
+        bool synced = 1;
+        if (rx->kind == PCKT_JOIN) goto handle_anyway;
         if (game->st.tick < rx->tick) {
+          synced = 0;
           fprintf(stderr, "client %d ahead of server by %d ticks(?)\n", true_uid(game), rx->tick - game->st.tick);
-          break; // disregard this player
         }
         uint32_t server_crc = game->srv.historic_crcs[rx->tick % SOLR_ROLLBACK_TICKS];
         uint32_t client_crc = rx->crc;
-        int synced = server_crc == client_crc;
+        synced = synced && server_crc == client_crc;
         if (!synced) {
           printf("tick %u crc %u (srv) != %u (client)\n", game->st.tick, server_crc, client_crc);
           mahjcell_send(game, PCKT_STDUMP);
+          //break; // this player needs to be brought up to speed
         }
       }
 
@@ -533,6 +545,7 @@ skip_accept:
         goto reject_packet_client;
       }
 
+      handle_anyway:
       handle_pckt(game, rx);
 
       continue;
@@ -582,10 +595,17 @@ skip_accept:
       goto leave;
 
     case SDL_MOUSEMOTION: {
-        mouse_pos = (ivec){.x = input.motion.x, .y = input.motion.y};
-        struct ivec pos = {.x = input.motion.x, .y = input.motion.y};
-      	
-        tx->data_len = pack(tx->data, 8, "QQC", &pos.x, &pos.y, &game->client.uid);
+        solr_rdr *rdr = &game->rdr;
+        mouse_pos = (ivec){
+          .x = input.motion.x,
+          .y = input.motion.y,
+        };
+        fvec pos = {
+          .x = mouse_pos.x/rdr->win_dims.x,
+          .y = mouse_pos.y/rdr->win_dims.y,
+        };
+
+        tx->data_len = pack(tx->data, 8, "IIC", &pos.x, &pos.y, &game->client.uid);
         mahjcell_send(game, PCKT_POS);
       }
       break;
@@ -676,7 +696,11 @@ skip_accept:
 void
 player_render(solr_rdr *rdr, player *p) {
   SDL_SetRenderDrawColor(rdr->rdr, 0xff, 0x20, 0x20, 0xb0);
-  SDL_RenderFillCircle(rdr->rdr, p->pos.x, p->pos.y, 3);
+  SDL_RenderFillCircle(rdr->rdr,
+    p->pos.x * rdr->win_dims.x,
+    p->pos.y * rdr->win_dims.y,
+    4
+  );
 }
 
 void
@@ -791,7 +815,8 @@ solr_render (solr *game, double a) {
     player *p = game->st.players + i;
     if (p->valid) {
       if (p->held.stack.top > 0){
-        ivec offset = ivec_sub(p->pos, ivec_div(r->card_dims, (ivec){2,2}));
+        ivec qpos = (ivec){.x = p->pos.x * r->win_dims.x, .y = p->pos.y * r->win_dims.y};
+        ivec offset = ivec_sub(qpos, ivec_div(r->card_dims, (ivec){2,2}));
         card_stack_render(r, &p->held.stack, offset);
       }
       player_render(r, p);

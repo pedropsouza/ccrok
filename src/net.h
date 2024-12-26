@@ -26,7 +26,7 @@ typedef struct {
   uint32_t ondisconnect;
 } netspecialkinds;
 
-#define NETPACKET_FMTSTR_PARTIAL "CII"
+#define NETPACKET_FMTSTR_PARTIAL "III"
 size_t netpacket_pack  (pbuf_t *dst, netpacket *pckt);
 size_t netpacket_unpack(pbuf_t *src, netpacket *pckt);
 char *netpacket_owned_debug_str(netpacket *pckt, const char *(*kind_to_name)(int));

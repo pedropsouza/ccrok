@@ -72,7 +72,12 @@ int main(int argc, char *argv[]) {
 #endif
 
   solr cd = solr_setup(&setdat);
-  if (cd.st.stage != STAGE_PLAYING) { return EXIT_FAILURE; }
+  if (cd.st.stage != STAGE_PLAYING) {
+    if (cd.st.stage == STAGE_NETERR) {
+      solr_cleanup(&cd);
+    }
+    return EXIT_FAILURE;
+  }
   struct periodic_callback fixed_call = {0};
   fixed_call.func = fixed_adaptor;
   fixed_call.arg = (&(struct { solr *d; long tps; }){.d = &cd, .tps = setdat.frametime_ns});

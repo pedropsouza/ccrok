@@ -153,7 +153,7 @@ size_t board_serde(pbuf_t *buf, char mode, void *b);
 
 typedef struct {
   uint8_t valid;
-  ivec pos;
+  fvec pos;
   char username[SOLR_NAME_LEN];
   held_stack held;
 } player;

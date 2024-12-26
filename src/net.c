@@ -89,14 +89,14 @@ char *netpacket_owned_debug_str(netpacket *pckt, const char *(*kind_to_name)(int
   const char *pckt_name = "";
   if (kind_to_name != NULL) {
     pckt_name = kind_to_name(pckt->kind);
-    fmtstr = "packet %s from tick %u crc %xu datalen %zu := ";
+    fmtstr = "packet %s (%d) from tick %u crc %x datalen %zu := ";
   }
   // null char, description, name and data space, + smudge factor.
   size_t out_len = 1 + strlen(fmtstr) + strlen(pckt_name) + pckt->data_len*2 + 16 + pckt->data_len/8+1;
   char *s = malloc(out_len);
   size_t head;
   if (kind_to_name != NULL) {
-    head = snprintf(s, out_len, fmtstr, pckt_name,  pckt->tick, pckt->crc, pckt->data_len);
+    head = snprintf(s, out_len, fmtstr, pckt_name, pckt->kind, pckt->tick, pckt->crc, pckt->data_len);
   } else {
     head = snprintf(s, out_len, fmtstr, pckt->kind, pckt->tick, pckt->crc, pckt->data_len);
   }

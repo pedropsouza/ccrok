@@ -54,22 +54,22 @@ ffw_animate_server(solr *s) {
     } else {
       float ease = 1-powf(1-anim_lerp, 3);
 
-      struct ivec srcpos = {
-        .x = ref_stack_areas[anim_stacks.src->id].x,
-        .y = ref_stack_areas[anim_stacks.src->id].y,
+      struct fvec srcpos = {
+        .x = ref_stack_areas[anim_stacks.src->id].x/ref_window_dims.x,
+        .y = ref_stack_areas[anim_stacks.src->id].y/ref_window_dims.y,
       };
-      struct ivec dstpos = {
-        .x = ref_stack_areas[anim_stacks.dst->id].x,
-        .y = ref_stack_areas[anim_stacks.dst->id].y,
+      struct fvec dstpos = {
+        .x = ref_stack_areas[anim_stacks.dst->id].x/ref_window_dims.x,
+        .y = ref_stack_areas[anim_stacks.dst->id].y/ref_window_dims.y,
       };
-      struct ivec pos = {
+      struct fvec pos = {
         .x = lerp(srcpos.x, dstpos.x, ease),
         .y = lerp(srcpos.y, dstpos.y, ease),
       };
       
       int8_t id = SOLR_AUTO_PLAYER;
       s->net.tx->kind = PCKT_POS;
-      s->net.tx->data_len = pack(s->net.tx->data, 8, "QQC", &pos.x, &pos.y, &id);
+      s->net.tx->data_len = pack(s->net.tx->data, 8, "IIC", &pos.x, &pos.y, &id);
       handle_pckt(s, s->net.tx);
       // FIXME: this should be a function of TPS
       const float anim_length_ns = 2.0 * 1e9;

@@ -73,7 +73,7 @@ $(MAHJONGCELL_SO): $(MAHJONGCELL_SO_O) $(COMMON_SO_O)
 	$(CC) $(CFLAGS) -fPIC -shared -o $@ $^ $(LDLIBS)
 
 debug:
-	$(MAKE) XTRAFLAGS:="-g -fsanitize=undefined -fsanitize-undefined-trap-on-error -fno-omit-frame-pointer -O0 -DDEBUG -Wuninitialized"
+	$(MAKE) XTRAFLAGS:="-g -fsanitize=undefined -fsanitize=address -fsanitize-undefined-trap-on-error -fno-omit-frame-pointer -O0 -DDEBUG -Wuninitialized"
 .PHONY: debug
 
 release:

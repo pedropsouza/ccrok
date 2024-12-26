@@ -15,7 +15,7 @@ void h_join(solr *s, netpacket *p) {
   if (vacant == 0xff) { return; } // TODO
 
   s->st.players[vacant].valid = 1;
-  s->st.players[vacant].pos = (ivec){0};
+  s->st.players[vacant].pos = (fvec){0};
     
   if (p->data_len > 4 && p->data_len < SOLR_NAME_LEN + 4) {
     unpack(p->data, 4, "s", &s->st.players[vacant].username);
@@ -156,8 +156,8 @@ void h_cancel(solr *s, netpacket *p) {
 
 void h_pos(solr *s, netpacket *p) {
   int8_t uid;
-  ivec pos;
-  unpack(p->data, 8, "QQC", &pos.x, &pos.y, (uint8_t*)&uid);
+  fvec pos;
+  unpack(p->data, 8, "IIC", &pos.x, &pos.y, (uint8_t*)&uid);
   if (s->sdata.server) {
     // FIXME/TODO: secure the bot
     if (uid != SOLR_AUTO_PLAYER) {
@@ -168,7 +168,7 @@ void h_pos(solr *s, netpacket *p) {
   s->st.players[uid].pos = pos;
   
   if (s->sdata.server) {
-    s->net.tx->data_len = pack(s->net.tx->data, 8, "QQC", &pos.x, &pos.y, (uint8_t*)&uid);
+    s->net.tx->data_len = pack(s->net.tx->data, 8, "IIC", &pos.x, &pos.y, (uint8_t*)&uid);
     mahjcell_broadcast(s, p->kind);
   }
 }
