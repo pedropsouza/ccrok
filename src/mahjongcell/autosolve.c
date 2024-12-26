@@ -2,6 +2,7 @@
 #include "solr.h"
 #include <math.h>
 #include <stdint.h>
+#include "mahjcell_net.h"
 
 size_t
 ffw_anim_serde(pbuf_t *buf, char mode, void *van) {
@@ -28,9 +29,7 @@ ffw(solr *s) {
   s->st.stage = STAGE_FFW;
   player *bot = s->st.players + SOLR_AUTO_PLAYER;
   bot->valid = 1;
-  s->net.tx->kind = PCKT_STDUMP;
-  s->net.tx->data_len = pack(s->net.tx->data, 8, "G", &s->st);
-  broadcast(s);
+  mahjcell_broadcast(s, PCKT_STDUMP);
 }
 
 // Only sends the move and synchronized easing value
@@ -64,9 +63,8 @@ ffw_animate_server(solr *s) {
         .src = anim_stacks.src->id, .dst = anim_stacks.dst->id
       };
 
-      s->net.tx->kind = PCKT_FFWANIM;
       s->net.tx->data_len = pack(s->net.tx->data, 1, "a", &an);
-      broadcast(s);
+      mahjcell_broadcast(s, PCKT_FFWANIM);
       // FIXME: this should be a function of TPS
       const float anim_length_ns = 2.0 * 1e9;
       anim_lerp += s->sdata.frametime_ns/anim_length_ns;

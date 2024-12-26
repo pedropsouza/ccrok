@@ -1,6 +1,7 @@
 #include "solr.h"
 #include "ivec.h"
 #include "net.h"
+#include "mahjcell_net.h"
 
 static void
 serde_init() {
@@ -39,26 +40,6 @@ gamestate_serde(pbuf_t *buf, char mode, void *vst) {
 SDL_Rect
 posdims2rect(ivec pos, ivec dims) {
   return (SDL_Rect){pos.x, pos.y, dims.x, dims.y};
-}
-
-void
-broadcast(solr *s) {
-  for (int i = 0; i < SOLR_REAL_PLAYERS; i++) {
-    if (!s->st.players[i].valid) continue;
-    s->net.sock_fd = s->srv.sock_fds[i];
-    if (s->net.tx->kind == PCKT_POS) { netmgr_send(&s->net); continue; }
-    char *pcktstr = netpacket_owned_debug_str(
-        s->net.tx,
-        packet_kind_to_name
-      );
-    if (s->net.tx->kind != PCKT_STDUMP) {
-      printf("broadcasting %s to %d, fd %d)\n", pcktstr, i, s->net.sock_fd);
-    } else {
-      printf("broadcasting statedump to %d, fd %d\n", i, s->net.sock_fd);
-    }
-    netmgr_send(&s->net);
-    free(pcktstr);
-  }
 }
 
 static void
@@ -355,9 +336,8 @@ solr_setup  (setup_data *sdata) {
     // announce our presence
     if (0) { // only needed for UDP
       *tx = (netpacket){0};
-      tx->kind = PCKT_JOIN;
       tx->data_len = pack(tx->data, 1, MACROSTR(SOLR_NAME_LEN) "s", game->sdata.username);
-      netmgr_send(&game->net);
+      mahjcell_send(game, PCKT_JOIN);
     }
 
     int wait = 0;
@@ -524,10 +504,11 @@ skip_accept:
     if (!game->sdata.server) break;
   }
 
-  if (game->sdata.server && game->st.tick % (30 * 5) == 0) {
-    game->net.tx->kind = PCKT_STDUMP;
-    game->net.tx->data_len = pack(game->net.tx->data, 8, "G", &game->st);
-    broadcast(game);
+  if (game->sdata.server
+    && game->st.stage != STAGE_WON
+    && game->st.tick % (30 * 5) == 0
+  ) {
+    mahjcell_broadcast(game, PCKT_STDUMP);
   }
   
   if (game->sdata.server) goto end;
@@ -563,25 +544,22 @@ skip_accept:
     }
     case SDL_QUIT:
       printf("leaving...\n");
-      tx->kind = PCKT_LEAVE;
-      netmgr_send(&game->net);
+      mahjcell_send(game, PCKT_LEAVE);
       goto leave;
+
     case SDL_MOUSEMOTION: {
         mouse_pos = (ivec){.x = input.motion.x, .y = input.motion.y};
         struct ivec pos = {.x = input.motion.x, .y = input.motion.y};
-	      tx->kind = PCKT_POS;
-      	tx->data_len = pack(tx->data, 8, "QQC", &pos.x, &pos.y, &game->client.uid);
-        netmgr_send(&game->net);
+      	
+        tx->data_len = pack(tx->data, 8, "QQC", &pos.x, &pos.y, &game->client.uid);
+        mahjcell_send(game, PCKT_POS);
       }
       break;
     
     case SDL_MOUSEBUTTONUP: {
       player *myp = game->st.players + game->client.uid;
       if (input.button.button == SDL_BUTTON_RIGHT) {
-        tx->kind = PCKT_CANCEL;
-        tx->data_len = pack(tx->data, 1, "C", &game->client.uid);
-        netmgr_send(&game->net);
-        break;
+        mahjcell_send(game, PCKT_CANCEL);
       }
       ssize_t stack_idx = stack_bbox(game, mouse_pos);
       if (stack_idx < 0) break;
@@ -598,14 +576,11 @@ skip_accept:
       printf("sending move %s\n", move_repr(game, &m));
 
       if(m.stacks.dst == myp->held.camefrom){
-        tx->kind = PCKT_CANCEL;
-        tx->data_len = pack(tx->data, 1, "C", &game->client.uid);
-        netmgr_send(&game->net);
+        mahjcell_send(game, PCKT_CANCEL);
         break;
       }
-      tx->kind = PCKT_MOVE;
       tx->data_len = pack(tx->data, 1, "[C]", &move_serde, &m);
-      netmgr_send(&game->net);
+      mahjcell_send(game, PCKT_MOVE);
       break;
     }
     
@@ -628,21 +603,16 @@ skip_accept:
             .num_cards = 1,
           };
 
-          tx->kind = PCKT_MOVE;
           tx->data_len = pack(tx->data, 1, "[C]", &move_serde, &m);
-          netmgr_send(&game->net);
+          mahjcell_send(game, PCKT_MOVE);
           break;
         }
         case SDLK_r: {
-          tx->kind = PCKT_RESTARTREQ;
-          tx->data_len = 0;
-          netmgr_send(&game->net);
+          mahjcell_send(game, PCKT_RESTARTREQ);
           break;
         }
         case SDLK_f: {
-          tx->kind = PCKT_FFWREQ;
-          tx->data_len = 0;
-          netmgr_send(&game->net);
+          mahjcell_send(game, PCKT_FFWREQ);
           break;
         }
         case SDLK_d: {

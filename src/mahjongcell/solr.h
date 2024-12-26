@@ -170,7 +170,7 @@ enum {
 typedef struct {
   board board;
   player players[SOLR_MAX_PLAYERS];
-  long tick;
+  uint32_t tick; // remember to keep type in sync with serde
   uint8_t stage;
   physical_card flung_card; // client-side only
 } gamestate;

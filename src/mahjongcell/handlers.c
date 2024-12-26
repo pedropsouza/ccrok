@@ -1,4 +1,5 @@
 #include "solr.h"
+#include "mahjcell_net.h"
 
 void h_join(solr *s, netpacket *p) {
   if (!s->sdata.server) return;
@@ -21,13 +22,9 @@ void h_join(solr *s, netpacket *p) {
   }
 
   s->net.sock_fd = s->srv.sock_fds[vacant];
-  s->net.tx->kind = PCKT_ACK;
   s->net.tx->data_len = pack(s->net.tx->data, 1, "C", &vacant);
-  netmgr_send(&s->net);
-
-  s->net.tx->kind = PCKT_STDUMP;
-  s->net.tx->data_len = pack(s->net.tx->data, 8, "G", &s->st);
-  broadcast(s);
+  mahjcell_send(s, PCKT_ACK);
+  mahjcell_send(s, PCKT_STDUMP);
 }
 
 void h_leave(solr *s, netpacket *p) {
@@ -122,9 +119,8 @@ finish_move:
   }
 
   if (s->sdata.server) {
-    s->net.tx->kind = p->kind;
     s->net.tx->data_len = pack(s->net.tx->data, 1, "[C]", &move_serde, &m);
-    broadcast(s);
+    mahjcell_broadcast(s, p->kind);
   }
 
   h_ffwreq(s, NULL);
@@ -134,7 +130,16 @@ void h_cancel(solr *s, netpacket *p) {
   int8_t uid;
   // needed for client action-matching
   unpack(p->data, 1, "C", (uint8_t*)&uid);
-  if (s->sdata.server) uid = true_uid(s);
+  if (s->sdata.server) {
+    int8_t actual_uid = true_uid(s);
+    if (actual_uid != uid) {
+      fprintf(stderr,
+          "%s: reported uid doesn't match"
+          "source uid! (%hhd != %hhd)\n",
+        __func__, actual_uid, uid);
+    }
+    uid = actual_uid;
+  }
   if (uid < 0) return; // FIXME: add error reporting
   player *pl = s->st.players + uid;
   if (pl->valid && pl->held.stack.top > 0) {
@@ -144,9 +149,8 @@ void h_cancel(solr *s, netpacket *p) {
     update_stack_dims(s, cf);
   }
   if (s->sdata.server) {
-    s->net.tx->kind = p->kind;
     s->net.tx->data_len = pack(s->net.tx->data, 1, "C", &uid);
-    broadcast(s);
+    mahjcell_broadcast(s, p->kind);
   }
 }
 
@@ -164,13 +168,16 @@ void h_pos(solr *s, netpacket *p) {
   s->st.players[uid].pos = pos;
   
   if (s->sdata.server) {
-    s->net.tx->kind = p->kind;
     s->net.tx->data_len = pack(s->net.tx->data, 8, "QQC", &pos.x, &pos.y, (uint8_t*)&uid);
-    broadcast(s);
+    mahjcell_broadcast(s, p->kind);
   }
 }
 
 void h_stdump(solr *s, netpacket *p) {
+  if (s->sdata.server) {
+    fprintf(stderr, "received client %d's statedump(?)\n", true_uid(s));
+    return;
+  }
   fprintf(stderr, "st_dump recv and processed\n");
   gamestate nst = {0};
   unpack(p->data, 8, "G", &nst);
@@ -182,9 +189,7 @@ void h_restartreq(solr *s, netpacket *p) {
   if (s->sdata.server) {
     s->st.stage = STAGE_PLAYING;
     setup_board_stacks(s);
-    s->net.tx->kind = PCKT_STDUMP;
-    s->net.tx->data_len = pack(s->net.tx->data, 8, "G", &s->st);
-    broadcast(s);
+    mahjcell_broadcast(s, PCKT_STDUMP);
   }
 }
 
