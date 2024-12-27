@@ -43,8 +43,8 @@ ssize_t mahjcell_send(solr *s, int kind) {
   netmgr *n = &s->net;
   netpacket *tx = n->tx;
   pbuf_t state_ser[NETPACKET_MAX_PAYLOAD];
-  size_t state_ser_len = pack(state_ser, 8, "G", &s->st);
-  uint32_t crc = xcrc32(state_ser, state_ser_len, 0xffffffff);
+  const size_t state_ser_len = pack(state_ser, 8, "G", &s->st);
+  const uint32_t crc = xcrc32(state_ser, state_ser_len, 0xffffffff);
   return mahjcell_send_with(s, kind, state_ser, state_ser_len, crc);
 }
 
@@ -87,8 +87,8 @@ ssize_t mahjcell_broadcast(solr *s, int kind) {
   netmgr *n = &s->net;
   netpacket *tx = n->tx;
   pbuf_t state_ser[NETPACKET_MAX_PAYLOAD];
-  size_t state_ser_len = pack(state_ser, 8, "G", &s->st);
-  uint32_t crc = xcrc32(state_ser, state_ser_len, 0xffffffff);
+  const size_t state_ser_len = pack(state_ser, 8, "G", &s->st);
+  const uint32_t crc = xcrc32(state_ser, state_ser_len, 0xffffffff);
   return mahjcell_broadcast_with(s, kind, state_ser, state_ser_len, crc);
 }
 

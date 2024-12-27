@@ -46,7 +46,7 @@ void h_move(solr *s, netpacket *p) {
   card_stack *stacks = s->st.board.stacks;
   move m;
   char *rej_reason;
-  unpack(p->data, 1, "[C]", &move_serde, &m);
+  unpack(p->data, 1, "[C]", move_serde, &m);
 
   printf("got move %s\n", move_repr(s, &m));
 

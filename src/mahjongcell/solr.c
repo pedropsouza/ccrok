@@ -247,8 +247,8 @@ solr
 solr_setup  (setup_data *sdata) {
   solr game_actual = {0};
   solr *game = &game_actual;
-  game->net.tx = malloc(sizeof(netpacket));
-  game->net.rx = malloc(sizeof(netpacket));
+  game->net.tx = calloc(1, sizeof(netpacket));
+  game->net.rx = calloc(1, sizeof(netpacket));
   assert(game->net.tx && game->net.rx);
   netpacket *tx = (netpacket *)game->net.tx;
   netpacket *rx = (netpacket *)game->net.rx;
@@ -533,7 +533,7 @@ skip_accept:
         if (!synced) {
           printf("tick %u crc %u (srv) != %u (client)\n", game->st.tick, server_crc, client_crc);
           mahjcell_send(game, PCKT_STDUMP);
-          //break; // this player needs to be brought up to speed
+          break; // this player needs to be brought up to speed
         }
       }
 
@@ -547,6 +547,7 @@ skip_accept:
 
       handle_anyway:
       handle_pckt(game, rx);
+      memset(rx, 0, sizeof(netpacket));
 
       continue;
     reject_packet_client:
@@ -601,8 +602,8 @@ skip_accept:
           .y = input.motion.y,
         };
         fvec pos = {
-          .x = mouse_pos.x/rdr->win_dims.x,
-          .y = mouse_pos.y/rdr->win_dims.y,
+          .x = (float)mouse_pos.x/rdr->win_dims.x,
+          .y = (float)mouse_pos.y/rdr->win_dims.y,
         };
 
         tx->data_len = pack(tx->data, 8, "IIC", &pos.x, &pos.y, &game->client.uid);
@@ -657,7 +658,7 @@ skip_accept:
             .num_cards = 1,
           };
 
-          tx->data_len = pack(tx->data, 1, "[C]", &move_serde, &m);
+          tx->data_len = pack(tx->data, 1, "[C]", move_serde, &m);
           mahjcell_send(game, PCKT_MOVE);
           break;
         }
@@ -815,8 +816,9 @@ solr_render (solr *game, double a) {
     player *p = game->st.players + i;
     if (p->valid) {
       if (p->held.stack.top > 0){
-        ivec qpos = (ivec){.x = p->pos.x * r->win_dims.x, .y = p->pos.y * r->win_dims.y};
-        ivec offset = ivec_sub(qpos, ivec_div(r->card_dims, (ivec){2,2}));
+        fvec qpos = (fvec){.x = p->pos.x * r->win_dims.x, .y = p->pos.y * r->win_dims.y};
+        ivec pos = (ivec){.x = qpos.x, .y = qpos.y};
+        ivec offset = ivec_sub(pos, ivec_div(r->card_dims, (ivec){2,2}));
         card_stack_render(r, &p->held.stack, offset);
       }
       player_render(r, p);
