@@ -428,6 +428,7 @@ solr_fixed(solr *game, long step_ns) {
   game->st.tick += 1;
 
   if (game->sdata.server) {
+    // server code
     int retv = poll(&game->srv.listen_sock_pfd, 1, 1);
     if (retv < 0) {
       perror("listen socket poll");
@@ -461,6 +462,7 @@ solr_fixed(solr *game, long step_ns) {
     fcntl(new_sock_fd, F_SETFL, O_NONBLOCK);
     game->srv.sock_addresses[vacant] = new_sock;
     game->srv.sock_fds[vacant] = new_sock_fd;
+    game->srv.sock_last_comm[vacant] = time(NULL);
 
     netpacket virtual_join = {0};
       virtual_join.kind = PCKT_JOIN;
@@ -468,51 +470,64 @@ solr_fixed(solr *game, long step_ns) {
           virtual_join.data, 1, MACROSTR(SOLR_NAME_LEN) "s", "anon");
     handle_pckt(game, &virtual_join);
 skip_accept:
-    
-  }
 
-  if (game->st.stage == STAGE_FFW) {
-    ffw_animate_server(game);
-  }
-
-  for (size_t pid = 0; pid < SOLR_MAX_PLAYERS; pid++) {
-    if (game->sdata.server) {
-      if (!game->st.players[pid].valid) continue;
-
-      game->net.sock_fd = game->srv.sock_fds[pid];
+    if (game->st.stage == STAGE_FFW) {
+        ffw_animate_server(game);
     }
+    for (size_t pid = 0; pid < SOLR_MAX_PLAYERS; pid++) {
+      if (!game->st.players[pid].valid)
+        continue;
+
+      // bind further comms to client sock
+      game->net.sock_fd = game->srv.sock_fds[pid];
+      
+      // just to not leave unbounded
+      for (size_t i = 0; i < 10000; i++) {
+        const char *reject_reason;
+        netmgr_sprecv(&game->net);
+
+        bool should_break = rx->kind == PCKT_END || rx->kind == PCKT_DISCONNECT;
+        if (should_break) break;
+        if (rx->data_len > NETPACKET_MAX_PAYLOAD) {
+          reject_reason = "packet too large:";
+          goto reject_packet;
+        }
+
+        handle_pckt(game, rx);
+
+        continue;
+      reject_packet:
+        fputs(reject_reason, stderr);
+      }
+    }
+    if  (game->st.stage != STAGE_WON
+      && game->st.tick % (30 * 5) == 0) {
+      mahjcell_broadcast(game, PCKT_STDUMP);
+    }
+    goto end;
+  } else {
+    // client code
     // just to not leave unbounded
     for (size_t i = 0; i < 10000; i++) {
-      const char* reject_reason;
+      const char *reject_reason;
       netmgr_sprecv(&game->net);
 
       bool should_break = rx->kind == PCKT_END || rx->kind == PCKT_DISCONNECT;
-      if (should_break) break;
+      if (should_break)
+        break;
       if (rx->data_len > NETPACKET_MAX_PAYLOAD) {
         reject_reason = "packet too large:";
-        goto reject_packet;
+        goto reject_packet_client;
       }
 
       handle_pckt(game, rx);
 
       continue;
-      reject_packet:
-        fputs(reject_reason, stderr);
+    reject_packet_client:
+      fputs(reject_reason, stderr);
     }
-    // client only needs to talk to server
-
-    if (!game->sdata.server) break;
   }
 
-  if (game->sdata.server
-    && game->st.stage != STAGE_WON
-    && game->st.tick % (30 * 5) == 0
-  ) {
-    mahjcell_broadcast(game, PCKT_STDUMP);
-  }
-  
-  if (game->sdata.server) goto end;
-  
   if (game->st.stage == STAGE_WON) {
     game->st.players[SOLR_AUTO_PLAYER].valid = 0;
     if (flung_behaviour(game) == -1) {

@@ -204,6 +204,7 @@ typedef struct {
   int sock_fds[SOLR_MAX_PLAYERS];
   struct sockaddr_storage sock_addresses[SOLR_MAX_PLAYERS];
   struct pollfd listen_sock_pfd;
+  time_t sock_last_comm[SOLR_MAX_PLAYERS];
 
   // costly call optimizations
   card_stack_pair ffwd_able_stacks;
