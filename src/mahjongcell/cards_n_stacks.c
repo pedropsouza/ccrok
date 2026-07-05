@@ -135,7 +135,7 @@ next_ffw_stacks(solr *s) {
           .stacks.dst = ss->id,
           .num_cards = 1
         };
-        printf("%s:\n test %s\n", __func__, move_repr(s, &m));
+        //printf("%s:\n test %s\n", __func__, move_repr(s, &m));
         char *reason;
         if (move_valid(s, &m, &reason)) {
           dsts = stack_from_id(s, ss->id);

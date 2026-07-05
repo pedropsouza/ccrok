@@ -204,12 +204,6 @@ void h_ffwreq(solr *s, netpacket *p) {
   }
 }
 
-void h_ffwanim(solr *s, netpacket *p) {
-  ffw_anim an = {0};
-  unpack(p->data, 8, "a", &an);
-  ffw_animate_client(s, &an);
-}
-
 void h_unrecognized(solr *s, netpacket *p) {
   printf("got unhandled packet kinded %u len %zu\n", p->kind, p->data_len);
 }
@@ -226,7 +220,6 @@ pckt_handler handler_vec[PCKT_MAX] = {
   [PCKT_STDUMP] = h_stdump,
   [PCKT_RESTARTREQ] = h_restartreq,
   [PCKT_FFWREQ] = h_ffwreq,
-  [PCKT_FFWANIM] = h_ffwanim,
   [PCKT_DISCONNECT] = h_disconnect,
 };
 #pragma GCC diagnostic pop

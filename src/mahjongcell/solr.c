@@ -11,7 +11,6 @@ serde_init() {
   t['f'] = card_stack_serde;
   t['p'] = player_serde;
   t['G'] = gamestate_serde;
-  t['a'] = ffw_anim_serde;
 }
 
 size_t
@@ -509,8 +508,22 @@ skip_accept:
     // client code
     // just to not leave unbounded
     for (size_t i = 0; i < 10000; i++) {
-      const char *reject_reason;
-      netmgr_sprecv(&game->net);
+      const char* reject_reason;
+      netmgr_sprecv(&game->net); // populates rx
+      
+      if (game->sdata.server) {
+        if (game->st.tick < rx->tick) {
+          fprintf(stderr, "client %d ahead of server by %d ticks(?)\n", true_uid(game), rx->tick - game->st.tick);
+          break; // disregard this player
+        }
+        uint32_t server_crc = game->srv.historic_crcs[rx->tick % SOLR_ROLLBACK_TICKS];
+        uint32_t client_crc = rx->crc;
+        int synced = server_crc == client_crc;
+        if (!synced) {
+          printf("tick %u crc %u (srv) != %u (client)\n", game->st.tick, server_crc, client_crc);
+          mahjcell_send(game, PCKT_STDUMP);
+        }
+      }
 
       bool should_break = rx->kind == PCKT_END || rx->kind == PCKT_DISCONNECT;
       if (should_break)
@@ -527,7 +540,13 @@ skip_accept:
       fputs(reject_reason, stderr);
     }
   }
-
+ 
+  // this should be shared, no clue how it works
+  pbuf_t st_ser[NETPACKET_MAX_PAYLOAD];
+  size_t st_len = pack(st_ser, 8, "G", &game->st);
+  game->srv.historic_crcs[game->st.tick % SOLR_ROLLBACK_TICKS]
+    = xcrc32(st_ser, st_len, 0xffffffff);
+  
   if (game->st.stage == STAGE_WON) {
     game->st.players[SOLR_AUTO_PLAYER].valid = 0;
     if (flung_behaviour(game) == -1) {

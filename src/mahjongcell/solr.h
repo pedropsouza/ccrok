@@ -24,6 +24,7 @@
 #define SOLR_REAL_PLAYERS 7
 #define SOLR_AUTO_PLAYER 7
 #define SOLR_MAX_PLAYERS 8
+#define SOLR_ROLLBACK_TICKS 1024
 #include "net.h"
 
 // For expanding macros inside string literals
@@ -206,6 +207,8 @@ typedef struct {
   struct pollfd listen_sock_pfd;
   time_t sock_last_comm[SOLR_MAX_PLAYERS];
 
+  uint32_t historic_crcs[SOLR_ROLLBACK_TICKS];
+
   // costly call optimizations
   card_stack_pair ffwd_able_stacks;
 } server;
@@ -262,17 +265,12 @@ int is_solved(solr *s);
 void handle_pckt(solr *s, netpacket *p);
 
 // autosolve
-
-typedef struct {
-  uint64_t lerpval;
-  int src,dst;
-} ffw_anim;
-size_t ffw_anim_serde(pbuf_t *buf, char mode, void *st);
-
+// these come from graphics.c, yes they are needed (for now)
+extern const ivec ref_window_dims;
+extern ivec ref_stack_areas[STACK_BOARD_MAX];
 int is_ffw_able(solr *s);
 void ffw(solr *s);
 void ffw_animate_server(solr *s);
-void ffw_animate_client(solr *s, ffw_anim *an);
 
 // gui
 
